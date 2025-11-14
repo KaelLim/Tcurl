@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html class="dark" lang="zh-TW">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>TCurl - 慈濟短網址服務</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com" rel="preconnect"/>
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1337ec",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101322",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings:
+            'FILL' 0,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 24
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display">
+    <!-- Floating Hamburger Button (Mobile/Tablet only) - Outside sidebar -->
+    <button id="menuToggle" class="lg:hidden fixed top-4 left-4 z-50 text-white p-3 bg-[#111218] hover:bg-[#1a1d2e] rounded-lg transition-colors shadow-lg border border-white/10">
+        <span class="material-symbols-outlined text-2xl">menu</span>
+    </button>
+
+    <div class="flex min-h-screen">
+        <!-- SideNavBar -->
+        <aside id="sidebar" class="fixed lg:static inset-y-0 left-0 z-40 w-64 flex-shrink-0 bg-[#111218] p-4 flex flex-col justify-between border-r border-r-[#3b3f54] transform -translate-x-full lg:translate-x-0 transition-transform duration-300">
+            <div class="flex flex-col gap-4 lg:gap-8">
+                <!-- Close button in sidebar (Mobile/Tablet only) -->
+                <div class="lg:hidden flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary text-2xl">link</span>
+                        <div>
+                            <h1 class="text-white text-lg font-bold">TCurl</h1>
+                            <p class="text-white/60 text-[10px]">慈濟短網址</p>
+                        </div>
+                    </div>
+                    <button id="sidebarClose" class="text-white p-2 hover:bg-white/10 rounded-lg transition-colors">
+                        <span class="material-symbols-outlined text-2xl">close</span>
+                    </button>
+                </div>
+
+                <!-- Desktop logo -->
+                <div class="hidden lg:flex items-center gap-2 p-2">
+                    <span class="material-symbols-outlined text-primary text-3xl">link</span>
+                    <div>
+                        <h1 class="text-white text-xl font-bold">TCurl</h1>
+                        <p class="text-white/60 text-xs">慈濟短網址</p>
+                    </div>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-[#282b39] text-white" href="/">
+                        <span class="material-symbols-outlined text-white">home</span>
+                        <p class="text-sm font-medium leading-normal">首頁</p>
+                    </a>
+                    <a class="flex items-center gap-3 px-3 py-2 rounded-lg text-white hover:bg-[#282b39]" href="/links">
+                        <span class="material-symbols-outlined text-white">link</span>
+                        <p class="text-sm font-medium leading-normal">我的連結</p>
+                    </a>
+                    <a class="flex items-center gap-3 px-3 py-2 rounded-lg text-white hover:bg-[#282b39]" href="/analytics">
+                        <span class="material-symbols-outlined text-white">bar_chart</span>
+                        <p class="text-sm font-medium leading-normal">數據分析</p>
+                    </a>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Mobile Overlay -->
+        <div id="overlay" class="lg:hidden fixed inset-0 bg-black/50 z-30 hidden"></div>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-8">
+            <div class="max-w-4xl mx-auto">
+                <!-- PageHeading -->
+                <div class="flex flex-wrap justify-between gap-3 text-center mb-8">
+                    <div class="flex w-full flex-col items-center gap-3">
+                        <p class="text-white text-4xl sm:text-5xl font-black leading-tight tracking-[-0.033em]">縮短、分享、追蹤</p>
+                        <p class="text-white/60 text-base font-normal leading-normal max-w-md">幾秒內生成短網址和 QR Code。管理和追蹤你的連結的終極工具。</p>
+                    </div>
+                </div>
+
+                <!-- URL Input Form -->
+                <div class="flex flex-col w-full items-stretch gap-4 rounded-xl border border-white/10 bg-white/5 p-4 sm:p-6 shadow-2xl shadow-black/20 mb-8">
+                    <label class="flex flex-col w-full">
+                        <p class="text-white text-sm font-medium leading-normal pb-2">原始網址</p>
+                        <input id="originalUrl" class="form-input w-full resize-none overflow-hidden rounded-lg text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-white/20 bg-background-dark h-14 placeholder:text-white/40 p-[15px] text-base font-normal leading-normal transition-all" placeholder="貼上你的長網址..." value=""/>
+                    </label>
+                    <button id="shortenBtn" class="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg h-14 px-5 bg-primary hover:bg-blue-600 transition-colors text-white gap-2 text-base font-bold leading-normal tracking-[0.015em] shadow-[0_0_20px_theme(colors.primary/0.4)]">
+                        <span class="material-symbols-outlined text-2xl">bolt</span>
+                        <span class="truncate">縮短</span>
+                    </button>
+                </div>
+
+                <!-- Results Display Card (Hidden by default) -->
+                <div id="resultCard" class="hidden flex-col gap-6 rounded-xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/20">
+                    <!-- 標題 -->
+                    <h2 class="text-white text-[22px] font-bold leading-tight tracking-[-0.015em]">你的短網址已準備好</h2>
+
+                    <!-- 短網址輸入區 -->
+                    <div class="flex flex-col gap-4">
+                        <label class="flex flex-col w-full">
+                            <p class="text-white text-sm font-medium leading-normal pb-2">短網址</p>
+                            <div class="relative flex items-center w-full">
+                                <input id="shortUrl" class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-primary focus:outline-0 focus:ring-0 border-0 bg-background-dark h-14 placeholder:text-white/40 p-[15px] text-base font-normal leading-normal pr-28" readonly="" value=""/>
+                                <button id="copyBtn" class="absolute right-2 flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded h-10 px-3 bg-white/10 hover:bg-white/20 text-white/80 hover:text-white gap-2 text-sm font-bold leading-normal tracking-[0.015em] transition-colors">
+                                    <span class="material-symbols-outlined text-lg">content_copy</span>
+                                    <span class="truncate">複製</span>
+                                </button>
+                            </div>
+                        </label>
+                        <div class="flex flex-col sm:flex-row gap-3">
+                            <button id="shareBtn" class="flex flex-1 cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-transparent border border-white/20 hover:bg-white/5 text-white/90 gap-2 text-base font-bold leading-normal tracking-[0.015em] transition-colors">
+                                <span class="material-symbols-outlined text-xl">share</span>
+                                <span class="truncate">分享</span>
+                            </button>
+                            <button id="viewLinksBtn" class="flex flex-1 cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-transparent border border-white/20 hover:bg-white/5 text-white/90 gap-2 text-base font-bold leading-normal tracking-[0.015em] transition-colors">
+                                <span class="material-symbols-outlined text-xl">list</span>
+                                <span class="truncate">查看所有連結</span>
+                            </button>
+                            <button id="advancedBtn" class="flex flex-1 cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-transparent border border-white/20 hover:bg-white/5 text-white/90 gap-2 text-base font-bold leading-normal tracking-[0.015em] transition-colors">
+                                <span class="material-symbols-outlined text-xl">tune</span>
+                                <span class="truncate">進階功能</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- QR Code 顯示區 -->
+                    <div id="qrCodeDisplay" class="hidden flex flex-col items-center gap-4 mt-6">
+                        <h3 class="text-white text-lg font-bold leading-tight tracking-[-0.015em]">QR Code</h3>
+                        <div class="bg-white p-4 rounded-lg aspect-square w-64 h-64 flex items-center justify-center">
+                            <img id="qrCodeImage" class="w-full h-full object-contain" alt="QR Code" src=""/>
+                        </div>
+                        <button id="downloadQrBtn" class="flex cursor-pointer items-center justify-center overflow-hidden rounded-lg h-11 px-6 bg-white/10 hover:bg-white/20 text-white/80 hover:text-white gap-2 text-base font-bold leading-normal tracking-[0.015em] transition-colors">
+                            <span class="material-symbols-outlined text-lg">download</span>
+                            <span class="truncate">下載 QR Code</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Loading Indicator -->
+                <div id="loadingIndicator" class="hidden flex items-center justify-center gap-3 text-white/60 mt-8">
+                    <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                    <span>處理中...</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Include API and Home JS -->
+    <script src="/js/api.js"></script>
+    <script src="/js/home.js"></script>
+
+    <!-- Mobile Menu Toggle Script -->
+    <script>
+        const menuToggle = document.getElementById('menuToggle')
+        const sidebarClose = document.getElementById('sidebarClose')
+        const sidebar = document.getElementById('sidebar')
+        const overlay = document.getElementById('overlay')
+
+        function openMenu() {
+            sidebar.classList.remove('-translate-x-full')
+            overlay.classList.remove('hidden')
+            menuToggle.classList.add('hidden')
+        }
+
+        function closeMenu() {
+            sidebar.classList.add('-translate-x-full')
+            overlay.classList.add('hidden')
+            menuToggle.classList.remove('hidden')
+        }
+
+        menuToggle.addEventListener('click', openMenu)
+        sidebarClose.addEventListener('click', closeMenu)
+        overlay.addEventListener('click', closeMenu)
+
+        // Close menu when clicking on nav links (mobile)
+        if (window.innerWidth < 1024) {
+            document.querySelectorAll('#sidebar a').forEach(link => {
+                link.addEventListener('click', () => {
+                    if (!sidebar.classList.contains('-translate-x-full')) {
+                        closeMenu()
+                    }
+                })
+            })
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,295 @@
+import QRCode from 'qrcode'
+import fs from 'fs/promises'
+import path from 'path'
+import sharp from 'sharp'
+
+/**
+ * QR Code 樣式選項
+ */
+export interface QRCodeOptions {
+  size?: number
+  quality?: 'L' | 'M' | 'Q' | 'H'
+  // 進階樣式選項
+  darkColor?: string
+  lightColor?: string
+  withLogo?: boolean
+  logoPath?: string
+  logoSize?: number        // Logo 大小比例 (0-1)
+  logoCircle?: boolean     // 是否將 Logo 轉換成圓形
+  cornerRadius?: number    // QR Code 圓角半徑 (0-100)
+}
+
+/**
+ * 預設的慈濟風格 QR Code 選項
+ */
+const DEFAULT_OPTIONS: Required<Omit<QRCodeOptions, 'logoPath'>> = {
+  size: 500,
+  quality: 'H',
+  darkColor: '#1337ec',        // 慈濟藍
+  lightColor: '#ffffff',
+  withLogo: false,
+  logoSize: 0.25,              // Logo 佔 25%
+  logoCircle: true,
+  cornerRadius: 10             // 圓角
+}
+
+/**
+ * 將 Logo 轉換成圓形並加上白色邊框
+ */
+async function createCircleLogo(inputPath: string, size: number): Promise<Buffer> {
+  // 創建圓形遮罩
+  const circleSvg = Buffer.from(`
+    <svg width="${size}" height="${size}">
+      <circle cx="${size/2}" cy="${size/2}" r="${size/2}" fill="white"/>
+    </svg>
+  `)
+
+  // 調整 Logo 大小並應用圓形遮罩
+  const circleLogoBuffer = await sharp(inputPath)
+    .resize(size, size, { fit: 'cover', position: 'center' })
+    .composite([{
+      input: circleSvg,
+      blend: 'dest-in'
+    }])
+    .png()
+    .toBuffer()
+
+  // 加入白色圓形外框 (邊框寬度 10px)
+  const borderWidth = 10
+  const borderSize = size + (borderWidth * 2)
+  const borderSvg = Buffer.from(`
+    <svg width="${borderSize}" height="${borderSize}">
+      <circle cx="${borderSize/2}" cy="${borderSize/2}" r="${borderSize/2}" fill="white"/>
+    </svg>
+  `)
+
+  const finalLogo = await sharp(borderSvg)
+    .composite([{
+      input: circleLogoBuffer,
+      top: borderWidth,
+      left: borderWidth
+    }])
+    .png()
+    .toBuffer()
+
+  return finalLogo
+}
+
+/**
+ * 生成彩色 QR Code（使用 sharp 進行顏色替換）
+ */
+async function colorizeQRCode(qrBuffer: Buffer, darkColor: string, lightColor: string): Promise<Buffer> {
+  // 使用 sharp 替換顏色
+  // 黑色 (#000000) -> darkColor
+  // 白色 (#FFFFFF) -> lightColor
+
+  const image = sharp(qrBuffer)
+  const metadata = await image.metadata()
+
+  // 如果是預設顏色，直接返回
+  if (darkColor === '#000000' && lightColor === '#ffffff') {
+    return qrBuffer
+  }
+
+  // 將顏色轉換為 RGB
+  const hexToRgb = (hex: string) => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    } : { r: 0, g: 0, b: 0 }
+  }
+
+  const dark = hexToRgb(darkColor)
+  const light = hexToRgb(lightColor)
+
+  // 使用 tint 和 composite 來改變顏色
+  // 這裡使用簡單的顏色替換
+  return await image
+    .tint(dark)  // 將黑色區域染成 darkColor
+    .toBuffer()
+}
+
+/**
+ * 生成 QR Code 並儲存為檔案
+ */
+export async function generateQRCode(
+  url: string,
+  shortCode: string,
+  options: QRCodeOptions = {}
+): Promise<string> {
+  // 合併預設選項
+  const opts = { ...DEFAULT_OPTIONS, ...options }
+
+  // QR Code 儲存路徑
+  const qrDir = path.join(process.cwd(), 'public', 'qrcodes')
+  const fileName = `${shortCode}.png`
+  const filePath = path.join(qrDir, fileName)
+
+  // 確保目錄存在
+  await fs.mkdir(qrDir, { recursive: true })
+
+  // 1. 生成基本 QR Code (使用 qrcode 套件)
+  const qrBuffer = await QRCode.toBuffer(url, {
+    width: opts.size,
+    errorCorrectionLevel: opts.quality,
+    margin: 2,
+    color: {
+      dark: opts.darkColor,
+      light: opts.lightColor
+    }
+  })
+
+  let finalBuffer = qrBuffer
+
+  // 2. 如果需要加入 Logo
+  if (opts.withLogo && opts.logoPath) {
+    try {
+      const qrSize = opts.size
+      const logoSize = Math.floor(qrSize * opts.logoSize)
+
+      // 處理 Logo
+      let logoBuffer: Buffer
+      if (opts.logoCircle) {
+        logoBuffer = await createCircleLogo(opts.logoPath, logoSize)
+      } else {
+        logoBuffer = await sharp(opts.logoPath)
+          .resize(logoSize, logoSize, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 0 } })
+          .png()
+          .toBuffer()
+      }
+
+      // 將 Logo 疊加到 QR Code 中央
+      const logoPosition = Math.floor((qrSize - logoSize) / 2)
+
+      finalBuffer = await sharp(qrBuffer)
+        .composite([{
+          input: logoBuffer,
+          top: logoPosition,
+          left: logoPosition
+        }])
+        .png()
+        .toBuffer()
+
+    } catch (error) {
+      console.error('Failed to process logo:', error)
+      // 如果 Logo 處理失敗，繼續使用不帶 Logo 的 QR Code
+    }
+  }
+
+  // 3. 加入圓角 (如果需要)
+  if (opts.cornerRadius > 0) {
+    const cornerSvg = Buffer.from(`
+      <svg width="${opts.size}" height="${opts.size}">
+        <rect x="0" y="0" width="${opts.size}" height="${opts.size}"
+              rx="${opts.cornerRadius}" ry="${opts.cornerRadius}" fill="white"/>
+      </svg>
+    `)
+
+    finalBuffer = await sharp(finalBuffer)
+      .composite([{
+        input: cornerSvg,
+        blend: 'dest-in'
+      }])
+      .png()
+      .toBuffer()
+  }
+
+  // 儲存檔案
+  await fs.writeFile(filePath, finalBuffer)
+
+  // 返回相對路徑
+  return `/qrcodes/${fileName}`
+}
+
+/**
+ * 生成 QR Code 為 Base64 字串（不儲存檔案）
+ */
+export async function generateQRCodeBase64(
+  url: string,
+  options: QRCodeOptions = {}
+): Promise<string> {
+  // 合併預設選項
+  const opts = { ...DEFAULT_OPTIONS, ...options }
+
+  // 1. 生成基本 QR Code
+  const qrBuffer = await QRCode.toBuffer(url, {
+    width: opts.size,
+    errorCorrectionLevel: opts.quality,
+    margin: 2,
+    color: {
+      dark: opts.darkColor,
+      light: opts.lightColor
+    }
+  })
+
+  let finalBuffer = qrBuffer
+
+  // 2. 如果需要加入 Logo
+  if (opts.withLogo && opts.logoPath) {
+    try {
+      const qrSize = opts.size
+      const logoSize = Math.floor(qrSize * opts.logoSize)
+
+      let logoBuffer: Buffer
+      if (opts.logoCircle) {
+        logoBuffer = await createCircleLogo(opts.logoPath, logoSize)
+      } else {
+        logoBuffer = await sharp(opts.logoPath)
+          .resize(logoSize, logoSize, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 0 } })
+          .png()
+          .toBuffer()
+      }
+
+      const logoPosition = Math.floor((qrSize - logoSize) / 2)
+
+      finalBuffer = await sharp(qrBuffer)
+        .composite([{
+          input: logoBuffer,
+          top: logoPosition,
+          left: logoPosition
+        }])
+        .png()
+        .toBuffer()
+
+    } catch (error) {
+      console.error('Failed to process logo:', error)
+    }
+  }
+
+  // 3. 加入圓角 (如果需要)
+  if (opts.cornerRadius > 0) {
+    const cornerSvg = Buffer.from(`
+      <svg width="${opts.size}" height="${opts.size}">
+        <rect x="0" y="0" width="${opts.size}" height="${opts.size}"
+              rx="${opts.cornerRadius}" ry="${opts.cornerRadius}" fill="white"/>
+      </svg>
+    `)
+
+    finalBuffer = await sharp(finalBuffer)
+      .composite([{
+        input: cornerSvg,
+        blend: 'dest-in'
+      }])
+      .png()
+      .toBuffer()
+  }
+
+  return `data:image/png;base64,${finalBuffer.toString('base64')}`
+}
+
+/**
+ * 刪除 QR Code 檔案
+ */
+export async function deleteQRCode(qrCodePath: string): Promise<void> {
+  try {
+    const filePath = path.join(process.cwd(), 'public', qrCodePath)
+    await fs.unlink(filePath)
+  } catch (error) {
+    // 忽略檔案不存在的錯誤
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      throw error
+    }
+  }
+}

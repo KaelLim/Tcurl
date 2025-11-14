@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html class="dark" lang="zh-TW">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>數據分析 - TCurl</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com" rel="preconnect"/>
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1337ec",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101322",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="font-display bg-background-light dark:bg-background-dark">
+    <div class="flex min-h-screen">
+        <!-- SideNavBar -->
+        <aside class="w-64 flex-shrink-0 bg-[#111218] p-4 flex flex-col justify-between border-r border-r-[#3b3f54]">
+            <div class="flex flex-col gap-8">
+                <div class="flex items-center gap-2 p-2">
+                    <span class="material-symbols-outlined text-primary text-3xl">link</span>
+                    <div>
+                        <h1 class="text-white text-xl font-bold">TCurl</h1>
+                        <p class="text-white/60 text-xs">慈濟短網址</p>
+                    </div>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <a class="flex items-center gap-3 px-3 py-2 rounded-lg text-white hover:bg-[#282b39]" href="/">
+                        <span class="material-symbols-outlined text-white">home</span>
+                        <p class="text-sm font-medium leading-normal">首頁</p>
+                    </a>
+                    <a class="flex items-center gap-3 px-3 py-2 rounded-lg text-white hover:bg-[#282b39]" href="/links">
+                        <span class="material-symbols-outlined text-white">link</span>
+                        <p class="text-sm font-medium leading-normal">我的連結</p>
+                    </a>
+                    <a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-[#282b39] text-white" href="/analytics">
+                        <span class="material-symbols-outlined text-white">bar_chart</span>
+                        <p class="text-sm font-medium leading-normal">數據分析</p>
+                    </a>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex flex-1 justify-center py-8">
+            <div class="flex w-full max-w-7xl flex-col gap-8 px-4 sm:px-6 lg:px-8">
+                <!-- PageHeading -->
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <div class="flex flex-col gap-2">
+                        <p class="text-white text-3xl md:text-4xl font-bold leading-tight tracking-[-0.033em]">數據分析總覽</p>
+                        <p class="text-white/60 text-sm font-normal leading-normal">查看所有短網址的使用統計</p>
+                    </div>
+                </div>
+
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <div class="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/5 p-5">
+                        <p class="text-white/80 text-base font-medium leading-normal">總連結數</p>
+                        <p id="totalUrls" class="text-white tracking-light text-3xl font-bold leading-tight">-</p>
+                        <p class="text-white/60 text-base font-medium leading-normal">已建立的短網址</p>
+                    </div>
+                    <div class="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/5 p-5">
+                        <p class="text-white/80 text-base font-medium leading-normal">總點擊數</p>
+                        <p id="totalClicks" class="text-white tracking-light text-3xl font-bold leading-tight">-</p>
+                        <p class="text-white/60 text-base font-medium leading-normal">所有連結的點擊</p>
+                    </div>
+                    <div class="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/5 p-5">
+                        <p class="text-white/80 text-base font-medium leading-normal">平均點擊數</p>
+                        <p id="avgClicks" class="text-white tracking-light text-3xl font-bold leading-tight">-</p>
+                        <p class="text-white/60 text-base font-medium leading-normal">每個連結平均</p>
+                    </div>
+                    <div class="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/5 p-5">
+                        <p class="text-white/80 text-base font-medium leading-normal">QR 掃描數</p>
+                        <p id="totalQrScans" class="text-white tracking-light text-3xl font-bold leading-tight">-</p>
+                        <p class="text-white/60 text-base font-medium leading-normal">透過 QR Code 訪問</p>
+                    </div>
+                </div>
+
+                <!-- Top URLs Table -->
+                <div class="flex flex-col gap-4 rounded-xl border border-white/10 bg-white/5 p-6">
+                    <h3 class="text-white text-lg font-medium leading-normal">熱門連結 Top 10</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="border-b border-white/10">
+                                    <th class="text-left text-white/80 text-sm font-medium p-3">排名</th>
+                                    <th class="text-left text-white/80 text-sm font-medium p-3">短代碼</th>
+                                    <th class="text-left text-white/80 text-sm font-medium p-3">原始網址</th>
+                                    <th class="text-left text-white/80 text-sm font-medium p-3">點擊數</th>
+                                    <th class="text-left text-white/80 text-sm font-medium p-3">佔比</th>
+                                </tr>
+                            </thead>
+                            <tbody id="topUrlsBody">
+                                <tr>
+                                    <td colspan="5" class="text-center p-8 text-white/60">載入中...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="flex flex-col gap-4 rounded-xl border border-white/10 bg-white/5 p-6">
+                    <h3 class="text-white text-lg font-medium leading-normal">最近建立的連結</h3>
+                    <div class="flex flex-col gap-3" id="recentUrls">
+                        <div class="text-center p-4 text-white/60">載入中...</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Include API and Analytics JS -->
+    <script src="/js/api.js"></script>
+    <script>
+        // Analytics JavaScript (內嵌，因為較簡單)
+        let allUrls = []
+
+        async function loadAnalytics() {
+            try {
+                const response = await api.getUrls()
+                allUrls = Array.isArray(response) ? response : (response.data || [])
+
+                updateStats()
+                renderTopUrls()
+                renderRecentUrls()
+            } catch (error) {
+                console.error('Error loading analytics:', error)
+                utils.showNotification('載入數據失敗', 'error')
+            }
+        }
+
+        function updateStats() {
+            // 總連結數
+            document.getElementById('totalUrls').textContent = allUrls.length
+
+            // 總點擊數
+            const totalClicks = allUrls.reduce((sum, url) => sum + (url.clicks || 0), 0)
+            document.getElementById('totalClicks').textContent = totalClicks.toLocaleString()
+
+            // 平均點擊數
+            const avgClicks = allUrls.length > 0 ? Math.round(totalClicks / allUrls.length) : 0
+            document.getElementById('avgClicks').textContent = avgClicks.toLocaleString()
+
+            // QR 掃描數
+            const totalQrScans = allUrls.reduce((sum, url) => sum + (url.qr_scans || 0), 0)
+            document.getElementById('totalQrScans').textContent = totalQrScans.toLocaleString()
+        }
+
+        function renderTopUrls() {
+            const topUrls = [...allUrls]
+                .sort((a, b) => (b.clicks || 0) - (a.clicks || 0))
+                .slice(0, 10)
+
+            const totalClicks = allUrls.reduce((sum, url) => sum + (url.clicks || 0), 0)
+            const tbody = document.getElementById('topUrlsBody')
+
+            if (topUrls.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center p-8 text-white/60">尚無數據</td></tr>'
+                return
+            }
+
+            tbody.innerHTML = topUrls.map((url, index) => {
+                const percentage = totalClicks > 0 ? ((url.clicks || 0) / totalClicks * 100).toFixed(1) : 0
+                const shortUrl = `${window.location.origin}/s/${url.short_code}`
+                const displayUrl = url.original_url.length > 50
+                    ? url.original_url.substring(0, 50) + '...'
+                    : url.original_url
+
+                return `
+                    <tr class="border-b border-white/5 hover:bg-white/5">
+                        <td class="p-3">
+                            <span class="inline-flex items-center justify-center w-8 h-8 rounded-full ${
+                                index < 3 ? 'bg-primary/20 text-primary' : 'bg-white/10 text-white/60'
+                            } font-bold text-sm">
+                                ${index + 1}
+                            </span>
+                        </td>
+                        <td class="p-3">
+                            <a href="${shortUrl}" target="_blank" class="text-primary hover:underline font-medium">
+                                ${url.short_code}
+                            </a>
+                        </td>
+                        <td class="p-3">
+                            <a href="${url.original_url}" target="_blank" class="text-white/80 hover:text-white text-sm" title="${url.original_url}">
+                                ${displayUrl}
+                            </a>
+                        </td>
+                        <td class="p-3">
+                            <span class="text-white font-bold">${(url.clicks || 0).toLocaleString()}</span>
+                        </td>
+                        <td class="p-3">
+                            <div class="flex items-center gap-2">
+                                <div class="flex-1 h-2 bg-white/10 rounded-full overflow-hidden">
+                                    <div class="h-full bg-primary rounded-full" style="width: ${percentage}%"></div>
+                                </div>
+                                <span class="text-white/60 text-sm w-12 text-right">${percentage}%</span>
+                            </div>
+                        </td>
+                    </tr>
+                `
+            }).join('')
+        }
+
+        function renderRecentUrls() {
+            const recentUrls = [...allUrls]
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                .slice(0, 5)
+
+            const container = document.getElementById('recentUrls')
+
+            if (recentUrls.length === 0) {
+                container.innerHTML = '<div class="text-center p-4 text-white/60">尚無連結</div>'
+                return
+            }
+
+            container.innerHTML = recentUrls.map(url => {
+                const shortUrl = `${window.location.origin}/s/${url.short_code}`
+                const displayUrl = url.original_url.length > 60
+                    ? url.original_url.substring(0, 60) + '...'
+                    : url.original_url
+
+                return `
+                    <div class="flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <a href="${shortUrl}" target="_blank" class="text-primary hover:underline font-medium">
+                                    ${url.short_code}
+                                </a>
+                                <span class="text-white/40 text-xs">•</span>
+                                <span class="text-white/60 text-xs">${utils.formatDate(url.created_at)}</span>
+                            </div>
+                            <a href="${url.original_url}" target="_blank" class="text-white/60 text-sm hover:text-white" title="${url.original_url}">
+                                ${displayUrl}
+                            </a>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <div class="text-right">
+                                <div class="text-white font-bold">${url.clicks || 0}</div>
+                                <div class="text-white/40 text-xs">點擊</div>
+                            </div>
+                        </div>
+                    </div>
+                `
+            }).join('')
+        }
+
+        // 初始載入
+        loadAnalytics()
+    </script>
+</body>
+</html>

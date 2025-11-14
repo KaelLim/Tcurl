@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html class="dark" lang="zh-TW">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>連結已過期 - TCurl</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com" rel="preconnect"/>
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1337ec",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101322",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"]
+                    }
+                },
+            },
+        }
+    </script>
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings:
+            'FILL' 0,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 24
+        }
+    </style>
+</head>
+<body class="bg-background-dark font-display min-h-screen flex items-center justify-center p-4">
+    <div class="max-w-md w-full">
+        <!-- 過期提示卡片 -->
+        <div class="bg-white/5 border border-white/10 rounded-xl p-8 shadow-2xl shadow-black/20">
+            <!-- Icon -->
+            <div class="flex justify-center mb-6">
+                <div class="w-16 h-16 bg-orange-500/20 rounded-full flex items-center justify-center">
+                    <span class="material-symbols-outlined text-orange-500 text-4xl">schedule</span>
+                </div>
+            </div>
+
+            <!-- 標題 -->
+            <h1 class="text-white text-2xl font-bold text-center mb-2">連結已過期</h1>
+            <p class="text-white/60 text-sm text-center mb-6">此短網址已超過有效期限，無法繼續使用</p>
+
+            <!-- 過期資訊 -->
+            <div class="bg-white/5 border border-white/10 rounded-lg p-4 mb-6">
+                <div class="flex items-center gap-3 text-white/80 text-sm">
+                    <span class="material-symbols-outlined text-orange-500">info</span>
+                    <div>
+                        <p class="font-medium">過期時間</p>
+                        <p id="expiredDate" class="text-white/60 text-xs mt-1">載入中...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 操作按鈕 -->
+            <div class="space-y-3">
+                <a
+                    href="/"
+                    class="flex items-center justify-center gap-2 w-full bg-primary hover:bg-blue-600 text-white rounded-lg h-12 px-5 font-bold transition-colors shadow-[0_0_20px_theme(colors.primary/0.4)]"
+                >
+                    <span class="material-symbols-outlined">add</span>
+                    <span>建立新的短網址</span>
+                </a>
+                <a
+                    href="/links"
+                    class="flex items-center justify-center gap-2 w-full bg-white/10 hover:bg-white/20 text-white rounded-lg h-12 px-5 font-bold transition-colors"
+                >
+                    <span class="material-symbols-outlined">list</span>
+                    <span>查看所有連結</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 從 URL 獲取過期時間
+        const urlParams = new URLSearchParams(window.location.search)
+        const expiresAt = urlParams.get('expires_at')
+        const expiredDateEl = document.getElementById('expiredDate')
+
+        if (expiresAt) {
+            try {
+                const date = new Date(expiresAt)
+                expiredDateEl.textContent = date.toLocaleString('zh-TW', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                })
+            } catch (e) {
+                expiredDateEl.textContent = '無法顯示'
+            }
+        } else {
+            expiredDateEl.textContent = '未設定'
+        }
+    </script>
+</body>
+</html>
