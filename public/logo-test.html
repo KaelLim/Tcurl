@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html class="dark" lang="zh-TW">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Logo 測試頁面</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+    <script src="/js/logo-config.js"></script>
+    <style>
+        body { font-family: 'Space Grotesk', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white p-8">
+    <h1 class="text-3xl font-bold mb-8">Logo 測試頁面 v2</h1>
+
+    <div class="space-y-8">
+        <!-- 測試 1: Sidebar Logo -->
+        <div class="border border-gray-700 p-6 rounded-lg">
+            <h2 class="text-xl font-bold mb-4">測試 1: Sidebar Logo（桌面版）</h2>
+            <div class="flex items-center gap-2 p-2 bg-gray-800 rounded inline-flex">
+                <div id="logo-sidebar-test"></div>
+                <div>
+                    <h3 class="text-white text-xl font-bold">TCurl</h3>
+                    <p class="text-white/60 text-xs">慈濟短網址</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 測試 2: Header Logo -->
+        <div class="border border-gray-700 p-6 rounded-lg">
+            <h2 class="text-xl font-bold mb-4">測試 2: Header Logo（手機版）</h2>
+            <div class="flex items-center gap-2 p-2 bg-gray-800 rounded inline-flex">
+                <div id="logo-header-test"></div>
+                <div>
+                    <h3 class="text-white text-lg font-bold">TCurl</h3>
+                    <p class="text-white/60 text-xs">慈濟短網址</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 測試 3: 直接顯示圖片（多種路徑） -->
+        <div class="border border-gray-700 p-6 rounded-lg">
+            <h2 class="text-xl font-bold mb-4">測試 3: 直接載入圖片（不同路徑）</h2>
+            <div class="space-y-4">
+                <div>
+                    <p class="text-sm mb-2">路徑 1: /images/logo.png</p>
+                    <img id="img1" src="/images/logo.png" alt="Logo 1" class="border border-green-500 bg-white p-2">
+                </div>
+                <div>
+                    <p class="text-sm mb-2">路徑 2: 完整 URL</p>
+                    <img id="img2" src="https://url.tzuchi.org/images/logo.png" alt="Logo 2" class="border border-blue-500 bg-white p-2">
+                </div>
+                <div>
+                    <p class="text-sm mb-2">路徑 3: Base64 內嵌</p>
+                    <img id="img3" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAE4AAAApCAYAAACbWx//AAAABmJLR0QA/wD/AP+gvaeTAAANPUlEQVRo3u1bCXDcVhk20Jb7moEZhjN0gGEG6DAM5SzQoQwUSsvVlAR6pRC3BKZHQoGmpUnpQZu0SeNdSbuSdtdnnPg+dn3t4fXajhMncZw4h3Pbie20OZw7TmLHj/970tpr7ZOz69oZhkEzGisr6Un69P/f/33/UzIy0lwcDs/HnYr+kNvtvj7jLS5Lly59u6IosyTJfYtTUefIsvoIrX+3rk5F+5Msa/c6nfr3JUn/HJ13XcY0LHTNX9G4N2Vci8Up6yWSrDFa2/EQ6ZxLIH1CUtTfO2XNKUmqh8bQnbL6jCRp93s82XeVlFQ+EAgE59XWBp+Ir35/7YLS0qrM/PzCu+mF3SfL+lP0sBrOp3HctD1Plr03pnMfsix/OOE59jLG3jajoBkX1C6ZF8R6xOlUv3AVsGYBHDovW1K0F3Rdvz0cjc0PhRrLqv21uwvXlJzTPblXEsa0Xd2qj+Xlr7lUXl7dX1cXao1EYsvy84t+R+Muof15BOKLiqJ/ebL7oUz5IB27KXFcp8vz7RkFTlG0HyY9kKIdBqDJIKs/ILC8AKu4uPzWSKTJXVbh71O17NFUQEpnXV1YfKG+PhytrQ1l0jUXUwTn03o3qMBKDXR81Ho+nfP4zKapoj0qvHlFXTF2DEUgogu81NTUnFlZFTiASEkXDIpCtm/fftbY2JTWeYjgEL0kSukHCLy1FIXfi98bKEF0Dl7wDPOb+pLNDfeZN/ZbWl+NRpvnFRVXDL6VKCotq2L+QD1bs7aUudzetM/PzVtzORprec6MwKf5/cl6jfh4vWZGgSNCdtnc6DHijo/QDa4KhaOFsqJPCSxKY1ZVXcMiFGWU2iwcbuLAaXrOlF8AuJCK2BOIPAIxbHNc27QA5FC0Wz0ez/uTgFN0n82FOyBRfHmFt+qenClzGACvqW1gWM6fv8BOnjzFenoOsc7OLoqgwimPSUXkNrr313mBElKNtllQRK4nnv5RytLH4dA+awyonoaGSjyRLpxlc4NFVN5fi8VaH3wr6RlpjLGKygATLd2790593Ggsi0sYRfunzTExi76bQ7/1c+Bl9a4Uo03/7oRBJS3g8/neZUSc9oL4jekq0jQWa3lxsgfweHOTfsvJXT1eHVcXs7LyaiFwly9fZlOlgGAwUsk1o11xo2fE80HP4TkmFA4qcqkVANI0yQOrLpPjhBGFt4lojEZbVlgrI4CgYsGCoUYWa14nBG7Hzm7m8+WztcRngZp6ijo/I3nBKILZm28eHQNvx45drGB1UdIYisvDfNkFrImOx7Z1f0NDJMAFt6Q+ZvPiXzcklPbn5GdTH0kJOMrtTwsGH3W4PF8ncfkNMXB6IYBram59ehy0HLaTANnWtYNt3NjBeg8dZr29h1lbW/uEKMO6bt0GzmebOzrZwYO9rLV1PaurD0GfcTAaghEecdiH8eLn4bgAVV4S05wLz587z/aShAlHJkoY4jjVdBqLbV58pimMk5WApN+ZEnBFRUXvoBMui7QOCgZtC1S+vh5WqK4uOC/xdy9FUV9fP+vYspX+DhBP7RGmEqJkcPAkj67e3kPs1KnTPMLOnDnDurbv5FFoVNsYO3/hwhjpa3o2f0H1DWG2YcMmAraHg19VVTNhfKKQJ2HPTJsnSFX1OxR1Dwvv7SpOxFI9tW0iyYFCQRywUbBvUHLpd2pa7q8TNRdSFZGEKBkYOMK2dG6z5SF/oI4dPXqUA4ZzcPzo6OhYmgJEAIyog6DeuKmDtbS0sbVFZWzXrt2sbX07ayRKwO+Iuk66Vjyty8r8cyhy/krbrYJrn6VgucFGqgzF+T1VveYQKmynfhv8oPituW+hfcuKistPxn8rLqngaYMHgKAFd0Gr2UUdwIovIyMjPNURYfEF6Uvjs+wcI9VLSivHUhWRiRczcOQNVlHh5+PhJdK1LxIoTzqd3m9afHY8Tauzsrwfpe1hwb7GSYy7fgcR4E9XrFjx7nHbpP3CJqRdEJI2WugfqK5ExPX4NyIhUNMAC8R5CpEAEPGgKBbgL+sYmzd3JlXTffsOjG1v2rxlwvH7Dxzk0bd123YebcFgI+vu3sMlTfwY0oXtBFiB7NbvsCkMf6HnWiC2YuozE3wupTTkCffANOiJeCrCmiBss7Ky3kn/Pi4Kaxh6tGIEwG2jdVFFdc39dhEF4JBGqJaiY8ooKroorRMX8FZ86SH+g0BOFLf468vOT3AfPs6t44UhupDAkQCeKBW545G17cKCSJrWtJJz6d/d47ynzCL/pgWtRI/os+qZhPK8EMJYnMraz+BVE9M1DXPOUxEpDX4ytNsw69zaNQbcdpIjWHBsimOeB7cpivoTgCQoeAVwBzbGP2yKfq+Vz3kTlxvz5BN1U5ZcFOw7YrqLs4J9a+hGckOhyGvpAgfd1tLaxv8i7RB5HR1beaGIL0h5LODKlBxDJCYbUomapYKIItr5lk3B4HwO8ZsMqP5aXH7cQD8MJB3g4tGzyib3n6N9SwX7rqAPprg9S4iUh9K1W9Tx5VJiK0XZhvZNvCp3dBi8NzQ0xCtvqsCRVhxWFM984rbZYtpRywnU2Ta6rhFdZdo+Z9k34nK5Pp9YRReIGpSE+mfQMhIMfh6CmEB6Q/BGKuEkwuHGJakABu7zePO4/gIHItogL1AoUDVxDCoriB9SBAus2dXGDTc2KfQMxQTO84L9w3BIlIa9It6jnuKXbBqe3qROAO3YLXIEqLoIa8EF2hFdNmH+EGxMeYX/8GQPB+KHdoPlOnv2HNtJgAE4uAuAhHStpAhEJc7JLeSgDQ8P84icbFzi2EFF8T4tSd65QroxWu05Ntz2JPHi3wT7LtB4nxLIEi4zrghlhqT9y8Ycvwo+FOw7ILu1xbm5hQ9SxRuxa/dAt4Ho+/uPsOPHTzACmjWTqN1NnRA4joM9vWw76TNEHiolRC4KCNLXDjTq3Y2Wlwfuk12erOTCx+95Ha1/sDm/lFMUpaRAij02iabTlol4i6Lul2hD2+i3RdbJDyPq3KhGeQ2hyLPQWhDBMOIAAYYeRQBVcu/e/dwhDA1dxEQMAZTHmppaeCGA/4RWO3S4j7Vv3MxlDBoF2TkFtr23cDiGRkOpw3AK1mMG0KgQCWHuiCT1Zto+JXjGkHX+wjrPeR2BVyfOe4hitVzEF1xEytp+Ad/9EZWW2jpeEDtSEuoehh9KH0IVHd51bRs4MOA1iGYcC4cARwD3cOBADztxYpBbLHjTcS+cN0HDUTMA957jcLhn89SaWAxOEzDzaVsklbZwv2r24CyFYh+03lXtVlZW/gfQERXk/iVehcRd4BHDiukHrYBLLm0uJAq1lcoReeAq7EN0QfEDFHRPEF1RijREJtpLELrr12/kbgEuAx3g/IK1fF9tXYhHJIw9AEZrnVK4CULX5eLyqi8JNM5r9Df53qPGRHdyocNvDrf7iyl71ZUrfR+CEBYDhAlhLoCtHZRRPieR3CA4RrLgHp62wajXOvGCh45zGIBBKoLL4lW1kWQK0hl6DiCDAxOdAapyfX2oAnbP6eTXsbqAIyYXXxD1EQ0dKwS0Ly3QxiWK9D5whU1RKHNAjUvaLsF+EpR6s+W3M/iEAWnr99ctwqRyqvoOYCLCyAPz6EoEnsz+cENDCIWryOFQfyOI+C6bma1j1B6/h+7/30LFgIwTVdBUF7SSEWFCMpW1o2gAIj0E1bjfbNMkiuDLSBfqb73udnsWU2pFUAGn0gpHygdqGzZ5fHkLMQFDFTzTwl2jpiPoFrXJIaNIxO+waWR4iNPeM13Tgl/lBCpW2S28JS1pDYL9KBhnLF64GToPvOfLyVtIkeRP1WVgrhQz9nl5RY/RS1hNeuth/nficaTb9D1JLxMUQvcJbWqjS/tS7vams/DOsNElfdPOFBOIsqiwCK0ZVT/08w1eVFcUFJY8Ud8Q0kHy1f66nRVVgR5K6+2YF60PRjz0GcVTdNwriAgHnI6ivyLiLUF3+iCuYXZHhkUuCIVt+fLc987opDQ6ojxFRWlgrIdMXomKWvCiyWBJ8iylMR+n9Hmep77RBsKXSDJW+v1lcgKPcjEua7VCgSp2NgG7TEEAUPQ9m5LUmM4FgtBseAZFD2Lwor7e5JKBFPlrhKe30Z4PmpV9pw3HiqL+hPlCW4UTLybx48Wn1RKfnk+9tJswo4WWszEBos0ll/A1U+zWThJlF6f7K6UkIS5OxVHjBcKDqjdTNf05WkPm/Xsp2n8846CZ6nrYRqJAQFaRJloOg0/bCtoz4JAZBkwEYLsxj6qtgo00mhXaPttziDNnONrIs6bxEDx1jLRrN4tGhwnwlWkE6iitWw3thWvx9O5P7z7Vl2b+U1b6bjbFyvlfv/J+HEkUKIZrxnVon+PjFOKLl+EIeHVMvQhc63XQqK7o+mor0VaiRsBXrilgqcgVSfJ9DD6P9/Ql/Xbji3Itc3yd+FW50YYX+kVrW35V8rnqgoSx7wX5Y44XM/BZWtonYR0z/pcXE+g6G9C6MHmS8f9lsgLkvdH4BN/4/w2QOjP+Of0Ulv8AKaZ1AxnRNTYAAAAASUVORK5CYII=" alt="Logo 3" class="border border-yellow-500 bg-white p-2">
+                </div>
+            </div>
+        </div>
+
+        <!-- 診斷資訊 -->
+        <div class="border border-gray-700 p-6 rounded-lg">
+            <h2 class="text-xl font-bold mb-4">診斷資訊</h2>
+            <div id="diagnostics" class="space-y-2 font-mono text-sm"></div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const diagnostics = document.getElementById('diagnostics');
+            const info = [];
+
+            // 檢查 logo-config.js 是否載入
+            if (typeof window.logoConfig !== 'undefined') {
+                info.push('✅ logo-config.js 已載入');
+                info.push(`📋 Logo 類型: ${window.logoConfig.type}`);
+                info.push(`📋 圖片路徑: ${window.logoConfig.imagePath}`);
+            } else {
+                info.push('❌ logo-config.js 未載入');
+            }
+
+            // 檢查 renderLogo 函數
+            if (typeof window.renderLogo === 'function') {
+                info.push('✅ renderLogo 函數存在');
+            } else {
+                info.push('❌ renderLogo 函數不存在');
+            }
+
+            // 渲染 Logo
+            const logoSidebar = document.getElementById('logo-sidebar-test');
+            const logoHeader = document.getElementById('logo-header-test');
+
+            if (logoSidebar && typeof window.renderLogo === 'function') {
+                logoSidebar.innerHTML = window.renderLogo('sidebar');
+                info.push('✅ Sidebar Logo 已渲染');
+            }
+
+            if (logoHeader && typeof window.renderLogo === 'function') {
+                logoHeader.innerHTML = window.renderLogo('header');
+                info.push('✅ Header Logo 已渲染');
+            }
+
+            // 測試圖片載入
+            const img1 = document.getElementById('img1');
+            const img2 = document.getElementById('img2');
+            const img3 = document.getElementById('img3');
+
+            img1.onload = () => info.push('✅ 圖片 1 載入成功 (/images/logo.png)') && updateDiagnostics();
+            img1.onerror = () => info.push('❌ 圖片 1 載入失敗') && updateDiagnostics();
+
+            img2.onload = () => info.push('✅ 圖片 2 載入成功 (完整 URL)') && updateDiagnostics();
+            img2.onerror = () => info.push('❌ 圖片 2 載入失敗') && updateDiagnostics();
+
+            img3.onload = () => info.push('✅ 圖片 3 載入成功 (Base64)') && updateDiagnostics();
+            img3.onerror = () => info.push('❌ 圖片 3 載入失敗') && updateDiagnostics();
+
+            function updateDiagnostics() {
+                diagnostics.innerHTML = info.map(i => `<div>${i}</div>`).join('');
+            }
+
+            // 初始顯示
+            updateDiagnostics();
+        });
+    </script>
+</body>
+</html>

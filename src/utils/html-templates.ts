@@ -137,6 +137,67 @@ export function renderPasswordPage(shortCode: string, isQrScan: boolean = false)
 </html>`
 }
 
+export function renderNotFoundPage(shortCode: string): string {
+  return `<!DOCTYPE html>
+<html class="dark" lang="zh-TW">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>短網址不存在 - TCurl</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1337ec",
+                        "background-dark": "#101322",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background-dark font-display min-h-screen flex items-center justify-center p-4">
+    <div class="max-w-md w-full">
+        <div class="bg-white/5 border border-white/10 rounded-xl p-8 shadow-2xl shadow-black/20">
+            <div class="flex justify-center mb-6">
+                <div class="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center">
+                    <span class="material-symbols-outlined text-red-500 text-4xl">link_off</span>
+                </div>
+            </div>
+
+            <h1 class="text-white text-2xl font-bold text-center mb-2">短網址不存在</h1>
+            <p class="text-white/60 text-sm text-center mb-8">此短網址可能已被刪除或從未建立</p>
+
+            <div class="space-y-3">
+                <a
+                    href="/"
+                    class="flex items-center justify-center gap-2 w-full bg-primary hover:bg-blue-600 text-white rounded-lg h-12 px-5 font-bold transition-colors shadow-[0_0_20px_theme(colors.primary/0.4)]"
+                >
+                    <span class="material-symbols-outlined">add</span>
+                    <span>建立新的短網址</span>
+                </a>
+                <a
+                    href="/links"
+                    class="flex items-center justify-center gap-2 w-full bg-white/10 hover:bg-white/20 text-white rounded-lg h-12 px-5 font-bold transition-colors"
+                >
+                    <span class="material-symbols-outlined">list</span>
+                    <span>查看所有連結</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>`
+}
+
 export function renderExpiredPage(expiresAt: string): string {
   return `<!DOCTYPE html>
 <html class="dark" lang="zh-TW">

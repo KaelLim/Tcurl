@@ -87,7 +87,14 @@ const api = {
 
   // 取得統計數據（從即時 Views）
   async getUrlStats(id, days = 30) {
-    const response = await fetch(`${API_BASE_URL}/api/urls/${id}/stats?days=${days}`)
+    const timestamp = Date.now()
+    const response = await fetch(`${API_BASE_URL}/api/urls/${id}/stats?days=${days}&_=${timestamp}`, {
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+      }
+    })
 
     if (!response.ok) {
       throw new Error('Failed to fetch URL statistics')

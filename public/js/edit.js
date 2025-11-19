@@ -38,8 +38,15 @@ const linkClicksEl = document.getElementById('linkClicks')
 const qrScansEl = document.getElementById('qrScans')
 const lastClickedEl = document.getElementById('lastClicked')
 
-// 從 URL 獲取 ID
+// 從 URL 獲取 ID（支援 /edit/{id} 和 /edit.html?id={id} 兩種格式）
 function getUrlId() {
+  // 優先從 URL 路徑讀取（/edit/{id}）
+  const pathMatch = window.location.pathname.match(/\/edit\/([^\/]+)/)
+  if (pathMatch && pathMatch[1]) {
+    return pathMatch[1]
+  }
+
+  // 備用：從查詢參數讀取（/edit.html?id={id}）
   const params = new URLSearchParams(window.location.search)
   return params.get('id')
 }
@@ -152,12 +159,15 @@ async function loadStats() {
   try {
     const stats = await api.getUrlStats(currentUrlId, 30)
 
-    totalClicksEl.textContent = stats.totalClicks?.toLocaleString() || '0'
-    linkClicksEl.textContent = stats.linkClicks?.toLocaleString() || '0'
-    qrScansEl.textContent = stats.qrScans?.toLocaleString() || '0'
+    // API 返回格式: { total: { total_clicks, link_clicks, qr_scans, last_clicked_at }, daily: [...] }
+    const total = stats.total || {}
 
-    if (stats.lastClickedAt) {
-      lastClickedEl.textContent = utils.formatDate(stats.lastClickedAt)
+    totalClicksEl.textContent = total.total_clicks?.toLocaleString() || '0'
+    linkClicksEl.textContent = total.link_clicks?.toLocaleString() || '0'
+    qrScansEl.textContent = total.qr_scans?.toLocaleString() || '0'
+
+    if (total.last_clicked_at) {
+      lastClickedEl.textContent = utils.formatDate(total.last_clicked_at)
     } else {
       lastClickedEl.textContent = '尚未訪問'
     }

@@ -151,9 +151,9 @@ function createUrlRow(url) {
       </div>
     </td>
     <td class="p-4">
-      <a href="${url.original_url}" target="_blank" onclick="event.stopPropagation()" class="text-[#9da1b9] text-sm hover:text-white" title="${url.original_url}">
+      <span class="text-[#9da1b9] text-sm" title="${url.original_url}">
         ${displayUrl}
-      </a>
+      </span>
     </td>
     <td class="p-4">
       <div class="flex items-center gap-2">

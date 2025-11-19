@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="utf-8"/>
+    <title>超簡單 Logo 測試</title>
+    <style>
+        body {
+            background: #1a1a1a;
+            color: white;
+            font-family: Arial, sans-serif;
+            padding: 40px;
+        }
+        .test-box {
+            background: #2a2a2a;
+            border: 2px solid #444;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        img {
+            background: white;
+            padding: 10px;
+            border: 2px solid red;
+        }
+    </style>
+</head>
+<body>
+    <h1>超簡單 Logo 測試（無任何 JavaScript）</h1>
+
+    <div class="test-box">
+        <h2>測試 1: 直接用 img 標籤（相對路徑）</h2>
+        <img src="/images/logo.png" alt="Logo 1" width="200">
+        <p>如果看到紅框內有圖片 → 圖片路徑正確</p>
+        <p>如果只看到紅框和「Logo 1」文字 → 圖片載入失敗</p>
+    </div>
+
+    <div class="test-box">
+        <h2>測試 2: 完整 URL</h2>
+        <img src="https://url.tzuchi.org/images/logo.png" alt="Logo 2" width="200">
+        <p>如果看到紅框內有圖片 → 圖片可以載入</p>
+    </div>
+
+    <div class="test-box">
+        <h2>測試 3: Base64 內嵌</h2>
+        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAE4AAAApCAYAAACbWx//AAAABmJLR0QA/wD/AP+gvaeTAAANPUlEQVRo3u1bCXDcVhk20Jb7moEZhjN0gGEG6DAM5SzQoQwUSsvVlAR6pRC3BKZHQoGmpUnpQZu0SeNdSbuSdtdnnPg+dn3t4fXajhMncZw4h3Pbie20OZw7TmLHj/970tpr7ZOz69oZhkEzGisr6Un69P/f/33/UzIy0lwcDs/HnYr+kNvtvj7jLS5Lly59u6IosyTJfYtTUefIsvoIrX+3rk5F+5Msa/c6nfr3JUn/HJ13XcY0LHTNX9G4N2Vci8Up6yWSrDFa2/EQ6ZxLIH1CUtTfO2XNKUmqh8bQnbL6jCRp93s82XeVlFQ+EAgE59XWBp+Ir35/7YLS0qrM/PzCu+mF3SfL+lP0sBrOp3HctD1Plr03pnMfsix/OOE59jLG3jajoBkX1C6ZF8R6xOlUv3AVsGYBHDovW1K0F3Rdvz0cjc0PhRrLqv21uwvXlJzTPblXEsa0Xd2qj+Xlr7lUXl7dX1cXao1EYsvy84t+R+Muof15BOKLiqJ/ebL7oUz5IB27KXFcp8vz7RkFTlG0HyY9kKIdBqDJIKs/ILC8AKu4uPzWSKTJXVbh71O17NFUQEpnXV1YfKG+PhytrQ1l0jUXUwTn03o3qMBKDXR81Ho+nfP4zKapoj0qvHlFXTF2DEUgogu81NTUnFlZFTiASEkXDIpCtm/fftbY2JTWeYjgEL0kSukHCLy1FIXfi98bKEF0Dl7wDPOb+pLNDfeZN/ZbWl+NRpvnFRVXDL6VKCotq2L+QD1bs7aUudzetM/PzVtzORprec6MwKf5/cl6jfh4vWZGgSNCdtnc6DHijo/QDa4KhaOFsqJPCSxKY1ZVXcMiFGWU2iwcbuLAaXrOlF8AuJCK2BOIPAIxbHNc27QA5FC0Wz0ez/uTgFN0n82FOyBRfHmFt+qenClzGACvqW1gWM6fv8BOnjzFenoOsc7OLoqgwimPSUXkNrr313mBElKNtllQRK4nnv5RytLH4dA+awyonoaGSjyRLpxlc4NFVN5fi8VaH3wr6RlpjLGKygATLd2790593Ggsi0sYRfunzTExi76bQ7/1c+Bl9a4Uo03/7oRBJS3g8/neZUSc9oL4jekq0jQWa3lxsgfweHOTfsvJXT1eHVcXs7LyaiFwly9fZlOlgGAwUsk1o11xo2fE80HP4TkmFA4qcqkVANI0yQOrLpPjhBGFt4lojEZbVlgrI4CgYsGCoUYWa14nBG7Hzm7m8+WztcRngZp6ijo/I3nBKILZm28eHQNvx45drGB1UdIYisvDfNkFrImOx7Z1f0NDJMAFt6Q+ZvPiXzcklPbn5GdTH0kJOMrtTwsGH3W4PF8ncfkNMXB6IYBram59ehy0HLaTANnWtYNt3NjBeg8dZr29h1lbW/uEKMO6bt0GzmebOzrZwYO9rLV1PaurD0GfcTAaghEecdiH8eLn4bgAVV4S05wLz587z/aShAlHJkoY4jjVdBqLbV58pimMk5WApN+ZEnBFRUXvoBMui7QOCgZtC1S+vh5WqK4uOC/xdy9FUV9fP+vYspX+DhBP7RGmEqJkcPAkj67e3kPs1KnTPMLOnDnDurbv5FFoVNsYO3/hwhjpa3o2f0H1DWG2YcMmAraHg19VVTNhfKKQJ2HPTJsnSFX1OxR1Dwvv7SpOxFI9tW0iyYFCQRywUbBvUHLpd2pa7q8TNRdSFZGEKBkYOMK2dG6z5SF/oI4dPXqUA4ZzcPzo6OhYmgJEAIyog6DeuKmDtbS0sbVFZWzXrt2sbX07ayRKwO+Iuk66Vjyty8r8cyhy/krbrYJrn6VgucFGqgzF+T1VveYQKmynfhv8oPituW+hfcuKistPxn8rLqngaYMHgKAFd0Gr2UUdwIovIyMjPNURYfEF6Uvjs+wcI9VLSivHUhWRiRczcOQNVlHh5+PhJdK1LxIoTzqd3m9afHY8Tauzsrwfpe1hwb7GSYy7fgcR4E9XrFjx7nHbpP3CJqRdEJI2WugfqK5ExPX4NyIhUNMAC8R5CpEAEPGgKBbgL+sYmzd3JlXTffsOjG1v2rxlwvH7Dxzk0bd123YebcFgI+vu3sMlTfwY0oXtBFiB7NbvsCkMf6HnWiC2YuozE3wupTTkCffANOiJeCrCmiBss7Ky3kn/Pi4Kaxh6tGIEwG2jdVFFdc39dhEF4JBGqJaiY8ooKroorRMX8FZ86SH+g0BOFLf468vOT3AfPs6t44UhupDAkQCeKBW545G17cKCSJrWtJJz6d/d47ynzCL/pgWtRI/os+qZhPK8EMJYnMraz+BVE9M1DXPOUxEpDX4ytNsw69zaNQbcdpIjWHBsimOeB7cpivoTgCQoeAVwBzbGP2yKfq+Vz3kTlxvz5BN1U5ZcFOw7YrqLs4J9a+hGckOhyGvpAgfd1tLaxv8i7RB5HR1beaGIL0h5LODKlBxDJCYbUomapYKIItr5lk3B4HwO8ZsMqP5aXH7cQD8MJB3g4tGzyib3n6N9SwX7rqAPprg9S4iUh9K1W9Tx5VJiK0XZhvZNvCp3dBi8NzQ0xCtvqsCRVhxWFM984rbZYtpRywnU2Ta6rhFdZdo+Z9k34nK5Pp9YRReIGpSE+mfQMhIMfh6CmEB6Q/BGKuEkwuHGJakABu7zePO4/gIHItogL1AoUDVxDCoriB9SBAus2dXGDTc2KfQMxQTO84L9w3BIlIa9It6jnuKXbBqe3qROAO3YLXIEqLoIa8EF2hFdNmH+EGxMeYX/8GQPB+KHdoPlOnv2HNtJgAE4uAuAhHStpAhEJc7JLeSgDQ8P84icbFzi2EFF8T4tSd65QroxWu05Ntz2JPHi3wT7LtB4nxLIEi4zrghlhqT9y8Ycvwo+FOw7ILu1xbm5hQ9SxRuxa/dAt4Ho+/uPsOPHTzACmjWTqN1NnRA4joM9vWw76TNEHiolRC4KCNLXDjTq3Y2Wlwfuk12erOTCx+95Ha1/sDm/lFMUpaRAij02iabTlol4i6Lul2hD2+i3RdbJDyPq3KhGeQ2hyLPQWhDBMOIAAYYeRQBVcu/e/dwhDA1dxEQMAZTHmppaeCGA/4RWO3S4j7Vv3MxlDBoF2TkFtr23cDiGRkOpw3AK1mMG0KgQCWHuiCT1Zto+JXjGkHX+wjrPeR2BVyfOe4hitVzEF1xEytp+Ad/9EZWW2jpeEDtSEuoehh9KH0IVHd51bRs4MOA1iGYcC4cARwD3cOBADztxYpBbLHjTcS+cN0HDUTMA957jcLhn89SaWAxOEzDzaVsklbZwv2r24CyFYh+03lXtVlZW/gfQERXk/iVehcRd4BHDiukHrYBLLm0uJAq1lcoReeAq7EN0QfEDFHRPEF1RijREJtpLELrr12/kbgEuAx3g/IK1fF9tXYhHJIw9AEZrnVK4CULX5eLyqi8JNM5r9Df53qPGRHdyocNvDrf7iyl71ZUrfR+CEBYDhAlhLoCtHZRRPieR3CA4RrLgHp62wajXOvGCh45zGIBBKoLL4lW1kWQK0hl6DiCDAxOdAapyfX2oAnbP6eTXsbqAIyYXXxD1EQ0dKwS0Ly3QxiWK9D5whU1RKHNAjUvaLsF+EpR6s+W3M/iEAWnr99ctwqRyqvoOYCLCyAPz6EoEnsz+cENDCIWryOFQfyOI+C6bma1j1B6/h+7/30LFgIwTVdBUF7SSEWFCMpW1o2gAIj0E1bjfbNMkiuDLSBfqb73udnsWU2pFUAGn0gpHygdqGzZ5fHkLMQFDFTzTwl2jpiPoFrXJIaNIxO+waWR4iNPeM13Tgl/lBCpW2S28JS1pDYL9KBhnLF64GToPvOfLyVtIkeRP1WVgrhQz9nl5RY/RS1hNeuth/nficaTb9D1JLxMUQvcJbWqjS/tS7vams/DOsNElfdPOFBOIsqiwCK0ZVT/08w1eVFcUFJY8Ud8Q0kHy1f66nRVVgR5K6+2YF60PRjz0GcVTdNwriAgHnI6ivyLiLUF3+iCuYXZHhkUuCIVt+fLc987opDQ6ojxFRWlgrIdMXomKWvCiyWBJ8iylMR+n9Hmep77RBsKXSDJW+v1lcgKPcjEua7VCgSp2NgG7TEEAUPQ9m5LUmM4FgtBseAZFD2Lwor7e5JKBFPlrhKe30Z4PmpV9pw3HiqL+hPlCW4UTLybx48Wn1RKfnk+9tJswo4WWszEBos0ll/A1U+zWThJlF6f7K6UkIS5OxVHjBcKDqjdTNf05WkPm/Xsp2n8846CZ6nrYRqJAQFaRJloOg0/bCtoz4JAZBkwEYLsxj6qtgo00mhXaPttziDNnONrIs6bxEDx1jLRrN4tGhwnwlWkE6iitWw3thWvx9O5P7z7Vl2b+U1b6bjbFyvlfv/J+HEkUKIZrxnVon+PjFOKLl+EIeHVMvQhc63XQqK7o+mor0VaiRsBXrilgqcgVSfJ9DD6P9/Ql/Xbji3Itc3yd+FW50YYX+kVrW35V8rnqgoSx7wX5Y44XM/BZWdonYR0z/pcXE+g6G9C6MHmS8f9lsgLkvdH4BN/4/w2QOjP+Of0Ulv8AKaZ1AxnRNTYAAAAASUVORK5CYII=" alt="Logo 3" width="200">
+        <p>這個圖片是直接嵌入在 HTML 中的，<strong>一定會顯示</strong></p>
+    </div>
+
+    <div class="test-box">
+        <h2>您的瀏覽器資訊</h2>
+        <p id="browser-info"></p>
+    </div>
+
+    <script>
+        document.getElementById('browser-info').textContent = navigator.userAgent;
+    </script>
+</body>
+</html>
