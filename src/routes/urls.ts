@@ -2,9 +2,10 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { supabase } from '../services/supabase.js'
 import { redis, CACHE_KEYS, CACHE_TTL } from '../services/redis.js'
 import { generateShortCode, isValidShortCode } from '../utils/shortcode.js'
-import { generateQRCode, generateQRCodeBase64 } from '../utils/qrcode.js'
+// Server-side QR Code generation disabled - using client-side generation instead
+// import { generateQRCode, generateQRCodeBase64 } from '../utils/qrcode.js'
+// import { getTheme, isValidThemeId, mergeThemeOptions, getDefaultTheme } from '../utils/qr-themes.js'
 import { CreateURLRequest, URLRecord } from '../types/index.js'
-import { getTheme, isValidThemeId, mergeThemeOptions, getDefaultTheme } from '../utils/qr-themes.js'
 import { renderPasswordPage, renderExpiredPage } from '../utils/html-templates.js'
 import bcrypt from 'bcrypt'
 
@@ -233,7 +234,9 @@ export default async function urlRoutes(fastify: FastifyInstance) {
         fastify.log.error({ err: redisError }, 'Failed to invalidate cache')
       }
 
-      // 如果更新了原始 URL，重新生成 QR Code
+      // DISABLED: Server-side QR Code regeneration
+      // QR Codes are now generated client-side, no need to regenerate server-side
+      /*
       if (updates.original_url && data.qr_code_generated) {
         const baseUrl = process.env.BASE_URL || 'http://localhost:3000'
         const shortUrl = `${baseUrl}/s/${data.short_code}`
@@ -250,6 +253,7 @@ export default async function urlRoutes(fastify: FastifyInstance) {
           fastify.log.error(qrError)
         }
       }
+      */
 
       return reply.send(data)
     }
@@ -306,6 +310,10 @@ export default async function urlRoutes(fastify: FastifyInstance) {
     return reply.send({ message: 'URL deleted successfully' })
   })
 
+  // ======== Server-side QR Code routes disabled - using client-side generation ========
+  // All QR Codes are now generated in the browser using qr-code-styling library
+
+  /* DISABLED: Server-side QR Code generation
   // 生成/更新 QR Code（使用主題或自訂選項）
   fastify.post<{
     Params: { id: string }
@@ -474,6 +482,7 @@ export default async function urlRoutes(fastify: FastifyInstance) {
       }
     }
   )
+  */ // End of disabled server-side QR Code routes
 
   // 驗證密碼保護的短網址
   fastify.post<{
