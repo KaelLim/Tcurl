@@ -28,13 +28,11 @@ const qrCodeContainer = document.getElementById('qrCodeContainer')
 const noQrCode = document.getElementById('noQrCode')
 const qrCodeCanvas = document.getElementById('qrCodeCanvas')
 const downloadQrBtn = document.getElementById('downloadQrBtn')
-// 以下按鈕已移除（改用自動生成）
-// const customizeExistingQrBtn = document.getElementById('customizeExistingQrBtn')
-// const generateBasicQrBtn = document.getElementById('generateBasicQrBtn')
-// const customizeBtn = document.getElementById('customizeBtn')
+const customizeQrBtn = document.getElementById('customizeQrBtn')
 
-// QR Code 實例
+// QR Code 實例和配置
 let currentQRCode = null
+let currentQRConfig = null  // 儲存當前配置
 
 // 統計元素
 const totalClicksEl = document.getElementById('totalClicks')
@@ -405,73 +403,16 @@ async function loadThemes() {
   }
 }
 
-// ======== 舊的伺服器端 QR Code 生成功能 - 已停用 ========
-// 現在使用客戶端自動生成，不再需要這些按鈕
+// ======== 客戶端 QR Code 客製化功能 ========
 
-/* DISABLED: Server-side QR Code generation buttons
-// 生成基本 QR Code（黑色）
-generateBasicQrBtn.addEventListener('click', async () => {
+// 客製化按鈕
+customizeQrBtn.addEventListener('click', () => {
   if (!currentUrlData) {
     utils.showNotification('請先載入連結資料', 'error')
     return
   }
-
-  try {
-    generateBasicQrBtn.disabled = true
-    generateBasicQrBtn.innerHTML = '<span class="material-symbols-outlined text-lg animate-spin">refresh</span><span>生成中...</span>'
-
-    // 使用第一個主題（基本黑色）
-    const themeId = availableThemes[0]?.id || 'basic'
-
-    const response = await fetch(`/api/urls/${currentUrlData.id}/qrcode`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ themeId })
-    })
-
-    if (!response.ok) {
-      throw new Error('Failed to generate QR code')
-    }
-
-    const data = await response.json()
-
-    // 更新 currentUrlData
-    currentUrlData.qr_code_generated = true
-    currentUrlData.qr_code_path = data.qr_code_path
-
-    // 顯示 QR Code（加上時間戳避免瀏覽器快取）
-    qrCodeImage.src = window.location.origin + data.qr_code_path + '?t=' + Date.now()
-    noQrCode.classList.add('hidden')
-    qrCodeContainer.classList.remove('hidden')
-
-    utils.showNotification('QR Code 生成成功！', 'success')
-  } catch (error) {
-    console.error('Error generating QR code:', error)
-    utils.showNotification('生成 QR Code 失敗', 'error')
-  } finally {
-    generateBasicQrBtn.disabled = false
-    generateBasicQrBtn.innerHTML = '<span class="material-symbols-outlined text-lg">qr_code</span><span>生成 QR Code</span>'
-  }
+  openClientCustomizeModal()
 })
-
-// 進階客製化按鈕（尚未生成 QR Code 時）
-customizeBtn.addEventListener('click', () => {
-  if (!currentUrlData) {
-    utils.showNotification('請先載入連結資料', 'error')
-    return
-  }
-  openCustomizeModal()
-})
-
-// 進階客製化按鈕（已生成 QR Code 時）
-customizeExistingQrBtn.addEventListener('click', () => {
-  if (!currentUrlData) {
-    utils.showNotification('請先載入連結資料', 'error')
-    return
-  }
-  openCustomizeModal()
-})
-*/
 
 // 打開客製化面板
 function openCustomizeModal() {
@@ -875,16 +816,19 @@ const QR_CONFIG = {
 }
 
 // 客戶端生成 QR Code
-function generateClientQRCode(url) {
+function generateClientQRCode(url, customConfig = null) {
   try {
     // 清空容器
     qrCodeCanvas.innerHTML = ''
 
+    // 使用自訂配置或預設配置
+    const config = customConfig || QR_CONFIG
+
+    // 儲存當前配置
+    currentQRConfig = { ...config, data: url }
+
     // 創建 QR Code 實例
-    currentQRCode = new QRCodeStyling({
-      ...QR_CONFIG,
-      data: url
-    })
+    currentQRCode = new QRCodeStyling(currentQRConfig)
 
     // 將 QR Code 添加到容器
     currentQRCode.append(qrCodeCanvas)
@@ -893,6 +837,226 @@ function generateClientQRCode(url) {
   } catch (error) {
     console.error('Error generating QR code:', error)
   }
+}
+
+// 打開客戶端客製化模態視窗
+function openClientCustomizeModal() {
+  // 取得當前配置
+  const currentConfig = currentQRConfig || { ...QR_CONFIG, data: `${window.location.origin}/s/${currentUrlData.short_code}` }
+
+  const modal = document.createElement('div')
+  modal.id = 'customizeModal'
+  modal.className = 'fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4'
+
+  modal.innerHTML = `
+    <div class="relative bg-[#1e1e1e] rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <button class="absolute top-4 right-4 text-white/60 hover:text-white z-10" onclick="document.getElementById('customizeModal').remove()">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+
+      <h3 class="text-white text-2xl font-bold mb-6">客製化 QR Code</h3>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- 左側：即時預覽 -->
+        <div class="flex flex-col gap-4">
+          <div class="bg-white/5 border border-white/10 rounded-lg p-4">
+            <p class="text-white text-sm font-medium mb-3">即時預覽</p>
+            <div class="bg-white p-4 rounded-lg flex items-center justify-center min-h-[280px]">
+              <div id="qrPreviewCanvas"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右側：客製化選項 -->
+        <div class="flex flex-col gap-4">
+          <!-- 顏色設定 -->
+          <div class="bg-white/5 border border-white/10 rounded-lg p-4">
+            <p class="text-white text-sm font-medium mb-3">顏色設定</p>
+            <div class="space-y-3">
+              <div>
+                <label class="text-white/80 text-xs mb-1 block">QR Code 顏色</label>
+                <input type="color" id="qrDotsColor" value="${currentConfig.dotsOptions?.color || '#000000'}"
+                       class="w-full h-10 rounded border border-white/20 bg-background-dark cursor-pointer">
+              </div>
+              <div>
+                <label class="text-white/80 text-xs mb-1 block">背景顏色</label>
+                <input type="color" id="qrBgColor" value="${currentConfig.backgroundOptions?.color || '#ffffff'}"
+                       class="w-full h-10 rounded border border-white/20 bg-background-dark cursor-pointer">
+              </div>
+            </div>
+          </div>
+
+          <!-- 樣式設定 -->
+          <div class="bg-white/5 border border-white/10 rounded-lg p-4">
+            <p class="text-white text-sm font-medium mb-3">樣式設定</p>
+            <div class="space-y-3">
+              <div>
+                <label class="text-white/80 text-xs mb-1 block">Dots 樣式</label>
+                <select id="qrDotsType" class="w-full rounded-lg text-white bg-background-dark border border-white/20 h-10 px-3 text-sm">
+                  <option value="square" ${currentConfig.dotsOptions?.type === 'square' ? 'selected' : ''}>方形</option>
+                  <option value="rounded" ${currentConfig.dotsOptions?.type === 'rounded' ? 'selected' : ''}>圓角</option>
+                  <option value="extra-rounded" ${currentConfig.dotsOptions?.type === 'extra-rounded' ? 'selected' : ''}>超圓角</option>
+                  <option value="dots" ${currentConfig.dotsOptions?.type === 'dots' ? 'selected' : ''}>圓點</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-white/80 text-xs mb-1 block">尺寸</label>
+                <select id="qrSize" class="w-full rounded-lg text-white bg-background-dark border border-white/20 h-10 px-3 text-sm">
+                  <option value="300" ${currentConfig.width === 300 ? 'selected' : ''}>300x300</option>
+                  <option value="400" ${currentConfig.width === 400 ? 'selected' : ''}>400x400</option>
+                  <option value="500" ${currentConfig.width === 500 ? 'selected' : ''}>500x500</option>
+                  <option value="600" ${currentConfig.width === 600 ? 'selected' : ''}>600x600</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Logo 設定 -->
+          <div class="bg-white/5 border border-white/10 rounded-lg p-4">
+            <p class="text-white text-sm font-medium mb-3">Logo 設定</p>
+            <div class="space-y-3">
+              <div class="flex items-center gap-2">
+                <input type="checkbox" id="qrShowLogo" ${currentConfig.image ? 'checked' : ''}
+                       class="w-4 h-4 rounded border-white/20 bg-background-dark">
+                <label class="text-white/80 text-sm">顯示慈濟 Logo</label>
+              </div>
+              <div id="logoSizeContainer" ${!currentConfig.image ? 'style="display:none"' : ''}>
+                <label class="text-white/80 text-xs mb-1 block">Logo 大小</label>
+                <input type="range" id="qrLogoSize" min="0.2" max="0.5" step="0.05"
+                       value="${currentConfig.imageOptions?.imageSize || 0.4}"
+                       class="w-full">
+                <div class="flex justify-between text-white/40 text-xs mt-1">
+                  <span>小</span>
+                  <span>大</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 按鈕 -->
+          <div class="flex gap-2 mt-4">
+            <button id="applyQrBtn" class="flex-1 bg-primary hover:bg-blue-600 text-white rounded-lg py-3 font-bold transition-colors">
+              套用
+            </button>
+            <button onclick="document.getElementById('customizeModal').remove()"
+                    class="flex-1 bg-white/10 hover:bg-white/20 text-white rounded-lg py-3 font-bold transition-colors">
+              取消
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `
+
+  document.body.appendChild(modal)
+
+  // 初始化預覽
+  updateQRPreview()
+
+  // 綁定事件監聽器
+  const previewInputs = ['qrDotsColor', 'qrBgColor', 'qrDotsType', 'qrSize', 'qrShowLogo', 'qrLogoSize']
+  previewInputs.forEach(id => {
+    const element = document.getElementById(id)
+    if (element) {
+      element.addEventListener('change', updateQRPreview)
+      element.addEventListener('input', updateQRPreview)
+    }
+  })
+
+  // Logo 顯示/隱藏控制
+  document.getElementById('qrShowLogo').addEventListener('change', (e) => {
+    document.getElementById('logoSizeContainer').style.display = e.target.checked ? 'block' : 'none'
+    updateQRPreview()
+  })
+
+  // 套用按鈕
+  document.getElementById('applyQrBtn').addEventListener('click', applyCustomQR)
+}
+
+// 更新 QR Code 預覽
+function updateQRPreview() {
+  const previewCanvas = document.getElementById('qrPreviewCanvas')
+  if (!previewCanvas) return
+
+  previewCanvas.innerHTML = ''
+
+  const dotsColor = document.getElementById('qrDotsColor').value
+  const bgColor = document.getElementById('qrBgColor').value
+  const dotsType = document.getElementById('qrDotsType').value
+  const size = parseInt(document.getElementById('qrSize').value)
+  const showLogo = document.getElementById('qrShowLogo').checked
+  const logoSize = parseFloat(document.getElementById('qrLogoSize').value)
+
+  const config = {
+    width: size,
+    height: size,
+    type: "svg",
+    data: `${window.location.origin}/s/${currentUrlData.short_code}`,
+    dotsOptions: {
+      color: dotsColor,
+      type: dotsType
+    },
+    backgroundOptions: {
+      color: bgColor
+    },
+    qrOptions: {
+      errorCorrectionLevel: 'H'
+    }
+  }
+
+  if (showLogo) {
+    config.image = "/images/tzuchi-logo.svg"
+    config.imageOptions = {
+      margin: 10,
+      imageSize: logoSize
+    }
+  }
+
+  const previewQR = new QRCodeStyling(config)
+  previewQR.append(previewCanvas)
+}
+
+// 套用自訂 QR Code
+function applyCustomQR() {
+  const dotsColor = document.getElementById('qrDotsColor').value
+  const bgColor = document.getElementById('qrBgColor').value
+  const dotsType = document.getElementById('qrDotsType').value
+  const size = parseInt(document.getElementById('qrSize').value)
+  const showLogo = document.getElementById('qrShowLogo').checked
+  const logoSize = parseFloat(document.getElementById('qrLogoSize').value)
+
+  const customConfig = {
+    width: size,
+    height: size,
+    type: "svg",
+    dotsOptions: {
+      color: dotsColor,
+      type: dotsType
+    },
+    backgroundOptions: {
+      color: bgColor
+    },
+    qrOptions: {
+      errorCorrectionLevel: 'H'
+    }
+  }
+
+  if (showLogo) {
+    customConfig.image = "/images/tzuchi-logo.svg"
+    customConfig.imageOptions = {
+      margin: 10,
+      imageSize: logoSize
+    }
+  }
+
+  // 重新生成 QR Code
+  const fullShortUrl = `${window.location.origin}/s/${currentUrlData.short_code}`
+  generateClientQRCode(fullShortUrl, customConfig)
+
+  // 關閉模態視窗
+  document.getElementById('customizeModal').remove()
+
+  utils.showNotification('QR Code 已更新！', 'success')
 }
 
 // 修改下載按鈕功能為客戶端下載
