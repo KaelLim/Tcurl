@@ -9,6 +9,8 @@
     <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+    <!-- QR Code Styling Library -->
+    <script type="text/javascript" src="https://unpkg.com/qr-code-styling@1.5.0/lib/qr-code-styling.js"></script>
     <script>
         tailwind.config = {
             darkMode: "class",
@@ -55,7 +57,7 @@
                 <!-- Close button in sidebar (Mobile/Tablet only) -->
                 <div class="lg:hidden flex items-center justify-between">
                     <div class="flex items-center gap-2">
-                        <img src="/images/logo.png" alt="TCurl Logo" style="width: 53px; height: 28px;">
+                        <img src="https://info.tzuchi.org/favicon.svg" alt="TCurl Logo" style="width: 53px; height: 28px;">
                         <div>
                             <h1 class="text-white text-lg font-bold">TCurl</h1>
                             <p class="text-white/60 text-[10px]">慈濟短網址</p>
@@ -68,7 +70,7 @@
 
                 <!-- Desktop logo -->
                 <div class="hidden lg:flex items-center gap-2 p-2">
-                    <img src="/images/logo.png" alt="TCurl Logo" style="width: 76px; height: 40px;">
+                    <img src="https://info.tzuchi.org/favicon.svg" alt="TCurl Logo" style="width: 76px; height: 40px;">
                     <div>
                         <h1 class="text-white text-xl font-bold">TCurl</h1>
                         <p class="text-white/60 text-xs">慈濟短網址</p>
@@ -153,8 +155,9 @@
                     <!-- QR Code 顯示區 -->
                     <div id="qrCodeDisplay" class="hidden flex flex-col items-center gap-4 mt-6">
                         <h3 class="text-white text-lg font-bold leading-tight tracking-[-0.015em]">QR Code</h3>
-                        <div class="bg-white p-4 rounded-lg aspect-square w-64 h-64 flex items-center justify-center">
-                            <img id="qrCodeImage" class="w-full h-full object-contain" alt="QR Code" src=""/>
+                        <div class="bg-white p-4 rounded-lg">
+                            <!-- QR Code 容器 -->
+                            <div id="qrCodeContainer"></div>
                         </div>
                         <button id="downloadQrBtn" class="flex cursor-pointer items-center justify-center overflow-hidden rounded-lg h-11 px-6 bg-white/10 hover:bg-white/20 text-white/80 hover:text-white gap-2 text-base font-bold leading-normal tracking-[0.015em] transition-colors">
                             <span class="material-symbols-outlined text-lg">download</span>

@@ -11,22 +11,33 @@ const loadingIndicator = document.getElementById('loadingIndicator')
 
 // QR Code 相關元素
 const qrCodeDisplay = document.getElementById('qrCodeDisplay')
-const qrCodeImage = document.getElementById('qrCodeImage')
+const qrCodeContainer = document.getElementById('qrCodeContainer')
 const downloadQrBtn = document.getElementById('downloadQrBtn')
 
-// 當前的短網址數據
+// 當前的短網址數據和 QR Code 實例
 let currentUrlData = null
-let availableThemes = []
+let currentQRCode = null
 
-// 載入 QR Code 主題列表（用於獲取基本主題 ID）
-async function loadThemes() {
-  try {
-    const response = await fetch('/api/qrcode/themes')
-    const data = await response.json()
-    availableThemes = data.themes
-  } catch (error) {
-    console.error('Error loading themes:', error)
-    availableThemes = []
+// 客戶端生成 QR Code 的配置
+const QR_CONFIG = {
+  width: 400,
+  height: 400,
+  type: "svg",
+  image: "https://info.tzuchi.org/favicon.svg",
+  dotsOptions: {
+    color: "#000000",
+    type: "rounded"
+  },
+  backgroundOptions: {
+    color: "#ffffff"
+  },
+  qrOptions: {
+    errorCorrectionLevel: 'H'
+  },
+  imageOptions: {
+    crossOrigin: "anonymous",
+    margin: 10,
+    imageSize: 0.4
   }
 }
 
@@ -67,8 +78,8 @@ async function shortenUrl() {
 
     utils.showNotification('短網址建立成功！', 'success')
 
-    // 自動生成基本黑色 QR Code
-    await generateBasicQRCode()
+    // 自動生成 QR Code（客戶端）
+    generateClientQRCode(data.short_url)
   } catch (error) {
     console.error('Error creating short URL:', error)
     utils.showNotification(`建立失敗: ${error.message}`, 'error')
@@ -78,32 +89,28 @@ async function shortenUrl() {
   }
 }
 
-// 自動生成基本黑色 QR Code
-async function generateBasicQRCode() {
-  if (!currentUrlData) return
-
+// 客戶端生成 QR Code
+function generateClientQRCode(url) {
   try {
-    // 使用第一個主題（基本黑色）
-    const themeId = availableThemes[0]?.id || 'basic'
+    // 清空容器
+    qrCodeContainer.innerHTML = ''
 
-    const response = await fetch(`/api/urls/${currentUrlData.id}/qrcode`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ themeId })
+    // 創建 QR Code 實例
+    currentQRCode = new QRCodeStyling({
+      ...QR_CONFIG,
+      data: url
     })
 
-    if (!response.ok) {
-      throw new Error('Failed to generate QR code')
-    }
+    // 將 QR Code 添加到容器
+    currentQRCode.append(qrCodeContainer)
 
-    const data = await response.json()
-
-    // 顯示 QR Code（加上時間戳避免瀏覽器快取）
-    qrCodeImage.src = window.location.origin + data.qr_code_path + '?t=' + Date.now()
+    // 顯示 QR Code 區域
     qrCodeDisplay.classList.remove('hidden')
+
+    console.log('✅ QR Code generated with Tzu Chi logo')
   } catch (error) {
     console.error('Error generating QR code:', error)
-    // 靜默失敗，不顯示錯誤通知
+    utils.showNotification('QR Code 生成失敗', 'error')
   }
 }
 
@@ -164,10 +171,12 @@ async function shareShortUrl() {
 
 // 下載 QR Code
 function downloadQRCode() {
-  if (currentUrlData && qrCodeImage.src) {
-    const filename = `qrcode_${currentUrlData.short_code}.png`
-    utils.downloadQRCode(qrCodeImage.src, filename)
+  if (currentQRCode && currentUrlData) {
+    const filename = `qrcode_${currentUrlData.short_code}`
+    currentQRCode.download({ name: filename, extension: "png" })
     utils.showNotification('QR Code 已下載！', 'success')
+  } else {
+    utils.showNotification('請先生成 QR Code', 'error')
   }
 }
 
@@ -190,6 +199,3 @@ originalUrlInput.addEventListener('keypress', (e) => {
     shortenUrl()
   }
 })
-
-// 初始載入主題列表
-loadThemes()
