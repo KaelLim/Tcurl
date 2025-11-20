@@ -23,7 +23,7 @@ const QR_CONFIG = {
   width: 400,
   height: 400,
   type: "svg",
-  image: "https://info.tzuchi.org/favicon.svg",
+  image: "/images/tzuchi-logo.svg", // 使用本地 SVG，避免 CORS 問題
   dotsOptions: {
     color: "#000000",
     type: "rounded"
@@ -35,7 +35,6 @@ const QR_CONFIG = {
     errorCorrectionLevel: 'H'
   },
   imageOptions: {
-    crossOrigin: "anonymous",
     margin: 10,
     imageSize: 0.4
   }
