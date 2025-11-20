@@ -26,11 +26,14 @@ const loadingOverlay = document.getElementById('loadingOverlay')
 // QR Code 元素
 const qrCodeContainer = document.getElementById('qrCodeContainer')
 const noQrCode = document.getElementById('noQrCode')
-const qrCodeImage = document.getElementById('qrCodeImage')
+const qrCodeCanvas = document.getElementById('qrCodeCanvas')
 const downloadQrBtn = document.getElementById('downloadQrBtn')
 const customizeExistingQrBtn = document.getElementById('customizeExistingQrBtn')
 const generateBasicQrBtn = document.getElementById('generateBasicQrBtn')
 const customizeBtn = document.getElementById('customizeBtn')
+
+// QR Code 實例
+let currentQRCode = null
 
 // 統計元素
 const totalClicksEl = document.getElementById('totalClicks')
@@ -143,15 +146,10 @@ function populateForm() {
     expiresInputContainer.classList.add('hidden')
   }
 
-  // QR Code
-  if (currentUrlData.qr_code_generated && currentUrlData.qr_code_path) {
-    qrCodeContainer.classList.remove('hidden')
-    noQrCode.classList.add('hidden')
-    qrCodeImage.src = currentUrlData.qr_code_path
-  } else {
-    qrCodeContainer.classList.add('hidden')
-    noQrCode.classList.remove('hidden')
-  }
+  // QR Code - 總是自動生成客戶端 QR Code
+  generateClientQRCode(currentUrlData.short_url)
+  qrCodeContainer.classList.remove('hidden')
+  noQrCode.classList.add('hidden')
 }
 
 // 載入統計資料
@@ -844,6 +842,62 @@ async function applyCustomQRCode() {
     applyBtn.textContent = '套用並生成'
   }
 }
+
+// ======== 客戶端 QR Code 生成 ========
+
+// QR Code 配置
+const QR_CONFIG = {
+  width: 300,
+  height: 300,
+  type: "svg",
+  image: "/images/tzuchi-logo.svg",
+  dotsOptions: {
+    color: "#000000",
+    type: "rounded"
+  },
+  backgroundOptions: {
+    color: "#ffffff"
+  },
+  qrOptions: {
+    errorCorrectionLevel: 'H'
+  },
+  imageOptions: {
+    margin: 10,
+    imageSize: 0.4
+  }
+}
+
+// 客戶端生成 QR Code
+function generateClientQRCode(url) {
+  try {
+    // 清空容器
+    qrCodeCanvas.innerHTML = ''
+
+    // 創建 QR Code 實例
+    currentQRCode = new QRCodeStyling({
+      ...QR_CONFIG,
+      data: url
+    })
+
+    // 將 QR Code 添加到容器
+    currentQRCode.append(qrCodeCanvas)
+
+    console.log('✅ QR Code generated (client-side) with Tzu Chi logo')
+  } catch (error) {
+    console.error('Error generating QR code:', error)
+  }
+}
+
+// 修改下載按鈕功能為客戶端下載
+downloadQrBtn.addEventListener('click', () => {
+  if (currentQRCode && currentUrlData) {
+    const filename = `qrcode_${currentUrlData.short_code}`
+    currentQRCode.download({ name: filename, extension: "png" })
+    utils.showNotification('QR Code 已下載！', 'success')
+  } else {
+    utils.showNotification('請先生成 QR Code', 'error')
+  }
+})
 
 // 頁面載入時執行
 window.addEventListener('DOMContentLoaded', () => {
