@@ -9,6 +9,8 @@
     <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+    <!-- QR Code Styling Library -->
+    <script type="text/javascript" src="https://unpkg.com/qr-code-styling@1.5.0/lib/qr-code-styling.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script>
         tailwind.config = {
@@ -45,7 +47,7 @@
         <aside class="w-64 flex-shrink-0 bg-[#111218] p-4 flex flex-col justify-between border-r border-r-[#3b3f54]">
             <div class="flex flex-col gap-8">
                 <div class="flex items-center gap-2 p-2">
-                    <img src="/images/logo.png" alt="TCurl Logo" style="width: 76px; height: 40px;">
+                    <img src="https://info.tzuchi.org/favicon.svg" alt="TCurl Logo" style="width: 76px; height: 40px;">
                     <div>
                         <h1 class="text-white text-xl font-bold">TCurl</h1>
                         <p class="text-white/60 text-xs">慈濟短網址</p>
@@ -130,11 +132,12 @@
                                     <th class="text-left text-white/80 text-sm font-medium p-3">原始網址</th>
                                     <th class="text-left text-white/80 text-sm font-medium p-3">點擊數</th>
                                     <th class="text-left text-white/80 text-sm font-medium p-3">佔比</th>
+                                    <th class="text-left text-white/80 text-sm font-medium p-3">操作</th>
                                 </tr>
                             </thead>
                             <tbody id="topUrlsBody">
                                 <tr>
-                                    <td colspan="5" class="text-center p-8 text-white/60">載入中...</td>
+                                    <td colspan="6" class="text-center p-8 text-white/60">載入中...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -322,7 +325,7 @@
             const tbody = document.getElementById('topUrlsBody')
 
             if (topUrls.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="text-center p-8 text-white/60">尚無數據</td></tr>'
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center p-8 text-white/60">尚無數據</td></tr>'
                 return
             }
 
@@ -363,6 +366,11 @@
                                 <span class="text-white/60 text-sm w-12 text-right">${percentage}%</span>
                             </div>
                         </td>
+                        <td class="p-3">
+                            <button class="text-white/60 hover:text-white transition-colors" onclick="showClientQRCodeModal('${shortUrl}', '${url.short_code}')" title="查看 QR Code">
+                                <span class="material-symbols-outlined">qr_code_2</span>
+                            </button>
+                        </td>
                     </tr>
                 `
             }).join('')
@@ -376,6 +384,74 @@
 
         // 初始載入
         loadAnalytics()
+
+        // ======== 客戶端 QR Code 生成 ========
+
+        // QR Code 配置
+        const QR_CONFIG = {
+          width: 300,
+          height: 300,
+          type: "svg",
+          image: "/images/tzuchi-logo.svg",
+          dotsOptions: {
+            color: "#000000",
+            type: "rounded"
+          },
+          backgroundOptions: {
+            color: "#ffffff"
+          },
+          qrOptions: {
+            errorCorrectionLevel: 'H'
+          },
+          imageOptions: {
+            margin: 10,
+            imageSize: 0.4
+          }
+        }
+
+        // 顯示客戶端 QR Code 模態視窗
+        function showClientQRCodeModal(shortUrl, shortCode) {
+          const modal = document.createElement('div')
+          modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50'
+          modal.innerHTML = `
+            <div class="relative bg-[#1e1e1e] rounded-xl p-6 max-w-md w-full mx-4">
+              <button class="absolute top-4 right-4 text-white/60 hover:text-white" onclick="this.closest('.fixed').remove()">
+                <span class="material-symbols-outlined">close</span>
+              </button>
+              <h3 class="text-white text-xl font-bold mb-4">QR Code - ${shortCode}</h3>
+              <div class="bg-white p-4 rounded-lg mb-4 flex justify-center">
+                <div id="qrCodeModalCanvas"></div>
+              </div>
+              <div class="flex gap-2">
+                <button id="downloadModalQrBtn" class="flex-1 bg-primary hover:bg-primary/90 text-white rounded-lg py-3 font-bold flex items-center justify-center gap-2">
+                  <span class="material-symbols-outlined text-lg">download</span>
+                  <span>下載</span>
+                </button>
+              </div>
+            </div>
+          `
+          document.body.appendChild(modal)
+
+          // 生成 QR Code
+          const qrCodeInstance = new QRCodeStyling({
+            ...QR_CONFIG,
+            data: shortUrl
+          })
+          qrCodeInstance.append(document.getElementById('qrCodeModalCanvas'))
+
+          // 下載按鈕事件
+          document.getElementById('downloadModalQrBtn').addEventListener('click', () => {
+            qrCodeInstance.download({ name: `qrcode_${shortCode}`, extension: "png" })
+            utils.showNotification('QR Code 已下載！', 'success')
+          })
+
+          // 點擊背景關閉
+          modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+              modal.remove()
+            }
+          })
+        }
     </script>
     <script>
             }
