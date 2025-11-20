@@ -268,34 +268,19 @@
                                     <div id="qrCodeCanvas"></div>
                                 </div>
                                 <div class="flex flex-col gap-2">
-                                    <button id="downloadQrBtn" class="flex w-full items-center justify-center gap-2 h-10 px-4 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold transition-colors text-sm">
+                                    <button id="downloadQrBtn" class="flex w-full items-center justify-center gap-2 h-10 px-4 rounded-lg bg-primary hover:bg-blue-600 text-white font-bold transition-colors text-sm">
                                         <span class="material-symbols-outlined text-lg">download</span>
                                         <span>下載 QR Code</span>
                                     </button>
-                                    <button id="customizeExistingQrBtn" class="flex w-full items-center justify-center gap-2 h-10 px-4 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold transition-colors text-sm">
-                                        <span class="material-symbols-outlined text-lg">tune</span>
-                                        <span>進階客製化</span>
-                                    </button>
+                                    <!-- 進階客製化功能已停用 - 使用預設的慈濟 logo -->
                                 </div>
                             </div>
 
-                            <!-- 尚未生成 QR Code -->
+                            <!-- 尚未生成 QR Code - 已停用，現在自動生成 -->
                             <div id="noQrCode" class="hidden">
                                 <div class="text-center py-4 mb-4">
                                     <span class="material-symbols-outlined text-white/20 text-5xl">qr_code</span>
-                                    <p class="text-white/60 text-sm mt-2">此連結尚未生成 QR Code</p>
-                                </div>
-
-                                <!-- 生成按鈕 -->
-                                <div class="flex flex-col gap-2">
-                                    <button id="generateBasicQrBtn" class="flex w-full items-center justify-center gap-2 h-11 px-4 rounded-lg bg-primary hover:bg-blue-600 text-white font-bold transition-colors text-sm">
-                                        <span class="material-symbols-outlined text-lg">qr_code</span>
-                                        <span>生成 QR Code</span>
-                                    </button>
-                                    <button id="customizeBtn" class="flex w-full items-center justify-center gap-2 h-10 px-4 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold transition-colors text-sm">
-                                        <span class="material-symbols-outlined text-lg">tune</span>
-                                        <span>進階客製化</span>
-                                    </button>
+                                    <p class="text-white/60 text-sm mt-2">QR Code 生成中...</p>
                                 </div>
                             </div>
                         </div>

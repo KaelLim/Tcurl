@@ -28,9 +28,10 @@ const qrCodeContainer = document.getElementById('qrCodeContainer')
 const noQrCode = document.getElementById('noQrCode')
 const qrCodeCanvas = document.getElementById('qrCodeCanvas')
 const downloadQrBtn = document.getElementById('downloadQrBtn')
-const customizeExistingQrBtn = document.getElementById('customizeExistingQrBtn')
-const generateBasicQrBtn = document.getElementById('generateBasicQrBtn')
-const customizeBtn = document.getElementById('customizeBtn')
+// 以下按鈕已移除（改用自動生成）
+// const customizeExistingQrBtn = document.getElementById('customizeExistingQrBtn')
+// const generateBasicQrBtn = document.getElementById('generateBasicQrBtn')
+// const customizeBtn = document.getElementById('customizeBtn')
 
 // QR Code 實例
 let currentQRCode = null
@@ -147,7 +148,8 @@ function populateForm() {
   }
 
   // QR Code - 總是自動生成客戶端 QR Code
-  generateClientQRCode(currentUrlData.short_url)
+  const fullShortUrl = `${window.location.origin}/s/${currentUrlData.short_code}`
+  generateClientQRCode(fullShortUrl)
   qrCodeContainer.classList.remove('hidden')
   noQrCode.classList.add('hidden')
 }
@@ -403,6 +405,10 @@ async function loadThemes() {
   }
 }
 
+// ======== 舊的伺服器端 QR Code 生成功能 - 已停用 ========
+// 現在使用客戶端自動生成，不再需要這些按鈕
+
+/* DISABLED: Server-side QR Code generation buttons
 // 生成基本 QR Code（黑色）
 generateBasicQrBtn.addEventListener('click', async () => {
   if (!currentUrlData) {
@@ -465,6 +471,7 @@ customizeExistingQrBtn.addEventListener('click', () => {
   }
   openCustomizeModal()
 })
+*/
 
 // 打開客製化面板
 function openCustomizeModal() {
