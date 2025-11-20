@@ -108,7 +108,7 @@ function renderUrls() {
   if (allUrls.length === 0 && searchInput.value.trim()) {
     const noResultRow = document.createElement('tr')
     noResultRow.innerHTML = `
-      <td colspan="4" class="p-8 text-center text-[#9da1b9]">
+      <td colspan="5" class="p-8 text-center text-[#9da1b9]">
         找不到符合的結果
       </td>
     `
@@ -162,6 +162,11 @@ function createUrlRow(url) {
     </td>
     <td class="p-4 text-[#9da1b9] text-sm">
       ${utils.formatDate(url.created_at)}
+    </td>
+    <td class="p-4">
+      <button class="text-white/60 hover:text-white transition-colors" onclick="event.stopPropagation(); showClientQRCodeModal('${shortUrl}', '${url.short_code}')" title="查看 QR Code">
+        <span class="material-symbols-outlined">qr_code_2</span>
+      </button>
     </td>
   `
 
@@ -432,3 +437,71 @@ nextPageBtn.addEventListener('click', () => {
 
 // 初始載入
 loadUrls()
+
+// ======== 客戶端 QR Code 生成 ========
+
+// QR Code 配置
+const QR_CONFIG = {
+  width: 300,
+  height: 300,
+  type: "svg",
+  image: "/images/tzuchi-logo.svg",
+  dotsOptions: {
+    color: "#000000",
+    type: "rounded"
+  },
+  backgroundOptions: {
+    color: "#ffffff"
+  },
+  qrOptions: {
+    errorCorrectionLevel: 'H'
+  },
+  imageOptions: {
+    margin: 10,
+    imageSize: 0.4
+  }
+}
+
+// 顯示客戶端 QR Code 模態視窗
+function showClientQRCodeModal(shortUrl, shortCode) {
+  const modal = document.createElement('div')
+  modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50'
+  modal.innerHTML = `
+    <div class="relative bg-[#1e1e1e] rounded-xl p-6 max-w-md w-full mx-4">
+      <button class="absolute top-4 right-4 text-white/60 hover:text-white" onclick="this.closest('.fixed').remove()">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+      <h3 class="text-white text-xl font-bold mb-4">QR Code - ${shortCode}</h3>
+      <div class="bg-white p-4 rounded-lg mb-4 flex justify-center">
+        <div id="qrCodeModalCanvas"></div>
+      </div>
+      <div class="flex gap-2">
+        <button id="downloadModalQrBtn" class="flex-1 bg-primary hover:bg-primary/90 text-white rounded-lg py-3 font-bold flex items-center justify-center gap-2">
+          <span class="material-symbols-outlined text-lg">download</span>
+          <span>下載</span>
+        </button>
+      </div>
+    </div>
+  `
+  document.body.appendChild(modal)
+
+  // 生成 QR Code
+  const qrCodeInstance = new QRCodeStyling({
+    ...QR_CONFIG,
+    data: shortUrl
+  })
+  qrCodeInstance.append(document.getElementById('qrCodeModalCanvas'))
+
+  // 下載按鈕事件
+  document.getElementById('downloadModalQrBtn').addEventListener('click', () => {
+    qrCodeInstance.download({ name: `qrcode_${shortCode}`, extension: "png" })
+    utils.showNotification('QR Code 已下載！', 'success')
+  })
+
+  // 點擊背景關閉
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      modal.remove()
+    }
+  })
+}

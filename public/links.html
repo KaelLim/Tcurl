@@ -9,6 +9,8 @@
     <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+    <!-- QR Code Styling Library -->
+    <script type="text/javascript" src="https://unpkg.com/qr-code-styling@1.5.0/lib/qr-code-styling.js"></script>
     <script>
         tailwind.config = {
             darkMode: "class",
@@ -62,7 +64,7 @@
         <aside class="w-64 flex-shrink-0 bg-[#111218] p-4 flex flex-col justify-between border-r border-r-[#3b3f54]">
             <div class="flex flex-col gap-8">
                 <div class="flex items-center gap-2 p-2">
-                    <img src="/images/logo.png" alt="TCurl Logo" style="width: 76px; height: 40px;">
+                    <img src="https://info.tzuchi.org/favicon.svg" alt="TCurl Logo" style="width: 76px; height: 40px;">
                     <div>
                         <h1 class="text-white text-xl font-bold">TCurl</h1>
                         <p class="text-white/60 text-xs">慈濟短網址</p>
@@ -135,12 +137,13 @@
                                     <th class="p-4 text-left text-white text-sm font-medium">原始網址</th>
                                     <th class="p-4 text-left text-white text-sm font-medium">點擊數</th>
                                     <th class="p-4 text-left text-white text-sm font-medium">建立時間</th>
+                                    <th class="p-4 text-left text-white text-sm font-medium">操作</th>
                                 </tr>
                             </thead>
                             <tbody id="urlTableBody" class="divide-y divide-[#3b3f54]">
                                 <!-- Loading state -->
                                 <tr id="loadingRow">
-                                    <td colspan="4" class="p-8 text-center">
+                                    <td colspan="5" class="p-8 text-center">
                                         <div class="flex items-center justify-center gap-3 text-white/60">
                                             <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
                                             <span>載入中...</span>
@@ -149,7 +152,7 @@
                                 </tr>
                                 <!-- Empty state -->
                                 <tr id="emptyRow" class="hidden">
-                                    <td colspan="4" class="p-8 text-center text-[#9da1b9]">
+                                    <td colspan="5" class="p-8 text-center text-[#9da1b9]">
                                         <div class="flex flex-col items-center gap-3">
                                             <span class="material-symbols-outlined text-4xl">link_off</span>
                                             <p>尚未建立任何短網址</p>
