@@ -26,33 +26,17 @@ let pagination = {
   hasPrev: false
 }
 
-// 載入 URL（支援分頁）
+// 載入 URL（支援分頁）- 使用 Supabase JS
 async function loadUrls(page = 1) {
   try {
     loadingRow.classList.remove('hidden')
     emptyRow.classList.add('hidden')
 
-    // 並行載入分頁資料和統計數據（強制不使用快取）
-    const timestamp = Date.now()
-    const [urlsResponse, statsResponse] = await Promise.all([
-      fetch(`/api/urls?page=${page}&limit=${pagination.limit}&_=${timestamp}`, {
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        }
-      }),
-      fetch(`/api/urls/stats/summary?_=${timestamp}`, {
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        }
-      })
+    // 並行載入分頁資料和統計數據
+    const [result, stats] = await Promise.all([
+      api.getUrls(page, pagination.limit),
+      api.getStatsSummary()
     ])
-
-    const result = await urlsResponse.json()
-    const stats = await statsResponse.json()
 
     allUrls = result.data || []
     pagination = result.pagination || pagination
@@ -68,7 +52,7 @@ async function loadUrls(page = 1) {
     }
   } catch (error) {
     console.error('Error loading URLs:', error)
-    utils.showNotification('載入失敗', 'error')
+    utils.showNotification('載入失敗: ' + error.message, 'error')
     loadingRow.classList.add('hidden')
   }
 }
@@ -134,6 +118,7 @@ function createUrlRow(url) {
   }
 
   const shortUrl = `${window.location.origin}/s/${url.short_code}`
+  const adUrl = `${window.location.origin}/ad/${url.short_code}`
   const maxUrlLength = 60
   const displayUrl = url.original_url.length > maxUrlLength
     ? url.original_url.substring(0, maxUrlLength) + '...'
@@ -145,8 +130,11 @@ function createUrlRow(url) {
         <span class="text-primary text-sm font-medium hover:underline" onclick="event.stopPropagation(); window.open('${shortUrl}', '_blank')">
           ${url.short_code}
         </span>
-        <button class="text-white/40 hover:text-white" onclick="event.stopPropagation(); copyShortUrl('${shortUrl}')" title="複製短網址">
+        <button class="text-white/40 hover:text-white" onclick="event.stopPropagation(); copyShortUrl('${shortUrl}')" title="複製短網址 /s/">
           <span class="material-symbols-outlined text-sm">content_copy</span>
+        </button>
+        <button class="text-orange-400/60 hover:text-orange-400" onclick="event.stopPropagation(); copyShortUrl('${adUrl}')" title="複製廣告頁連結 /ad/">
+          <span class="material-symbols-outlined text-sm">ads_click</span>
         </button>
       </div>
     </td>
@@ -435,8 +423,13 @@ nextPageBtn.addEventListener('click', () => {
   }
 })
 
-// 初始載入
-loadUrls()
+// 初始載入函數 - 由頁面在 auth 初始化後調用
+function initLinks() {
+  loadUrls()
+}
+
+// 導出給頁面使用
+window.initLinks = initLinks
 
 // ======== 客戶端 QR Code 生成 ========
 

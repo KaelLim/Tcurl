@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html class="dark" lang="zh-TW">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>註冊 - TCurl 慈濟短網址服務</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com" rel="preconnect"/>
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1337ec",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101322",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings:
+            'FILL' 0,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 24
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-md">
+        <!-- Logo & Title -->
+        <div class="flex flex-col items-center gap-4 mb-8">
+            <div class="flex items-center gap-3">
+                <img src="https://info.tzuchi.org/favicon.svg" alt="TCurl Logo" class="w-16 h-auto">
+                <div>
+                    <h1 class="text-white text-3xl font-bold">TCurl</h1>
+                    <p class="text-white/60 text-sm">慈濟短網址服務</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Register Form Card -->
+        <div class="rounded-xl border border-white/10 bg-white/5 p-6 sm:p-8 shadow-2xl shadow-black/20">
+            <h2 class="text-white text-2xl font-bold text-center mb-6">建立帳號</h2>
+
+            <!-- Error Message -->
+            <div id="errorMessage" class="hidden mb-4 p-3 rounded-lg bg-red-500/20 border border-red-500/50 text-red-400 text-sm">
+            </div>
+
+            <!-- Success Message -->
+            <div id="successMessage" class="hidden mb-4 p-3 rounded-lg bg-green-500/20 border border-green-500/50 text-green-400 text-sm">
+            </div>
+
+            <form id="registerForm" class="flex flex-col gap-4">
+                <!-- Display Name -->
+                <label class="flex flex-col w-full">
+                    <p class="text-white text-sm font-medium leading-normal pb-2">顯示名稱</p>
+                    <input
+                        id="displayName"
+                        type="text"
+                        class="form-input w-full rounded-lg text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-white/20 bg-background-dark h-12 placeholder:text-white/40 px-4 text-base font-normal leading-normal transition-all"
+                        placeholder="您的名稱（選填）"
+                    />
+                </label>
+
+                <!-- Email -->
+                <label class="flex flex-col w-full">
+                    <p class="text-white text-sm font-medium leading-normal pb-2">電子郵件 <span class="text-red-400">*</span></p>
+                    <input
+                        id="email"
+                        type="email"
+                        required
+                        class="form-input w-full rounded-lg text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-white/20 bg-background-dark h-12 placeholder:text-white/40 px-4 text-base font-normal leading-normal transition-all"
+                        placeholder="your@email.com"
+                    />
+                </label>
+
+                <!-- Password -->
+                <label class="flex flex-col w-full">
+                    <p class="text-white text-sm font-medium leading-normal pb-2">密碼 <span class="text-red-400">*</span></p>
+                    <div class="relative">
+                        <input
+                            id="password"
+                            type="password"
+                            required
+                            minlength="6"
+                            class="form-input w-full rounded-lg text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-white/20 bg-background-dark h-12 placeholder:text-white/40 px-4 pr-12 text-base font-normal leading-normal transition-all"
+                            placeholder="至少 6 個字元"
+                        />
+                        <button
+                            type="button"
+                            id="togglePassword"
+                            class="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/60 transition-colors"
+                        >
+                            <span class="material-symbols-outlined text-xl" id="passwordIcon">visibility_off</span>
+                        </button>
+                    </div>
+                </label>
+
+                <!-- Confirm Password -->
+                <label class="flex flex-col w-full">
+                    <p class="text-white text-sm font-medium leading-normal pb-2">確認密碼 <span class="text-red-400">*</span></p>
+                    <div class="relative">
+                        <input
+                            id="confirmPassword"
+                            type="password"
+                            required
+                            minlength="6"
+                            class="form-input w-full rounded-lg text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-white/20 bg-background-dark h-12 placeholder:text-white/40 px-4 pr-12 text-base font-normal leading-normal transition-all"
+                            placeholder="再次輸入密碼"
+                        />
+                        <button
+                            type="button"
+                            id="toggleConfirmPassword"
+                            class="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/60 transition-colors"
+                        >
+                            <span class="material-symbols-outlined text-xl" id="confirmPasswordIcon">visibility_off</span>
+                        </button>
+                    </div>
+                </label>
+
+                <!-- Password Strength Indicator -->
+                <div id="passwordStrength" class="hidden">
+                    <div class="flex gap-1 mb-1">
+                        <div class="h-1 flex-1 rounded bg-white/10" id="strength1"></div>
+                        <div class="h-1 flex-1 rounded bg-white/10" id="strength2"></div>
+                        <div class="h-1 flex-1 rounded bg-white/10" id="strength3"></div>
+                        <div class="h-1 flex-1 rounded bg-white/10" id="strength4"></div>
+                    </div>
+                    <p class="text-xs text-white/40" id="strengthText">密碼強度</p>
+                </div>
+
+                <!-- Submit Button -->
+                <button
+                    type="submit"
+                    id="submitBtn"
+                    class="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-primary hover:bg-blue-600 transition-colors text-white gap-2 text-base font-bold leading-normal tracking-[0.015em] shadow-[0_0_20px_theme(colors.primary/0.4)] mt-2"
+                >
+                    <span id="btnText">建立帳號</span>
+                    <span id="btnLoading" class="hidden">
+                        <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </span>
+                </button>
+            </form>
+
+            <!-- Divider -->
+            <div class="flex items-center gap-4 my-6">
+                <div class="flex-1 h-px bg-white/10"></div>
+                <span class="text-white/40 text-sm">或</span>
+                <div class="flex-1 h-px bg-white/10"></div>
+            </div>
+
+            <!-- Login Link -->
+            <p class="text-center text-white/60">
+                已有帳號？
+                <a href="/login.html" class="text-primary hover:text-blue-400 font-medium transition-colors">
+                    立即登入
+                </a>
+            </p>
+        </div>
+
+        <!-- Back to Home -->
+        <div class="mt-6 text-center">
+            <a href="/" class="text-white/40 hover:text-white/60 text-sm transition-colors inline-flex items-center gap-1">
+                <span class="material-symbols-outlined text-lg">arrow_back</span>
+                返回首頁
+            </a>
+        </div>
+    </div>
+
+    <!-- Auth Script -->
+    <script src="/js/auth.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            // 檢查是否已登入
+            await auth.init()
+            const isLoggedIn = await auth.isLoggedIn()
+            if (isLoggedIn) {
+                window.location.href = '/'
+                return
+            }
+
+            const form = document.getElementById('registerForm')
+            const displayNameInput = document.getElementById('displayName')
+            const emailInput = document.getElementById('email')
+            const passwordInput = document.getElementById('password')
+            const confirmPasswordInput = document.getElementById('confirmPassword')
+            const togglePassword = document.getElementById('togglePassword')
+            const toggleConfirmPassword = document.getElementById('toggleConfirmPassword')
+            const passwordIcon = document.getElementById('passwordIcon')
+            const confirmPasswordIcon = document.getElementById('confirmPasswordIcon')
+            const submitBtn = document.getElementById('submitBtn')
+            const btnText = document.getElementById('btnText')
+            const btnLoading = document.getElementById('btnLoading')
+            const errorMessage = document.getElementById('errorMessage')
+            const successMessage = document.getElementById('successMessage')
+            const passwordStrength = document.getElementById('passwordStrength')
+
+            // 切換密碼顯示
+            togglePassword.addEventListener('click', () => {
+                const type = passwordInput.type === 'password' ? 'text' : 'password'
+                passwordInput.type = type
+                passwordIcon.textContent = type === 'password' ? 'visibility_off' : 'visibility'
+            })
+
+            toggleConfirmPassword.addEventListener('click', () => {
+                const type = confirmPasswordInput.type === 'password' ? 'text' : 'password'
+                confirmPasswordInput.type = type
+                confirmPasswordIcon.textContent = type === 'password' ? 'visibility_off' : 'visibility'
+            })
+
+            // 密碼強度檢查
+            function checkPasswordStrength(password) {
+                let strength = 0
+                if (password.length >= 6) strength++
+                if (password.length >= 10) strength++
+                if (/[A-Z]/.test(password)) strength++
+                if (/[0-9]/.test(password)) strength++
+                if (/[^A-Za-z0-9]/.test(password)) strength++
+                return Math.min(strength, 4)
+            }
+
+            function updateStrengthIndicator(strength) {
+                const colors = ['bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-green-500']
+                const texts = ['弱', '一般', '中等', '強']
+
+                for (let i = 1; i <= 4; i++) {
+                    const el = document.getElementById(`strength${i}`)
+                    el.className = `h-1 flex-1 rounded ${i <= strength ? colors[strength - 1] : 'bg-white/10'}`
+                }
+
+                const textEl = document.getElementById('strengthText')
+                textEl.textContent = strength > 0 ? `密碼強度：${texts[strength - 1]}` : '密碼強度'
+                textEl.className = `text-xs ${strength > 0 ? colors[strength - 1].replace('bg-', 'text-').replace('-500', '-400') : 'text-white/40'}`
+            }
+
+            passwordInput.addEventListener('input', () => {
+                const password = passwordInput.value
+                if (password.length > 0) {
+                    passwordStrength.classList.remove('hidden')
+                    const strength = checkPasswordStrength(password)
+                    updateStrengthIndicator(strength)
+                } else {
+                    passwordStrength.classList.add('hidden')
+                }
+            })
+
+            // 表單提交
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault()
+
+                // 重置訊息
+                errorMessage.classList.add('hidden')
+                successMessage.classList.add('hidden')
+
+                const displayName = displayNameInput.value.trim()
+                const email = emailInput.value.trim()
+                const password = passwordInput.value
+                const confirmPassword = confirmPasswordInput.value
+
+                // 驗證密碼匹配
+                if (password !== confirmPassword) {
+                    errorMessage.textContent = '密碼不一致，請重新輸入'
+                    errorMessage.classList.remove('hidden')
+                    return
+                }
+
+                // 驗證密碼長度
+                if (password.length < 6) {
+                    errorMessage.textContent = '密碼至少需要 6 個字元'
+                    errorMessage.classList.remove('hidden')
+                    return
+                }
+
+                // 顯示載入狀態
+                submitBtn.disabled = true
+                btnText.classList.add('hidden')
+                btnLoading.classList.remove('hidden')
+
+                try {
+                    await auth.signUp(email, password, displayName || null)
+
+                    // 註冊成功，自動跳轉到登入頁面
+                    successMessage.innerHTML = `
+                        註冊成功！<br>
+                        <span class="text-xs opacity-80">即將跳轉到登入頁面...</span>
+                    `
+                    successMessage.classList.remove('hidden')
+
+                    // 清空表單
+                    form.reset()
+                    passwordStrength.classList.add('hidden')
+
+                    // 2 秒後跳轉到登入頁面
+                    setTimeout(() => {
+                        window.location.href = '/login.html'
+                    }, 2000)
+
+                } catch (error) {
+                    // 顯示錯誤訊息
+                    let message = '註冊失敗，請稍後再試'
+                    if (error.message.includes('already registered')) {
+                        message = '此電子郵件已被註冊'
+                    } else if (error.message.includes('valid email')) {
+                        message = '請輸入有效的電子郵件地址'
+                    } else if (error.message.includes('password')) {
+                        message = '密碼格式不正確'
+                    }
+                    errorMessage.textContent = message
+                    errorMessage.classList.remove('hidden')
+                } finally {
+                    // 重置按鈕
+                    submitBtn.disabled = false
+                    btnText.classList.remove('hidden')
+                    btnLoading.classList.add('hidden')
+                }
+            })
+        })
+    </script>
+</body>
+</html>

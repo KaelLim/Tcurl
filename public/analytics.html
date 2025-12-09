@@ -10,8 +10,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
     <!-- QR Code Styling Library -->
-    <script type="text/javascript" src="https://unpkg.com/qr-code-styling@1.5.0/lib/qr-code-styling.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script type="text/javascript" src="https://unpkg.com/qr-code-styling@1.5.0/lib/qr-code-styling.js" integrity="sha384-CHvehSuS0IW8Qj9IlAETJXbHf/SEi62VXMgODXi9p3CC3NUIuThj1Y0uAFnl30VB" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" integrity="sha384-9nhczxUqK87bcKHh20fSQcTGD4qq5GhayNYSYWqwBkINBhOfQLg/P5HG5lF1urn4" crossorigin="anonymous"></script>
     <script>
         tailwind.config = {
             darkMode: "class",
@@ -66,6 +66,22 @@
                         <span class="material-symbols-outlined text-white">bar_chart</span>
                         <p class="text-sm font-medium leading-normal">數據分析</p>
                     </a>
+                </div>
+                <!-- 使用者區塊 -->
+                <div id="userSection" class="hidden flex flex-col gap-2 pt-4 border-t border-white/10">
+                    <div class="flex items-center gap-3 px-3 py-2">
+                        <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                            <span class="material-symbols-outlined text-primary text-lg">person</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-white text-sm font-medium truncate" id="userDisplayName">使用者</p>
+                            <p class="text-white/40 text-xs truncate" id="userEmail">email@example.com</p>
+                        </div>
+                    </div>
+                    <button id="logoutBtn" class="flex items-center gap-3 px-3 py-2 rounded-lg text-white/60 hover:bg-red-500/20 hover:text-red-400 transition-colors">
+                        <span class="material-symbols-outlined">logout</span>
+                        <p class="text-sm font-medium leading-normal">登出</p>
+                    </button>
                 </div>
             </div>
         </aside>
@@ -148,7 +164,8 @@
         </main>
     </div>
 
-    <!-- Include API and Analytics JS -->
+    <!-- Include Auth and API JS -->
+    <script src="/js/auth.js"></script>
     <script src="/js/api.js"></script>
     <script>
         // Analytics JavaScript (內嵌，因為較簡單)
@@ -171,7 +188,12 @@
 
         async function loadDailyTrend(days) {
             try {
-                const response = await fetch(`${window.location.origin}/api/stats/daily?days=${days}`)
+                const token = await auth.getAccessToken()
+                const response = await fetch(`${window.location.origin}/api/stats/daily?days=${days}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                })
                 if (!response.ok) {
                     throw new Error('Failed to fetch daily stats')
                 }
@@ -382,8 +404,11 @@
             await loadDailyTrend(days)
         })
 
-        // 初始載入
-        loadAnalytics()
+        // 初始載入函數 - 由頁面在 auth 初始化後調用
+        function initAnalytics() {
+            loadAnalytics()
+        }
+        window.initAnalytics = initAnalytics
 
         // ======== 客戶端 QR Code 生成 ========
 
@@ -453,9 +478,45 @@
           })
         }
     </script>
+
+    <!-- Auth State Handler -->
     <script>
+        // 頁面需要登入
+        async function initAuthState() {
+            // 檢查認證
+            const isAuthed = await requireAuth('/login.html')
+            if (!isAuthed) return
+
+            // 顯示使用者資訊
+            const userSection = document.getElementById('userSection')
+            const logoutBtn = document.getElementById('logoutBtn')
+
+            userSection.classList.remove('hidden')
+
+            const user = await auth.getUser()
+            if (user) {
+                document.getElementById('userDisplayName').textContent = user.user_metadata?.display_name || user.email?.split('@')[0] || '使用者'
+                document.getElementById('userEmail').textContent = user.email || ''
             }
-        })
+
+            // 登出按鈕
+            logoutBtn.addEventListener('click', async () => {
+                try {
+                    await auth.signOut()
+                    window.location.href = '/login.html'
+                } catch (error) {
+                    console.error('Logout error:', error)
+                }
+            })
+
+            // 認證完成後，初始化分析頁面
+            if (window.initAnalytics) {
+                window.initAnalytics()
+            }
+        }
+
+        // 頁面載入時檢查認證
+        document.addEventListener('DOMContentLoaded', initAuthState)
     </script>
 </body>
 </html>

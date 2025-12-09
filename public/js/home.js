@@ -4,6 +4,7 @@ const shortenBtn = document.getElementById('shortenBtn')
 const resultCard = document.getElementById('resultCard')
 const shortUrlInput = document.getElementById('shortUrl')
 const copyBtn = document.getElementById('copyBtn')
+const copyAdBtn = document.getElementById('copyAdBtn')
 const shareBtn = document.getElementById('shareBtn')
 const viewLinksBtn = document.getElementById('viewLinksBtn')
 const advancedBtn = document.getElementById('advancedBtn')
@@ -81,7 +82,19 @@ async function shortenUrl() {
     generateClientQRCode(data.short_url)
   } catch (error) {
     console.error('Error creating short URL:', error)
-    utils.showNotification(`建立失敗: ${error.message}`, 'error')
+
+    // 處理未登入錯誤
+    if (error.message === '請先登入') {
+      utils.showNotification('請先登入才能建立短網址', 'error')
+      // 延遲跳轉，讓使用者看到訊息
+      setTimeout(() => {
+        sessionStorage.setItem('redirectAfterLogin', '/')
+        window.location.href = '/login.html'
+      }, 1500)
+    } else {
+      utils.showNotification(`建立失敗: ${error.message}`, 'error')
+    }
+
     loadingIndicator.classList.add('hidden')
   } finally {
     shortenBtn.disabled = false
@@ -144,6 +157,26 @@ async function copyShortUrl() {
   }
 }
 
+// 複製廣告頁連結
+async function copyAdUrl() {
+  if (!currentUrlData?.short_code) {
+    utils.showNotification('短代碼尚未載入', 'error')
+    return
+  }
+  const adUrl = `${window.location.origin}/ad/${currentUrlData.short_code}`
+  const success = await utils.copyToClipboard(adUrl)
+  if (success) {
+    utils.showNotification('已複製廣告頁連結！', 'success')
+    const icon = copyAdBtn.querySelector('.material-symbols-outlined')
+    icon.textContent = 'check'
+    setTimeout(() => {
+      icon.textContent = 'ads_click'
+    }, 2000)
+  } else {
+    utils.showNotification('複製失敗', 'error')
+  }
+}
+
 // 分享短網址
 async function shareShortUrl() {
   const url = shortUrlInput.value
@@ -187,6 +220,7 @@ function viewAllLinks() {
 // 事件監聽器
 shortenBtn.addEventListener('click', shortenUrl)
 copyBtn.addEventListener('click', copyShortUrl)
+copyAdBtn.addEventListener('click', copyAdUrl)
 shareBtn.addEventListener('click', shareShortUrl)
 viewLinksBtn.addEventListener('click', viewAllLinks)
 advancedBtn.addEventListener('click', goToAdvanced)

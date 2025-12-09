@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html class="dark" lang="zh-TW">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>API 文件 - TCurl</title>
+    <link rel="icon" href="https://info.tzuchi.org/favicon.svg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1337ec",
+                        "background-dark": "#101322",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background-dark font-display min-h-screen flex items-center justify-center p-4">
+    <div class="max-w-2xl w-full">
+        <div class="text-center mb-8">
+            <h1 class="text-white text-3xl font-bold mb-2">TCurl API 文件</h1>
+            <p class="text-white/60">選擇您偏好的 API 文檔工具</p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <!-- Swagger -->
+            <a href="/swagger.html" class="group bg-white/5 hover:bg-white/10 border border-white/10 hover:border-primary/50 rounded-xl p-6 transition-all">
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center">
+                        <span class="text-green-500 text-xl font-bold">S</span>
+                    </div>
+                    <h2 class="text-white text-lg font-bold group-hover:text-primary transition-colors">Swagger UI</h2>
+                </div>
+                <p class="text-white/60 text-sm">經典的 API 文檔工具，支持互動式測試</p>
+            </a>
+
+            <!-- RapiDoc -->
+            <a href="/rapidoc.html" class="group bg-white/5 hover:bg-white/10 border border-white/10 hover:border-primary/50 rounded-xl p-6 transition-all">
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                        <span class="text-purple-500 text-xl font-bold">R</span>
+                    </div>
+                    <h2 class="text-white text-lg font-bold group-hover:text-primary transition-colors">RapiDoc</h2>
+                </div>
+                <p class="text-white/60 text-sm">現代化設計，暗色主題，可互動測試</p>
+            </a>
+
+            <!-- Scalar -->
+            <a href="/scalar.html" class="group bg-white/5 hover:bg-white/10 border border-white/10 hover:border-primary/50 rounded-xl p-6 transition-all">
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                        <span class="text-blue-500 text-xl font-bold">S</span>
+                    </div>
+                    <h2 class="text-white text-lg font-bold group-hover:text-primary transition-colors">Scalar</h2>
+                </div>
+                <p class="text-white/60 text-sm">最新潮的設計，極致的使用體驗</p>
+            </a>
+        </div>
+
+        <div class="mt-8 text-center">
+            <a href="/" class="text-white/60 hover:text-white text-sm transition-colors">返回首頁</a>
+        </div>
+    </div>
+</body>
+</html>

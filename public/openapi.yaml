@@ -1,0 +1,953 @@
+openapi: 3.0.3
+info:
+  title: TCurl - 慈濟短網址 API
+  version: 1.0.0
+
+servers:
+  - url: https://url.tzuchi.org
+    description: Production server
+
+tags:
+  - name: 短網址管理
+    description: 短網址 CRUD 操作
+  - name: QR Code
+    description: QR Code 配置與客製化
+  - name: 統計分析
+    description: 點擊統計與數據分析
+  - name: 認證
+    description: 使用者認證與 Profile
+  - name: 公開端點
+    description: 不需要認證的公開 API
+
+security:
+  - BearerAuth: []
+
+paths:
+  /api/urls:
+    post:
+      tags:
+        - 短網址管理
+      summary: 建立短網址
+      description: 建立新的短網址。可選擇自訂短代碼或由系統自動生成。
+      operationId: createUrl
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUrlRequest'
+            examples:
+              basic:
+                summary: 基本範例
+                value:
+                  original_url: "https://www.tzuchi.org.tw/very-long-url-path"
+              custom:
+                summary: 自訂短代碼
+                value:
+                  original_url: "https://www.tzuchi.org.tw/event/2024"
+                  short_code: "event2024"
+                  expires_at: "2024-12-31T23:59:59Z"
+      responses:
+        '201':
+          description: 短網址建立成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UrlResponse'
+        '400':
+          description: 請求參數錯誤
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                missing_url:
+                  value:
+                    error: "original_url is required"
+                invalid_code:
+                  value:
+                    error: "Invalid short code format"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: 短代碼已存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Short code already exists"
+
+    get:
+      tags:
+        - 短網址管理
+      summary: 取得短網址列表
+      description: |
+        取得當前使用者的所有短網址（分頁）。
+        RLS 會自動過濾，只返回該使用者建立的短網址。
+      operationId: listUrls
+      parameters:
+        - name: page
+          in: query
+          description: 頁碼（從 1 開始）
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: 每頁數量
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        '200':
+          description: 成功取得短網址列表
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              description: no-cache, no-store, must-revalidate
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UrlListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/urls/{id}:
+    get:
+      tags:
+        - 短網址管理
+      summary: 取得單一短網址詳情
+      description: 取得指定 ID 的短網址詳細資料（需為自己建立的）
+      operationId: getUrl
+      parameters:
+        - $ref: '#/components/parameters/UrlId'
+      responses:
+        '200':
+          description: 成功取得短網址
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UrlRecord'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - 短網址管理
+      summary: 更新短網址
+      description: |
+        更新短網址設定。可更新原始網址、密碼保護、過期時間等。
+        RLS 確保只能更新自己建立的短網址。
+      operationId: updateUrl
+      parameters:
+        - $ref: '#/components/parameters/UrlId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUrlRequest'
+            examples:
+              update_url:
+                summary: 更新原始網址
+                value:
+                  original_url: "https://new-url.example.com"
+              enable_password:
+                summary: 啟用密碼保護
+                value:
+                  password_protected: true
+                  password: "mySecretPassword123"
+              set_expiry:
+                summary: 設定過期時間
+                value:
+                  expires_at: "2024-12-31T23:59:59Z"
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UrlRecord'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - 短網址管理
+      summary: 刪除短網址
+      description: |
+        永久刪除短網址及其相關的 QR Code 檔案。
+        此操作無法復原。
+      operationId: deleteUrl
+      parameters:
+        - $ref: '#/components/parameters/UrlId'
+      responses:
+        '200':
+          description: 刪除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "URL deleted successfully"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/urls/{id}/qr-code:
+    patch:
+      tags:
+        - QR Code
+      summary: 更新 QR Code 配置
+      description: |
+        更新 QR Code 的客製化設定並保存 PNG 檔案。
+
+        QR Code 由前端生成後，將 Base64 編碼的 PNG 傳送給後端保存。
+      operationId: updateQrCode
+      parameters:
+        - $ref: '#/components/parameters/UrlId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateQrCodeRequest'
+            example:
+              qr_code_options:
+                dotsColor: "#713d3d"
+                bgColor: "#ffffff"
+                bgOpacity: 100
+                dotsType: "rounded"
+                cornersSquareType: "square"
+                cornersDotType: "square"
+                showLogo: true
+              qr_code_data_url: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..."
+      responses:
+        '200':
+          description: QR Code 更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  qr_code_path:
+                    type: string
+                    example: "/qrcodes/event2024.png"
+                  qr_code_options:
+                    $ref: '#/components/schemas/QrCodeOptions'
+        '400':
+          description: 缺少必要參數
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "qr_code_options is required"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/urls/{id}/stats:
+    get:
+      tags:
+        - 統計分析
+      summary: 取得單一短網址統計
+      description: 取得指定短網址的點擊統計，包含總計和每日明細。
+      operationId: getUrlStats
+      parameters:
+        - $ref: '#/components/parameters/UrlId'
+        - name: days
+          in: query
+          description: 取得最近幾天的每日統計
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 365
+            default: 30
+      responses:
+        '200':
+          description: 成功取得統計資料
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UrlStats'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/urls/stats/summary:
+    get:
+      tags:
+        - 統計分析
+      summary: 取得統計摘要
+      description: 取得當前使用者的整體統計摘要（總連結數、總點擊數、活躍連結數）。
+      operationId: getStatsSummary
+      responses:
+        '200':
+          description: 成功取得統計摘要
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatsSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/auth/login:
+    post:
+      tags:
+        - 認證
+      summary: 登入取得 JWT Token
+      description: 取得 Token 後，點擊右上角 Authorize 按鈕貼上 access_token
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+            example:
+              email: "user@example.com"
+              password: "yourpassword"
+      responses:
+        '200':
+          description: 登入成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                    description: JWT Access Token（複製此值到 Authorize）
+                  refresh_token:
+                    type: string
+                    description: Refresh Token
+                  expires_in:
+                    type: integer
+                    description: Token 有效期（秒）
+                    example: 3600
+                  token_type:
+                    type: string
+                    example: "Bearer"
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      email:
+                        type: string
+                        format: email
+        '400':
+          description: 缺少必要參數
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Bad Request"
+                message: "email 和 password 為必填"
+        '401':
+          description: 帳號或密碼錯誤
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Unauthorized"
+                message: "Invalid login credentials"
+
+  /api/auth/me:
+    get:
+      tags:
+        - 認證
+      summary: 取得當前使用者資訊
+      description: 取得目前登入使用者的基本資訊和 Profile。
+      operationId: getCurrentUser
+      responses:
+        '200':
+          description: 成功取得使用者資訊
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserInfo'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/auth/profile:
+    put:
+      tags:
+        - 認證
+      summary: 更新使用者 Profile
+      description: 更新當前使用者的顯示名稱、頭像等資訊。
+      operationId: updateProfile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+            example:
+              display_name: "慈濟志工"
+              avatar_url: "https://example.com/avatar.jpg"
+      responses:
+        '200':
+          description: Profile 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserInfo'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /s/{shortCode}:
+    get:
+      tags:
+        - 公開端點
+      summary: 短網址重定向
+      description: |
+        訪問短網址並重定向到原始網址。
+
+        - 如有密碼保護，會顯示密碼輸入頁面
+        - 如已過期，會顯示過期提示頁面
+        - 系統會記錄點擊次數
+      operationId: redirectUrl
+      security: []
+      parameters:
+        - name: shortCode
+          in: path
+          required: true
+          description: 短代碼
+          schema:
+            type: string
+            pattern: '^[a-zA-Z0-9-]+$'
+          example: "event2024"
+        - name: qr
+          in: query
+          description: 標記為 QR Code 掃描（用於區分點擊來源）
+          schema:
+            type: string
+            enum: ["1", "true"]
+      responses:
+        '302':
+          description: 重定向到原始網址
+          headers:
+            Location:
+              schema:
+                type: string
+              description: 原始網址
+        '200':
+          description: 需要密碼驗證或已過期（返回 HTML 頁面）
+          content:
+            text/html:
+              schema:
+                type: string
+        '404':
+          description: 短網址不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Short URL not found"
+
+  /api/urls/{shortCode}/verify-password:
+    post:
+      tags:
+        - 公開端點
+      summary: 驗證密碼保護短網址
+      description: 驗證密碼保護短網址的密碼，驗證成功後返回原始網址。
+      operationId: verifyPassword
+      security: []
+      parameters:
+        - name: shortCode
+          in: path
+          required: true
+          description: 短代碼
+          schema:
+            type: string
+          example: "event2024"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - password
+              properties:
+                password:
+                  type: string
+                  description: 密碼
+            example:
+              password: "mySecretPassword123"
+      responses:
+        '200':
+          description: 密碼驗證成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  original_url:
+                    type: string
+                    format: uri
+                    example: "https://www.tzuchi.org.tw/event"
+                  short_code:
+                    type: string
+                    example: "event2024"
+        '400':
+          description: 請求參數錯誤
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                missing_password:
+                  value:
+                    error: "Password is required"
+                not_protected:
+                  value:
+                    error: "This URL is not password protected"
+        '401':
+          description: 密碼錯誤
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Invalid password"
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          description: 短網址已過期
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Short URL has expired"
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        使用 Supabase Auth 取得的 JWT Access Token。
+
+        登入後取得 `access_token`，在請求 Header 中加入：
+        ```
+        Authorization: Bearer <access_token>
+        ```
+
+  parameters:
+    UrlId:
+      name: id
+      in: path
+      required: true
+      description: 短網址的 UUID
+      schema:
+        type: string
+        format: uuid
+      example: "550e8400-e29b-41d4-a716-446655440000"
+
+  responses:
+    Unauthorized:
+      description: 未認證或 Token 無效
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Unauthorized"
+            message: "請先登入"
+
+    NotFound:
+      description: 資源不存在
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "URL not found"
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: 錯誤類型
+        message:
+          type: string
+          description: 錯誤詳細訊息
+        details:
+          type: string
+          description: 額外詳細資訊
+      required:
+        - error
+
+    CreateUrlRequest:
+      type: object
+      required:
+        - original_url
+      properties:
+        original_url:
+          type: string
+          format: uri
+          description: 原始網址
+          example: "https://www.tzuchi.org.tw/very-long-url-path"
+        short_code:
+          type: string
+          pattern: '^[a-zA-Z0-9-]+$'
+          minLength: 1
+          maxLength: 50
+          description: 自訂短代碼（選填，若不提供則自動生成）
+          example: "event2024"
+        expires_at:
+          type: string
+          format: date-time
+          description: 過期時間（ISO 8601 格式）
+          example: "2024-12-31T23:59:59Z"
+
+    UpdateUrlRequest:
+      type: object
+      properties:
+        original_url:
+          type: string
+          format: uri
+          description: 新的原始網址
+        password_protected:
+          type: boolean
+          description: 是否啟用密碼保護
+        password:
+          type: string
+          minLength: 4
+          description: 密碼（啟用密碼保護時必填）
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: 過期時間（設為 null 移除過期限制）
+
+    UrlRecord:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 短網址 UUID
+        short_code:
+          type: string
+          description: 短代碼
+        original_url:
+          type: string
+          format: uri
+          description: 原始網址
+        password_protected:
+          type: boolean
+          description: 是否啟用密碼保護
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: 過期時間
+        qr_code_generated:
+          type: boolean
+          description: 是否已生成 QR Code
+        qr_code_path:
+          type: string
+          nullable: true
+          description: QR Code 檔案路徑
+        qr_code_options:
+          $ref: '#/components/schemas/QrCodeOptions'
+        is_active:
+          type: boolean
+          description: 是否啟用
+        created_by:
+          type: string
+          format: uuid
+          description: 建立者 ID
+        created_at:
+          type: string
+          format: date-time
+          description: 建立時間
+        updated_at:
+          type: string
+          format: date-time
+          description: 更新時間
+
+    UrlResponse:
+      allOf:
+        - $ref: '#/components/schemas/UrlRecord'
+        - type: object
+          properties:
+            short_url:
+              type: string
+              format: uri
+              description: 完整的短網址
+              example: "https://url.tzuchi.org/s/event2024"
+
+    UrlListItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        short_code:
+          type: string
+        original_url:
+          type: string
+          format: uri
+        created_at:
+          type: string
+          format: date-time
+        is_active:
+          type: boolean
+        clicks:
+          type: integer
+          description: 總點擊數
+        link_clicks:
+          type: integer
+          description: 直接連結點擊數
+        qr_scans:
+          type: integer
+          description: QR Code 掃描數
+        last_clicked_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: 最後點擊時間
+        qr_code_generated:
+          type: boolean
+        qr_code_path:
+          type: string
+          nullable: true
+        qr_code_options:
+          $ref: '#/components/schemas/QrCodeOptions'
+        password_protected:
+          type: boolean
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_by:
+          type: string
+          format: uuid
+
+    UrlListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/UrlListItem'
+        pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+              description: 當前頁碼
+            limit:
+              type: integer
+              description: 每頁數量
+            total:
+              type: integer
+              description: 總筆數
+            totalPages:
+              type: integer
+              description: 總頁數
+            hasNext:
+              type: boolean
+              description: 是否有下一頁
+            hasPrev:
+              type: boolean
+              description: 是否有上一頁
+
+    QrCodeOptions:
+      type: object
+      nullable: true
+      description: QR Code 客製化配置
+      properties:
+        dotsColor:
+          type: string
+          pattern: '^#[0-9A-Fa-f]{6}$'
+          description: QR Code 主體顏色（十六進位色碼）
+          example: "#000000"
+        bgColor:
+          type: string
+          pattern: '^#[0-9A-Fa-f]{6}$'
+          description: 背景顏色
+          example: "#ffffff"
+        bgOpacity:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: 背景透明度（0-100）
+          example: 100
+        dotsType:
+          type: string
+          enum:
+            - square
+            - rounded
+            - extra-rounded
+            - dots
+            - classy
+            - classy-rounded
+          description: Dots 樣式
+          example: "rounded"
+        cornersSquareType:
+          type: string
+          enum:
+            - square
+            - dot
+            - extra-rounded
+          description: 定位點外框樣式
+          example: "square"
+        cornersDotType:
+          type: string
+          enum:
+            - square
+            - dot
+            - rounded
+          description: 定位點內部樣式
+          example: "square"
+        showLogo:
+          type: boolean
+          description: 是否顯示慈濟 Logo
+          example: true
+
+    UpdateQrCodeRequest:
+      type: object
+      required:
+        - qr_code_options
+      properties:
+        qr_code_options:
+          $ref: '#/components/schemas/QrCodeOptions'
+        qr_code_data_url:
+          type: string
+          pattern: '^data:image/png;base64,.+'
+          description: Base64 編碼的 PNG 圖片（Data URL 格式）
+
+    UrlStats:
+      type: object
+      properties:
+        total:
+          type: object
+          properties:
+            total_clicks:
+              type: integer
+              description: 總點擊數
+            link_clicks:
+              type: integer
+              description: 直接連結點擊數
+            qr_scans:
+              type: integer
+              description: QR Code 掃描數
+            last_clicked_at:
+              type: string
+              format: date-time
+              nullable: true
+              description: 最後點擊時間
+        daily:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date
+                description: 日期
+              total_clicks:
+                type: integer
+              link_clicks:
+                type: integer
+              qr_scans:
+                type: integer
+
+    StatsSummary:
+      type: object
+      properties:
+        totalLinks:
+          type: integer
+          description: 總連結數
+        activeLinks:
+          type: integer
+          description: 活躍連結數
+        totalClicks:
+          type: integer
+          description: 總點擊數
+
+    UserInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 使用者 UUID
+        email:
+          type: string
+          format: email
+          description: Email
+        display_name:
+          type: string
+          description: 顯示名稱
+        avatar_url:
+          type: string
+          format: uri
+          nullable: true
+          description: 頭像 URL
+        metadata:
+          type: object
+          description: 額外的使用者資料
+        created_at:
+          type: string
+          format: date-time
+          description: 帳號建立時間
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: 顯示名稱
+        avatar_url:
+          type: string
+          format: uri
+          nullable: true
+          description: 頭像 URL
+        metadata:
+          type: object
+          description: 額外的使用者資料

@@ -1,17 +1,47 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
-import { supabase } from '../services/supabase.js'
+import { supabase, createUserClient, extractToken } from '../services/supabase.js'
 import { redis, CACHE_KEYS, CACHE_TTL } from '../services/redis.js'
+import { purgeNginxCache } from '../services/nginx-cache.js'
 import { generateShortCode, isValidShortCode } from '../utils/shortcode.js'
+import { validateUrl } from '../utils/url-validator.js'
 // Server-side QR Code generation disabled - using client-side generation instead
 // import { generateQRCode, generateQRCodeBase64 } from '../utils/qrcode.js'
 // import { getTheme, isValidThemeId, mergeThemeOptions, getDefaultTheme } from '../utils/qr-themes.js'
 import { CreateURLRequest, URLRecord } from '../types/index.js'
-import { renderPasswordPage, renderExpiredPage } from '../utils/html-templates.js'
+import { renderPasswordPage, renderExpiredPage, renderAdPage } from '../utils/html-templates.js'
 import bcrypt from 'bcrypt'
 
+/**
+ * 輔助函數：從請求中取得使用者 Supabase Client
+ * 如果沒有有效的 Token，回傳 null
+ */
+function getUserClientFromRequest(request: FastifyRequest) {
+  const token = extractToken(request.headers.authorization)
+  if (!token) {
+    return null
+  }
+  return createUserClient(token)
+}
+
+/**
+ * 輔助函數：回傳未授權錯誤
+ */
+function sendUnauthorized(reply: FastifyReply) {
+  return reply.code(401).send({
+    error: 'Unauthorized',
+    message: '請先登入'
+  })
+}
+
 export default async function urlRoutes(fastify: FastifyInstance) {
-  // 創建短網址
+  // 創建短網址（需要登入）
   fastify.post<{ Body: CreateURLRequest }>('/api/urls', async (request, reply) => {
+    // 驗證使用者登入
+    const userClient = getUserClientFromRequest(request)
+    if (!userClient) {
+      return sendUnauthorized(reply)
+    }
+
     const { original_url, short_code, expires_at } = request.body
 
     // 驗證原始 URL
@@ -19,61 +49,80 @@ export default async function urlRoutes(fastify: FastifyInstance) {
       return reply.code(400).send({ error: 'original_url is required' })
     }
 
-    // 生成或驗證短代碼
-    let finalShortCode = short_code
-    if (finalShortCode) {
-      if (!isValidShortCode(finalShortCode)) {
-        return reply.code(400).send({ error: 'Invalid short code format' })
-      }
-      // 檢查是否已存在
-      const { data: existing } = await supabase
-        .from('urls')
-        .select('short_code')
-        .eq('short_code', finalShortCode)
-        .single()
-
-      if (existing) {
-        return reply.code(409).send({ error: 'Short code already exists' })
-      }
-    } else {
-      // 生成唯一短代碼
-      let attempts = 0
-      while (attempts < 10) {
-        finalShortCode = generateShortCode(Number(process.env.SHORT_CODE_LENGTH) || 6)
-        const { data } = await supabase
-          .from('urls')
-          .select('short_code')
-          .eq('short_code', finalShortCode)
-          .single()
-
-        if (!data) break
-        attempts++
-      }
-
-      if (attempts >= 10) {
-        return reply.code(500).send({ error: 'Failed to generate unique short code' })
-      }
+    // URL 格式與安全性驗證（防止 SSRF 攻擊）
+    const urlValidation = validateUrl(original_url)
+    if (!urlValidation.valid) {
+      return reply.code(400).send({
+        error: 'Invalid URL',
+        message: urlValidation.reason
+      })
     }
 
-    // 插入資料庫
-    const { data, error } = await supabase
-      .from('urls')
-      .insert({
-        short_code: finalShortCode,
-        original_url,
-        expires_at
-      })
-      .select()
-      .single()
+    // 取得使用者 ID
+    const token = extractToken(request.headers.authorization)
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token!)
 
-    if (error) {
+    if (userError || !user) {
+      return reply.code(401).send({ error: 'Invalid token' })
+    }
+
+    // 驗證自訂短代碼格式
+    if (short_code && !isValidShortCode(short_code)) {
+      return reply.code(400).send({ error: 'Invalid short code format' })
+    }
+
+    // 插入資料庫（使用重試機制處理競爭條件）
+    const maxAttempts = 10
+    let attempts = 0
+    let data = null
+    let lastError = null
+
+    while (attempts < maxAttempts) {
+      // 使用自訂短代碼或生成新的
+      const currentShortCode = short_code || generateShortCode(Number(process.env.SHORT_CODE_LENGTH) || 6)
+
+      const { data: insertedData, error } = await userClient
+        .from('urls')
+        .insert({
+          short_code: currentShortCode,
+          original_url,
+          expires_at,
+          created_by: user.id
+        })
+        .select()
+        .single()
+
+      if (!error) {
+        // 插入成功
+        data = insertedData
+        break
+      }
+
+      // 檢查是否為 UNIQUE 違反錯誤（PostgreSQL error code: 23505）
+      if (error.code === '23505') {
+        if (short_code) {
+          // 使用者自訂的短代碼已存在，不重試
+          return reply.code(409).send({ error: 'Short code already exists' })
+        }
+        // 自動生成的短代碼衝突，重試
+        attempts++
+        lastError = error
+        continue
+      }
+
+      // 其他錯誤，直接返回
       fastify.log.error(error)
       return reply.code(500).send({ error: 'Failed to create short URL' })
     }
 
+    if (!data) {
+      fastify.log.error({ attempts, lastError }, 'Failed to generate unique short code after max attempts')
+      return reply.code(500).send({ error: 'Failed to generate unique short code' })
+    }
+
     // 不再自動生成 QR Code，由用戶決定是否生成
     const baseUrl = process.env.BASE_URL || 'http://localhost:3000'
-    const shortUrl = `${baseUrl}/s/${finalShortCode}`
+    const shortUrl = `${baseUrl}/s/${data.short_code}`
 
     return reply.code(201).send({
       ...data,
@@ -81,17 +130,24 @@ export default async function urlRoutes(fastify: FastifyInstance) {
     })
   })
 
-  // 獲取所有短網址列表（支援分頁，從 View 讀取即時統計）
+  // 獲取所有短網址列表（需要登入，RLS 自動過濾只顯示自己的）
   fastify.get<{ Querystring: { page?: string; limit?: string } }>(
     '/api/urls',
     async (request, reply) => {
+      // 驗證使用者登入
+      const userClient = getUserClientFromRequest(request)
+      if (!userClient) {
+        return sendUnauthorized(reply)
+      }
+
       const page = parseInt(request.query.page || '1')
       const limit = parseInt(request.query.limit || '10')
       const offset = (page - 1) * limit
 
+      // 使用 user client 查詢，RLS 會自動過濾只顯示該使用者的 URLs
       // 取得總數
-      const { count, error: countError } = await supabase
-        .from('url_total_stats')
+      const { count, error: countError } = await userClient
+        .from('urls')
         .select('*', { count: 'exact', head: true })
         .eq('is_active', true)
 
@@ -100,50 +156,66 @@ export default async function urlRoutes(fastify: FastifyInstance) {
         return reply.code(500).send({ error: 'Failed to count URLs' })
       }
 
-      // 從 url_total_stats View 取得分頁資料（包含即時統計）
-      const { data: statsData, error: statsError } = await supabase
-        .from('url_total_stats')
+      // 取得分頁資料
+      const { data: urlsData, error: urlsError } = await userClient
+        .from('urls')
         .select('*')
         .eq('is_active', true)
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1)
 
-      if (statsError) {
-        fastify.log.error(statsError)
+      if (urlsError) {
+        fastify.log.error(urlsError)
         return reply.code(500).send({ error: 'Failed to fetch URLs' })
       }
 
-      // 取得對應的 URL 完整資訊（包含 qr_code_generated 等）
-      const urlIds = statsData?.map(s => s.url_id) || []
-      const { data: urlsData, error: urlsError } = await supabase
-        .from('urls')
-        .select('id, qr_code_generated, qr_code_path, qr_code_options, password_protected, expires_at, user_id')
-        .in('id', urlIds)
+      // 取得點擊統計（使用 service client 查詢 url_clicks）
+      const urlIds = urlsData?.map(u => u.id) || []
+      let statsMap = new Map<string, { total: number; link: number; qr: number; last: string | null }>()
 
-      if (urlsError) {
-        fastify.log.error(urlsError)
+      if (urlIds.length > 0) {
+        const { data: clicksData } = await supabase
+          .from('url_clicks')
+          .select('url_id, event_type, clicked_at')
+          .in('url_id', urlIds)
+
+        // 計算每個 URL 的統計
+        for (const urlId of urlIds) {
+          const clicks = clicksData?.filter(c => c.url_id === urlId) || []
+          const linkClicks = clicks.filter(c => c.event_type === 'link_click' || c.event_type === 'ad_click').length
+          const qrScans = clicks.filter(c => c.event_type === 'qr_scan').length
+          const lastClick = clicks.length > 0
+            ? clicks.sort((a, b) => new Date(b.clicked_at).getTime() - new Date(a.clicked_at).getTime())[0].clicked_at
+            : null
+
+          statsMap.set(urlId, {
+            total: clicks.length,
+            link: linkClicks,
+            qr: qrScans,
+            last: lastClick
+          })
+        }
       }
 
       // 合併資料
-      const urlsMap = new Map(urlsData?.map(u => [u.id, u]) || [])
-      const mergedData = statsData?.map(stat => {
-        const urlData = urlsMap.get(stat.url_id)
+      const mergedData = urlsData?.map(url => {
+        const stats = statsMap.get(url.id) || { total: 0, link: 0, qr: 0, last: null }
         return {
-          id: stat.url_id,
-          short_code: stat.short_code,
-          original_url: stat.original_url,
-          created_at: stat.created_at,
-          is_active: stat.is_active,
-          clicks: stat.total_clicks || 0,
-          link_clicks: stat.link_clicks || 0,
-          qr_scans: stat.qr_scans || 0,
-          last_clicked_at: stat.last_clicked_at,
-          qr_code_generated: urlData?.qr_code_generated || false,
-          qr_code_path: urlData?.qr_code_path,
-          qr_code_options: urlData?.qr_code_options,
-          password_protected: urlData?.password_protected || false,
-          expires_at: urlData?.expires_at,
-          user_id: urlData?.user_id
+          id: url.id,
+          short_code: url.short_code,
+          original_url: url.original_url,
+          created_at: url.created_at,
+          is_active: url.is_active,
+          clicks: stats.total,
+          link_clicks: stats.link,
+          qr_scans: stats.qr,
+          last_clicked_at: stats.last,
+          qr_code_generated: url.qr_code_generated || false,
+          qr_code_path: url.qr_code_path,
+          qr_code_options: url.qr_code_options,
+          password_protected: url.password_protected || false,
+          expires_at: url.expires_at,
+          created_by: url.created_by
         }
       })
 
@@ -168,11 +240,17 @@ export default async function urlRoutes(fastify: FastifyInstance) {
     }
   )
 
-  // 獲取單個短網址詳情
+  // 獲取單個短網址詳情（需要登入，RLS 確保只能看自己的）
   fastify.get<{ Params: { id: string } }>('/api/urls/:id', async (request, reply) => {
+    // 驗證使用者登入
+    const userClient = getUserClientFromRequest(request)
+    if (!userClient) {
+      return sendUnauthorized(reply)
+    }
+
     const { id } = request.params
 
-    const { data, error } = await supabase
+    const { data, error } = await userClient
       .from('urls')
       .select('*')
       .eq('id', id)
@@ -185,10 +263,16 @@ export default async function urlRoutes(fastify: FastifyInstance) {
     return reply.send(data)
   })
 
-  // 更新短網址
+  // 更新短網址（需要登入，RLS 確保只能更新自己的）
   fastify.put<{ Params: { id: string }; Body: Partial<CreateURLRequest> }>(
     '/api/urls/:id',
     async (request, reply) => {
+      // 驗證使用者登入
+      const userClient = getUserClientFromRequest(request)
+      if (!userClient) {
+        return sendUnauthorized(reply)
+      }
+
       const { id } = request.params
       const { password, password_protected, ...otherUpdates } = request.body
 
@@ -214,7 +298,18 @@ export default async function urlRoutes(fastify: FastifyInstance) {
         updates.password_protected = true
       }
 
-      const { data, error } = await supabase
+      // 如果更新 original_url，需要驗證（防止 SSRF）
+      if (updates.original_url) {
+        const urlValidation = validateUrl(updates.original_url)
+        if (!urlValidation.valid) {
+          return reply.code(400).send({
+            error: 'Invalid URL',
+            message: urlValidation.reason
+          })
+        }
+      }
+
+      const { data, error } = await userClient
         .from('urls')
         .update(updates)
         .eq('id', id)
@@ -225,46 +320,158 @@ export default async function urlRoutes(fastify: FastifyInstance) {
         return reply.code(404).send({ error: 'URL not found' })
       }
 
-      // 清除 Redis 快取（因為資料已更新）
+      // 清除快取（Redis + Nginx）
       try {
         const cacheKey = CACHE_KEYS.URL(data.short_code)
         await redis.del(cacheKey)
+        await purgeNginxCache(data.short_code, fastify.log)
         fastify.log.info(`Cache invalidated for ${data.short_code} after update`)
-      } catch (redisError) {
-        fastify.log.error({ err: redisError }, 'Failed to invalidate cache')
+      } catch (cacheError) {
+        fastify.log.error({ err: cacheError }, 'Failed to invalidate cache')
       }
-
-      // DISABLED: Server-side QR Code regeneration
-      // QR Codes are now generated client-side, no need to regenerate server-side
-      /*
-      if (updates.original_url && data.qr_code_generated) {
-        const baseUrl = process.env.BASE_URL || 'http://localhost:3000'
-        const shortUrl = `${baseUrl}/s/${data.short_code}`
-
-        try {
-          const qrPath = await generateQRCode(shortUrl, data.short_code)
-          await supabase
-            .from('urls')
-            .update({ qr_code_path: qrPath })
-            .eq('id', id)
-
-          data.qr_code_path = qrPath
-        } catch (qrError) {
-          fastify.log.error(qrError)
-        }
-      }
-      */
 
       return reply.send(data)
     }
   )
 
-  // 刪除短網址（真正刪除）
+  // 更新 QR Code 配置並保存 PNG（需要登入，RLS 確保只能更新自己的）
+  fastify.patch<{
+    Params: { id: string }
+    Body: {
+      qr_code_options: any
+      qr_code_data_url?: string  // Base64 PNG data URL from client
+    }
+  }>(
+    '/api/urls/:id/qr-code',
+    async (request, reply) => {
+      // 驗證使用者登入
+      const userClient = getUserClientFromRequest(request)
+      if (!userClient) {
+        return sendUnauthorized(reply)
+      }
+
+      const { id } = request.params
+      const { qr_code_options, qr_code_data_url } = request.body
+
+      if (!qr_code_options) {
+        return reply.code(400).send({ error: 'qr_code_options is required' })
+      }
+
+      // 先獲取 URL 資料（使用 user client，RLS 會確保只能取得自己的）
+      const { data: urlData, error: fetchError } = await userClient
+        .from('urls')
+        .select('short_code, qr_code_path')
+        .eq('id', id)
+        .single()
+
+      if (fetchError || !urlData) {
+        return reply.code(404).send({ error: 'URL not found' })
+      }
+
+      // 準備更新資料
+      const updates: any = {
+        qr_code_options: qr_code_options,  // jsonb type, no need to stringify
+        qr_code_generated: true
+      }
+
+      // 如果提供了 PNG data URL，保存為檔案
+      if (qr_code_data_url) {
+        try {
+          const fs = await import('fs/promises')
+          const path = await import('path')
+
+          // 確保 qrcodes 目錄存在
+          const qrcodesDir = path.join(process.cwd(), 'public', 'qrcodes')
+          await fs.mkdir(qrcodesDir, { recursive: true })
+
+          // 解析 base64 data URL
+          const matches = qr_code_data_url.match(/^data:image\/png;base64,(.+)$/)
+          if (!matches) {
+            throw new Error('Invalid data URL format')
+          }
+
+          const base64Data = matches[1]
+          const buffer = Buffer.from(base64Data, 'base64')
+
+          // 驗證檔案大小（最大 1MB）
+          const maxSize = 1 * 1024 * 1024  // 1MB
+          if (buffer.length > maxSize) {
+            return reply.code(400).send({
+              error: 'QR Code 檔案過大',
+              message: `檔案大小 ${(buffer.length / 1024).toFixed(1)}KB 超過限制（最大 1MB）`
+            })
+          }
+
+          // 驗證 PNG 格式（檢查 PNG 檔頭簽名）
+          const pngSignature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])
+          if (buffer.length < 8 || !buffer.subarray(0, 8).equals(pngSignature)) {
+            return reply.code(400).send({
+              error: '無效的 PNG 檔案格式',
+              message: '上傳的檔案不是有效的 PNG 圖片'
+            })
+          }
+
+          // 保存檔案
+          const fileName = `${urlData.short_code}.png`
+          const filePath = path.join(qrcodesDir, fileName)
+          await fs.writeFile(filePath, buffer)
+
+          // 更新資料庫路徑
+          updates.qr_code_path = `/qrcodes/${fileName}`
+
+          fastify.log.info(`QR Code PNG saved: ${filePath}`)
+        } catch (saveError) {
+          fastify.log.error({ err: saveError }, 'Failed to save QR Code PNG')
+          return reply.code(500).send({ error: 'Failed to save QR Code image' })
+        }
+      }
+
+      // 更新資料庫（使用 user client）
+      const { data, error } = await userClient
+        .from('urls')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (error || !data) {
+        fastify.log.error({ err: error, updates }, 'Failed to update QR Code config')
+        return reply.code(500).send({
+          error: 'Failed to update QR Code configuration',
+          details: error?.message || 'Unknown error'
+        })
+      }
+
+      // 清除快取（Redis + Nginx）
+      try {
+        const cacheKey = CACHE_KEYS.URL(urlData.short_code)
+        await redis.del(cacheKey)
+        await purgeNginxCache(urlData.short_code, fastify.log)
+        fastify.log.info(`Cache invalidated for ${urlData.short_code} after QR update`)
+      } catch (cacheError) {
+        fastify.log.error({ err: cacheError }, 'Failed to invalidate cache')
+      }
+
+      return reply.send({
+        success: true,
+        qr_code_path: updates.qr_code_path,
+        qr_code_options: qr_code_options
+      })
+    }
+  )
+
+  // 刪除短網址（需要登入，RLS 確保只能刪除自己的）
   fastify.delete<{ Params: { id: string } }>('/api/urls/:id', async (request, reply) => {
+    // 驗證使用者登入
+    const userClient = getUserClientFromRequest(request)
+    if (!userClient) {
+      return sendUnauthorized(reply)
+    }
+
     const { id } = request.params
 
-    // 先取得資料以便清除快取
-    const { data: urlData } = await supabase
+    // 先取得資料以便清除快取（使用 user client，RLS 確保只能取得自己的）
+    const { data: urlData } = await userClient
       .from('urls')
       .select('short_code, qr_code_path')
       .eq('id', id)
@@ -287,8 +494,8 @@ export default async function urlRoutes(fastify: FastifyInstance) {
       }
     }
 
-    // 從資料庫真正刪除
-    const { error } = await supabase
+    // 從資料庫真正刪除（使用 user client）
+    const { error } = await userClient
       .from('urls')
       .delete()
       .eq('id', id)
@@ -298,13 +505,14 @@ export default async function urlRoutes(fastify: FastifyInstance) {
       return reply.code(500).send({ error: 'Failed to delete URL' })
     }
 
-    // 清除 Redis 快取
+    // 清除快取（Redis + Nginx）
     try {
       const cacheKey = CACHE_KEYS.URL(urlData.short_code)
       await redis.del(cacheKey)
+      await purgeNginxCache(urlData.short_code, fastify.log)
       fastify.log.info(`Cache invalidated for ${urlData.short_code} after deletion`)
-    } catch (redisError) {
-      fastify.log.error({ err: redisError }, 'Failed to invalidate cache')
+    } catch (cacheError) {
+      fastify.log.error({ err: cacheError }, 'Failed to invalidate cache')
     }
 
     return reply.send({ message: 'URL deleted successfully' })
@@ -484,11 +692,18 @@ export default async function urlRoutes(fastify: FastifyInstance) {
   )
   */ // End of disabled server-side QR Code routes
 
-  // 驗證密碼保護的短網址
+  // 驗證密碼保護的短網址（嚴格速率限制：5次/分鐘，防止暴力破解）
   fastify.post<{
     Params: { shortCode: string }
     Body: { password: string }
-  }>('/api/urls/:shortCode/verify-password', async (request, reply) => {
+  }>('/api/urls/:shortCode/verify-password', {
+    config: {
+      rateLimit: {
+        max: 5,
+        timeWindow: '1 minute'
+      }
+    }
+  }, async (request, reply) => {
     const { shortCode } = request.params
     const { password } = request.body
 
@@ -518,19 +733,31 @@ export default async function urlRoutes(fastify: FastifyInstance) {
       return reply.code(400).send({ error: 'This URL is not password protected' })
     }
 
-    // 驗證密碼
+    // 驗證密碼（加入固定延遲防止 Timing Attack）
+    const startTime = Date.now()
     const isValid = await bcrypt.compare(password, data.password_hash)
+    const elapsed = Date.now() - startTime
+
+    // 確保總回應時間至少 500ms，防止時序攻擊
+    const minDelay = 500
+    if (elapsed < minDelay) {
+      await new Promise(resolve => setTimeout(resolve, minDelay - elapsed))
+    }
 
     if (!isValid) {
       return reply.code(401).send({ error: 'Invalid password' })
     }
 
     // 密碼正確，記錄點擊
-    supabase.from('url_clicks').insert({
-      url_id: data.id,
-      user_agent: request.headers['user-agent'] || null,
-      is_qr_scan: false // 密碼驗證頁面訪問視為直接連結點擊
-    }).then()
+    Promise.resolve(
+      supabase.from('url_clicks').insert({
+        url_id: data.id,
+        user_agent: request.headers['user-agent'] || null,
+        event_type: 'link_click'
+      })
+    ).catch((err: Error) => {
+      fastify.log.error({ err, url_id: data.id }, 'Failed to record click after password verification')
+    })
 
     // 返回原始 URL
     return reply.send({
@@ -569,11 +796,15 @@ export default async function urlRoutes(fastify: FastifyInstance) {
           }
 
           // 異步記錄點擊
-          supabase.from('url_clicks').insert({
-            url_id: cachedData.id,
-            user_agent: request.headers['user-agent'] || null,
-            is_qr_scan: isQrScan
-          }).then()
+          Promise.resolve(
+            supabase.from('url_clicks').insert({
+              url_id: cachedData.id,
+              user_agent: request.headers['user-agent'] || null,
+              event_type: isQrScan ? 'qr_scan' : 'link_click'
+            })
+          ).catch((err: Error) => {
+            fastify.log.error({ err, url_id: cachedData.id, shortCode }, 'Failed to record click (cache hit)')
+          })
 
           fastify.log.info(`Cache hit for ${shortCode}`)
           return reply.redirect(cachedData.original_url, 302)
@@ -614,11 +845,15 @@ export default async function urlRoutes(fastify: FastifyInstance) {
         }))
 
         // 4. 記錄點擊（只記錄必要資訊）
-        supabase.from('url_clicks').insert({
-          url_id: data.id,
-          user_agent: request.headers['user-agent'] || null,
-          is_qr_scan: isQrScan
-        }).then()
+        Promise.resolve(
+          supabase.from('url_clicks').insert({
+            url_id: data.id,
+            user_agent: request.headers['user-agent'] || null,
+            event_type: isQrScan ? 'qr_scan' : 'link_click'
+          })
+        ).catch((err: Error) => {
+          fastify.log.error({ err, url_id: data.id, shortCode }, 'Failed to record click (cache miss)')
+        })
 
         fastify.log.info(`Cache miss for ${shortCode}, cached now`)
 
@@ -650,57 +885,214 @@ export default async function urlRoutes(fastify: FastifyInstance) {
         }
 
         // 記錄點擊
-        supabase.from('url_clicks').insert({
-          url_id: data.id,
-          user_agent: request.headers['user-agent'] || null,
-          is_qr_scan: isQrScan
-        }).then()
+        Promise.resolve(
+          supabase.from('url_clicks').insert({
+            url_id: data.id,
+            user_agent: request.headers['user-agent'] || null,
+            event_type: isQrScan ? 'qr_scan' : 'link_click'
+          })
+        ).catch((err: Error) => {
+          fastify.log.error({ err, url_id: data.id, shortCode }, 'Failed to record click (Redis fallback)')
+        })
 
         return reply.redirect(data.original_url, 302)
       }
     }
   )
 
-  // 獲取 URL 統計資料（從 Materialized Views）
+  // ========== 廣告頁路由 ==========
+
+  // 廣告頁面 - 顯示廣告和防詐騙提示
+  fastify.get<{ Params: { shortCode: string } }>(
+    '/ad/:shortCode',
+    async (request, reply) => {
+      const { shortCode } = request.params
+
+      try {
+        // 查詢短網址資料
+        const { data, error } = await supabase
+          .from('urls')
+          .select('id, original_url, is_active, expires_at')
+          .eq('short_code', shortCode)
+          .single()
+
+        if (error || !data) {
+          return reply.code(404).type('text/html').send(
+            `<html><body><h1>短網址不存在</h1><p>此短網址可能已被刪除或從未建立</p><a href="/">返回首頁</a></body></html>`
+          )
+        }
+
+        // 檢查是否停用
+        if (!data.is_active) {
+          return reply.code(410).type('text/html').send(
+            `<html><body><h1>短網址已停用</h1><p>此短網址已被停用</p><a href="/">返回首頁</a></body></html>`
+          )
+        }
+
+        // 檢查是否過期
+        if (data.expires_at && new Date(data.expires_at) < new Date()) {
+          return reply.type('text/html').send(renderExpiredPage(data.expires_at))
+        }
+
+        // 返回廣告頁面
+        return reply.type('text/html').send(renderAdPage(shortCode, data.original_url))
+      } catch (err) {
+        fastify.log.error(err)
+        return reply.code(500).send({ error: 'Internal server error' })
+      }
+    }
+  )
+
+  // 記錄廣告曝光
+  fastify.post<{ Params: { shortCode: string } }>(
+    '/api/ad/:shortCode/view',
+    async (request, reply) => {
+      const { shortCode } = request.params
+
+      try {
+        // 查詢短網址
+        const { data, error } = await supabase
+          .from('urls')
+          .select('id')
+          .eq('short_code', shortCode)
+          .single()
+
+        if (error || !data) {
+          return reply.code(404).send({ error: 'URL not found' })
+        }
+
+        // 記錄廣告曝光
+        await supabase.from('url_clicks').insert({
+          url_id: data.id,
+          user_agent: request.headers['user-agent'] || null,
+          event_type: 'ad_view'
+        })
+
+        return reply.send({ success: true })
+      } catch (err) {
+        fastify.log.error(err)
+        return reply.code(500).send({ error: 'Failed to record view' })
+      }
+    }
+  )
+
+  // 記錄廣告點擊並返回目標網址
+  fastify.post<{ Params: { shortCode: string } }>(
+    '/api/ad/:shortCode/click',
+    async (request, reply) => {
+      const { shortCode } = request.params
+
+      try {
+        // 查詢短網址
+        const { data, error } = await supabase
+          .from('urls')
+          .select('id, original_url')
+          .eq('short_code', shortCode)
+          .single()
+
+        if (error || !data) {
+          return reply.code(404).send({ error: 'URL not found' })
+        }
+
+        // 記錄廣告點擊
+        await supabase.from('url_clicks').insert({
+          url_id: data.id,
+          user_agent: request.headers['user-agent'] || null,
+          event_type: 'ad_click'
+        })
+
+        return reply.send({
+          success: true,
+          original_url: data.original_url
+        })
+      } catch (err) {
+        fastify.log.error(err)
+        return reply.code(500).send({ error: 'Failed to record click' })
+      }
+    }
+  )
+
+  // 獲取 URL 統計資料（需要登入，RLS 確保只能看自己的）
   fastify.get<{ Params: { id: string }; Querystring: { days?: string } }>(
     '/api/urls/:id/stats',
     async (request, reply) => {
+      // 驗證使用者登入
+      const userClient = getUserClientFromRequest(request)
+      if (!userClient) {
+        return sendUnauthorized(reply)
+      }
+
       const { id } = request.params
       const days = parseInt(request.query.days || '30')
 
       try {
-        // 從 url_total_stats 獲取總體統計
-        const { data: totalStats, error: totalError } = await supabase
-          .from('url_total_stats')
-          .select('*')
-          .eq('url_id', id)
+        // 先確認該 URL 屬於該使用者（使用 user client，RLS 會過濾）
+        const { data: urlData, error: urlError } = await userClient
+          .from('urls')
+          .select('id')
+          .eq('id', id)
           .single()
 
-        if (totalError || !totalStats) {
+        if (urlError || !urlData) {
           return reply.code(404).send({ error: 'URL not found' })
         }
 
-        // 從 url_daily_stats 獲取每日統計（最近 N 天）
-        const { data: dailyStats, error: dailyError } = await supabase
-          .from('url_daily_stats')
-          .select('*')
+        // 取得點擊統計（使用 service client 查詢 url_clicks）
+        const { data: clicksData, error: clicksError } = await supabase
+          .from('url_clicks')
+          .select('event_type, clicked_at')
           .eq('url_id', id)
-          .order('date', { ascending: false })
-          .limit(days)
 
-        if (dailyError) {
-          fastify.log.error(dailyError)
-          return reply.code(500).send({ error: 'Failed to fetch daily stats' })
+        if (clicksError) {
+          fastify.log.error(clicksError)
+          return reply.code(500).send({ error: 'Failed to fetch stats' })
         }
+
+        // 計算總體統計
+        const clicks = clicksData || []
+        const linkClicks = clicks.filter(c => c.event_type === 'link_click' || c.event_type === 'ad_click').length
+        const qrScans = clicks.filter(c => c.event_type === 'qr_scan').length
+        const adViews = clicks.filter(c => c.event_type === 'ad_view').length
+        const adClicks = clicks.filter(c => c.event_type === 'ad_click').length
+        const lastClickedAt = clicks.length > 0
+          ? clicks.sort((a, b) => new Date(b.clicked_at).getTime() - new Date(a.clicked_at).getTime())[0].clicked_at
+          : null
+
+        // 計算每日統計
+        const dailyMap = new Map<string, { total: number; link: number; qr: number; ad_view: number; ad_click: number }>()
+        for (const click of clicks) {
+          const date = new Date(click.clicked_at).toISOString().split('T')[0]
+          const existing = dailyMap.get(date) || { total: 0, link: 0, qr: 0, ad_view: 0, ad_click: 0 }
+          existing.total++
+          if (click.event_type === 'link_click') existing.link++
+          if (click.event_type === 'qr_scan') existing.qr++
+          if (click.event_type === 'ad_view') existing.ad_view++
+          if (click.event_type === 'ad_click') existing.ad_click++
+          dailyMap.set(date, existing)
+        }
+
+        const dailyStats = Array.from(dailyMap.entries())
+          .map(([date, stats]) => ({
+            date,
+            total_clicks: stats.total,
+            link_clicks: stats.link,
+            qr_scans: stats.qr,
+            ad_views: stats.ad_view,
+            ad_clicks: stats.ad_click
+          }))
+          .sort((a, b) => b.date.localeCompare(a.date))
+          .slice(0, days)
 
         return reply.send({
           total: {
-            total_clicks: totalStats.total_clicks || 0,
-            link_clicks: totalStats.link_clicks || 0,
-            qr_scans: totalStats.qr_scans || 0,
-            last_clicked_at: totalStats.last_clicked_at
+            total_clicks: clicks.length,
+            link_clicks: linkClicks,
+            qr_scans: qrScans,
+            ad_views: adViews,
+            ad_clicks: adClicks,
+            last_clicked_at: lastClickedAt
           },
-          daily: dailyStats || []
+          daily: dailyStats
         })
       } catch (error) {
         fastify.log.error(error)
@@ -709,22 +1101,40 @@ export default async function urlRoutes(fastify: FastifyInstance) {
     }
   )
 
-  // 取得統計摘要（總體統計數據）
+  // 取得統計摘要（需要登入，只顯示該使用者的統計）
   fastify.get('/api/urls/stats/summary', async (request, reply) => {
+    // 驗證使用者登入
+    const userClient = getUserClientFromRequest(request)
+    if (!userClient) {
+      return sendUnauthorized(reply)
+    }
+
     try {
-      // 從 url_total_stats 計算總體統計
-      const { data: statsData, error } = await supabase
-        .from('url_total_stats')
-        .select('total_clicks, is_active')
+      // 使用 user client 查詢，RLS 會自動過濾只顯示該使用者的 URLs
+      const { data: urlsData, error } = await userClient
+        .from('urls')
+        .select('id, is_active')
 
       if (error) {
         fastify.log.error({ err: error }, 'Failed to fetch stats summary')
         return reply.code(500).send({ error: 'Failed to fetch statistics' })
       }
 
-      const totalLinks = statsData?.length || 0
-      const activeLinks = statsData?.filter(s => s.is_active).length || 0
-      const totalClicks = statsData?.reduce((sum, s) => sum + (s.total_clicks || 0), 0) || 0
+      const totalLinks = urlsData?.length || 0
+      const activeLinks = urlsData?.filter(u => u.is_active).length || 0
+
+      // 取得該使用者所有 URLs 的點擊數
+      const urlIds = urlsData?.map(u => u.id) || []
+      let totalClicks = 0
+
+      if (urlIds.length > 0) {
+        const { count } = await supabase
+          .from('url_clicks')
+          .select('*', { count: 'exact', head: true })
+          .in('url_id', urlIds)
+
+        totalClicks = count || 0
+      }
 
       return reply.send({
         totalLinks,
@@ -738,6 +1148,390 @@ export default async function urlRoutes(fastify: FastifyInstance) {
   })
 
   // 注意：已改用一般 View，統計數據即時更新，不需要手動刷新端點
+
+  // 取得每日統計（用於 analytics 頁面圖表）
+  fastify.get<{ Querystring: { days?: string } }>(
+    '/api/stats/daily',
+    async (request, reply) => {
+      // 驗證使用者登入
+      const userClient = getUserClientFromRequest(request)
+      if (!userClient) {
+        return sendUnauthorized(reply)
+      }
+
+      const days = parseInt(request.query.days || '30')
+
+      try {
+        // 取得該使用者的所有 URL IDs
+        const { data: urlsData, error: urlsError } = await userClient
+          .from('urls')
+          .select('id')
+
+        if (urlsError) {
+          fastify.log.error(urlsError)
+          return reply.code(500).send({ error: 'Failed to fetch URLs' })
+        }
+
+        const urlIds = urlsData?.map(u => u.id) || []
+
+        if (urlIds.length === 0) {
+          // 沒有 URLs，返回空的每日統計
+          return reply.send([])
+        }
+
+        // 計算日期範圍
+        const endDate = new Date()
+        const startDate = new Date()
+        startDate.setDate(startDate.getDate() - days)
+
+        // 取得點擊資料
+        const { data: clicksData, error: clicksError } = await supabase
+          .from('url_clicks')
+          .select('event_type, clicked_at')
+          .in('url_id', urlIds)
+          .gte('clicked_at', startDate.toISOString())
+          .lte('clicked_at', endDate.toISOString())
+
+        if (clicksError) {
+          fastify.log.error(clicksError)
+          return reply.code(500).send({ error: 'Failed to fetch clicks' })
+        }
+
+        // 按日期分組統計
+        const dailyMap = new Map<string, { link_clicks: number; qr_scans: number; ad_views: number; ad_clicks: number }>()
+
+        // 初始化所有日期
+        for (let i = 0; i < days; i++) {
+          const date = new Date(startDate)
+          date.setDate(date.getDate() + i)
+          const dateStr = date.toISOString().split('T')[0]
+          dailyMap.set(dateStr, { link_clicks: 0, qr_scans: 0, ad_views: 0, ad_clicks: 0 })
+        }
+
+        // 計算每日統計
+        for (const click of clicksData || []) {
+          const dateStr = new Date(click.clicked_at).toISOString().split('T')[0]
+          const existing = dailyMap.get(dateStr) || { link_clicks: 0, qr_scans: 0, ad_views: 0, ad_clicks: 0 }
+          if (click.event_type === 'qr_scan') {
+            existing.qr_scans++
+          } else if (click.event_type === 'ad_view') {
+            existing.ad_views++
+          } else if (click.event_type === 'ad_click') {
+            existing.ad_clicks++
+          } else {
+            existing.link_clicks++
+          }
+          dailyMap.set(dateStr, existing)
+        }
+
+        // 轉換為陣列並排序
+        const dailyStats = Array.from(dailyMap.entries())
+          .map(([date, stats]) => ({
+            date,
+            link_clicks: stats.link_clicks,
+            qr_scans: stats.qr_scans,
+            ad_views: stats.ad_views,
+            ad_clicks: stats.ad_clicks
+          }))
+          .sort((a, b) => a.date.localeCompare(b.date))
+
+        return reply.send(dailyStats)
+      } catch (error) {
+        fastify.log.error(error)
+        return reply.code(500).send({ error: 'Failed to fetch daily stats' })
+      }
+    }
+  )
+
+  // ========== 使用者相關 API ==========
+
+  // 登入取得 JWT Token（嚴格速率限制：5次/分鐘，防止暴力破解）
+  fastify.post<{
+    Body: {
+      email: string
+      password: string
+    }
+  }>('/api/auth/login', {
+    config: {
+      rateLimit: {
+        max: 5,
+        timeWindow: '1 minute'
+      }
+    }
+  }, async (request, reply) => {
+    const { email, password } = request.body
+
+    if (!email || !password) {
+      return reply.code(400).send({
+        error: 'Bad Request',
+        message: 'email 和 password 為必填'
+      })
+    }
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      })
+
+      if (error) {
+        return reply.code(401).send({
+          error: 'Unauthorized',
+          message: error.message
+        })
+      }
+
+      return reply.send({
+        access_token: data.session?.access_token,
+        refresh_token: data.session?.refresh_token,
+        expires_in: data.session?.expires_in,
+        token_type: 'Bearer',
+        user: {
+          id: data.user?.id,
+          email: data.user?.email
+        }
+      })
+    } catch (error) {
+      fastify.log.error(error)
+      return reply.code(500).send({ error: 'Login failed' })
+    }
+  })
+
+  // 註冊新使用者（嚴格速率限制：3次/分鐘，防止批量註冊）
+  fastify.post<{
+    Body: {
+      email: string
+      password: string
+      display_name?: string
+    }
+  }>('/api/auth/register', {
+    config: {
+      rateLimit: {
+        max: 3,
+        timeWindow: '1 minute'
+      }
+    }
+  }, async (request, reply) => {
+    const { email, password, display_name } = request.body
+
+    if (!email || !password) {
+      return reply.code(400).send({
+        error: 'Bad Request',
+        message: 'email 和 password 為必填'
+      })
+    }
+
+    // 密碼長度驗證
+    if (password.length < 6) {
+      return reply.code(400).send({
+        error: 'Bad Request',
+        message: '密碼至少需要 6 個字元'
+      })
+    }
+
+    try {
+      // 使用 admin API 建立已確認的用戶
+      const { data, error } = await supabase.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,  // 自動確認，不需要郵件驗證
+        user_metadata: {
+          display_name: display_name || email.split('@')[0]
+        }
+      })
+
+      if (error) {
+        // 處理常見錯誤
+        if (error.message.includes('already been registered')) {
+          return reply.code(409).send({
+            error: 'Conflict',
+            message: '此電子郵件已被註冊'
+          })
+        }
+        return reply.code(400).send({
+          error: 'Bad Request',
+          message: error.message
+        })
+      }
+
+      return reply.code(201).send({
+        message: '註冊成功',
+        user: {
+          id: data.user?.id,
+          email: data.user?.email,
+          display_name: data.user?.user_metadata?.display_name
+        }
+      })
+    } catch (error) {
+      fastify.log.error(error)
+      return reply.code(500).send({ error: 'Registration failed' })
+    }
+  })
+
+  // 取得當前使用者資訊
+  fastify.get('/api/auth/me', async (request, reply) => {
+    const token = extractToken(request.headers.authorization)
+    if (!token) {
+      return sendUnauthorized(reply)
+    }
+
+    try {
+      // 驗證 Token 並取得使用者資訊
+      const { data: { user }, error } = await supabase.auth.getUser(token)
+
+      if (error || !user) {
+        return reply.code(401).send({
+          error: 'Unauthorized',
+          message: 'Token 無效或已過期'
+        })
+      }
+
+      // 取得使用者 profile
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+
+      return reply.send({
+        id: user.id,
+        email: user.email,
+        display_name: profile?.display_name || user.email,
+        avatar_url: profile?.avatar_url,
+        metadata: profile?.metadata || {},
+        created_at: user.created_at
+      })
+    } catch (error) {
+      fastify.log.error(error)
+      return reply.code(500).send({ error: 'Failed to get user info' })
+    }
+  })
+
+  // 更新使用者 profile
+  fastify.put<{
+    Body: {
+      display_name?: string
+      avatar_url?: string
+      metadata?: object
+    }
+  }>('/api/auth/profile', async (request, reply) => {
+    const token = extractToken(request.headers.authorization)
+    if (!token) {
+      return sendUnauthorized(reply)
+    }
+
+    try {
+      // 驗證 Token 並取得使用者資訊
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+
+      if (authError || !user) {
+        return reply.code(401).send({
+          error: 'Unauthorized',
+          message: 'Token 無效或已過期'
+        })
+      }
+
+      const { display_name, avatar_url, metadata } = request.body
+      const updates: any = {}
+
+      if (display_name !== undefined) updates.display_name = display_name
+      if (avatar_url !== undefined) updates.avatar_url = avatar_url
+      if (metadata !== undefined) updates.metadata = metadata
+
+      // 更新 user_profiles
+      const { data: profile, error: updateError } = await supabase
+        .from('user_profiles')
+        .update(updates)
+        .eq('id', user.id)
+        .select()
+        .single()
+
+      if (updateError) {
+        fastify.log.error(updateError)
+        return reply.code(500).send({ error: 'Failed to update profile' })
+      }
+
+      return reply.send({
+        id: user.id,
+        email: user.email,
+        display_name: profile?.display_name,
+        avatar_url: profile?.avatar_url,
+        metadata: profile?.metadata || {},
+        updated_at: profile?.updated_at
+      })
+    } catch (error) {
+      fastify.log.error(error)
+      return reply.code(500).send({ error: 'Failed to update profile' })
+    }
+  })
+
+  // ========== 內部追蹤 API（供 Nginx post_action 使用） ==========
+
+  /**
+   * 內部點擊追蹤 API
+   * Nginx 會在返回快取響應後，異步調用此 API 記錄點擊
+   *
+   * 路徑格式：/api/internal/track/s/:shortCode
+   */
+  fastify.get<{
+    Params: { shortCode: string }
+    Querystring: { qr?: string }
+  }>(
+    '/api/internal/track/s/:shortCode',
+    async (request, reply) => {
+      const { shortCode } = request.params
+      const { qr } = request.query
+      const isQrScan = qr === '1' || qr === 'true'
+
+      try {
+        // 從 Redis 快取或資料庫取得 URL ID
+        const cacheKey = CACHE_KEYS.URL(shortCode)
+        let urlId: string | null = null
+
+        // 先嘗試從 Redis 取得
+        const cached = await redis.get(cacheKey)
+        if (cached) {
+          const cachedData = JSON.parse(cached)
+          urlId = cachedData.id
+        } else {
+          // 從資料庫查詢
+          const { data } = await supabase
+            .from('urls')
+            .select('id')
+            .eq('short_code', shortCode)
+            .eq('is_active', true)
+            .single()
+
+          if (data) {
+            urlId = data.id
+          }
+        }
+
+        if (!urlId) {
+          // 找不到 URL，靜默返回（不影響用戶體驗）
+          return reply.code(204).send()
+        }
+
+        // 記錄點擊
+        await supabase.from('url_clicks').insert({
+          url_id: urlId,
+          user_agent: request.headers['user-agent'] || null,
+          // 從 Nginx 傳遞的真實 IP
+          ip_address: request.headers['x-real-ip'] as string || request.ip,
+          event_type: isQrScan ? 'qr_scan' : 'link_click'
+        })
+
+        fastify.log.info({ shortCode, isQrScan }, 'Click tracked via Nginx post_action')
+
+        // 返回 204 No Content（Nginx 不需要響應內容）
+        return reply.code(204).send()
+      } catch (error) {
+        // 記錄錯誤但不影響用戶體驗
+        fastify.log.error({ err: error, shortCode }, 'Failed to track click via post_action')
+        return reply.code(204).send()
+      }
+    }
+  )
 
   // ========== 美化路由（無 .html 擴展名） ==========
 
@@ -755,5 +1549,10 @@ export default async function urlRoutes(fastify: FastifyInstance) {
   // /analytics → serve analytics.html
   fastify.get('/analytics', async (request, reply) => {
     return reply.sendFile('analytics.html')
+  })
+
+  // /docs → serve API documentation
+  fastify.get('/docs', async (request, reply) => {
+    return reply.sendFile('docs.html')
   })
 }

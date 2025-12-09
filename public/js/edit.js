@@ -10,6 +10,7 @@ const shortCodeInput = document.getElementById('shortCode')
 const createdAtInput = document.getElementById('createdAt')
 const shareShortUrlBtn = document.getElementById('shareShortUrlBtn')
 const copyShortCodeBtn = document.getElementById('copyShortCodeBtn')
+const copyAdUrlBtn = document.getElementById('copyAdUrlBtn')
 const isActiveToggle = document.getElementById('isActiveToggle')
 const passwordToggle = document.getElementById('passwordToggle')
 const passwordInputContainer = document.getElementById('passwordInputContainer')
@@ -53,7 +54,7 @@ function getUrlId() {
   return params.get('id')
 }
 
-// 載入 URL 資料
+// 載入 URL 資料 - 使用 Supabase JS
 async function loadUrlData() {
   try {
     currentUrlId = getUrlId()
@@ -65,19 +66,8 @@ async function loadUrlData() {
 
     loadingOverlay.classList.remove('hidden')
 
-    // 載入 URL 詳情
-    const response = await fetch(`/api/urls/${currentUrlId}`, {
-      cache: 'no-store',
-      headers: {
-        'Cache-Control': 'no-cache'
-      }
-    })
-
-    if (!response.ok) {
-      throw new Error('無法載入連結資料')
-    }
-
-    currentUrlData = await response.json()
+    // 使用 api.js 的 getUrl 方法（透過 Supabase JS）
+    currentUrlData = await api.getUrl(currentUrlId)
 
     // 填充表單
     populateForm()
@@ -88,7 +78,7 @@ async function loadUrlData() {
     loadingOverlay.classList.add('hidden')
   } catch (error) {
     console.error('載入失敗:', error)
-    utils.showNotification('載入連結資料失敗', 'error')
+    utils.showNotification('載入連結資料失敗: ' + error.message, 'error')
     loadingOverlay.classList.add('hidden')
     setTimeout(() => window.location.href = '/links', 2000)
   }
@@ -145,9 +135,65 @@ function populateForm() {
     expiresInputContainer.classList.add('hidden')
   }
 
-  // QR Code - 總是自動生成客戶端 QR Code
+  // QR Code - 從資料庫讀取配置並生成
   const fullShortUrl = `${window.location.origin}/s/${currentUrlData.short_code}`
-  generateClientQRCode(fullShortUrl)
+
+  // 如果有保存的配置，使用該配置生成 QR Code
+  if (currentUrlData.qr_code_options) {
+    try {
+      const savedConfig = currentUrlData.qr_code_options  // jsonb 直接返回物件，不需要 parse
+
+      // Convert hex color and opacity to RGBA
+      const hexToRgba = (hex, opacity) => {
+        const r = parseInt(hex.slice(1, 3), 16)
+        const g = parseInt(hex.slice(3, 5), 16)
+        const b = parseInt(hex.slice(5, 7), 16)
+        return `rgba(${r}, ${g}, ${b}, ${opacity / 100})`
+      }
+
+      const customConfig = {
+        width: 300,
+        height: 300,
+        type: "svg",
+        dotsOptions: {
+          color: savedConfig.dotsColor || '#000000',
+          type: savedConfig.dotsType || 'rounded'
+        },
+        backgroundOptions: {
+          color: hexToRgba(savedConfig.bgColor || '#ffffff', savedConfig.bgOpacity || 100)
+        },
+        cornersSquareOptions: {
+          type: savedConfig.cornersSquareType || 'square',
+          color: savedConfig.dotsColor || '#000000'
+        },
+        cornersDotOptions: {
+          type: savedConfig.cornersDotType || 'square',
+          color: savedConfig.dotsColor || '#000000'
+        },
+        qrOptions: {
+          errorCorrectionLevel: 'H'
+        }
+      }
+
+      if (savedConfig.showLogo) {
+        customConfig.image = "/images/tzuchi-logo.svg"
+        customConfig.imageOptions = {
+          margin: 10,
+          imageSize: 0.3
+        }
+      }
+
+      generateClientQRCode(fullShortUrl, customConfig)
+    } catch (error) {
+      console.error('Failed to parse QR code config:', error)
+      // 如果解析失敗，使用預設配置
+      generateClientQRCode(fullShortUrl)
+    }
+  } else {
+    // 沒有保存的配置，使用預設配置
+    generateClientQRCode(fullShortUrl)
+  }
+
   qrCodeContainer.classList.remove('hidden')
   noQrCode.classList.add('hidden')
 }
@@ -353,6 +399,32 @@ copyShortCodeBtn.addEventListener('click', async () => {
   }
 })
 
+// 複製廣告頁連結
+copyAdUrlBtn.addEventListener('click', async () => {
+  if (!currentUrlData?.short_code) {
+    utils.showNotification('短代碼尚未載入', 'error')
+    return
+  }
+
+  const adUrl = `${window.location.origin}/ad/${currentUrlData.short_code}`
+  const success = await utils.copyToClipboard(adUrl)
+
+  if (success) {
+    utils.showNotification('已複製廣告頁連結到剪貼簿！', 'success')
+
+    // 臨時改變圖標為 check
+    const icon = copyAdUrlBtn.querySelector('.material-symbols-outlined')
+    const originalText = icon.textContent
+    icon.textContent = 'check'
+
+    setTimeout(() => {
+      icon.textContent = originalText
+    }, 2000)
+  } else {
+    utils.showNotification('複製失敗', 'error')
+  }
+})
+
 // 分享短網址
 shareShortUrlBtn.addEventListener('click', async () => {
   if (!currentUrlData?.short_code) {
@@ -390,18 +462,7 @@ shareShortUrlBtn.addEventListener('click', async () => {
 // ======== QR Code 生成功能 ========
 
 // 載入 QR Code 主題列表（僅用於進階客製化）
-async function loadThemes() {
-  try {
-    const response = await fetch('/api/qrcode/themes')
-    const data = await response.json()
-    availableThemes = data.themes
-    // 預選第一個主題（基本黑色主題）
-    selectedThemeId = availableThemes[0]?.id || 'basic'
-  } catch (error) {
-    console.error('Error loading themes:', error)
-    selectedThemeId = 'basic'
-  }
-}
+// loadThemes 功能已移除，改用客戶端客製化
 
 // ======== 客戶端 QR Code 客製化功能 ========
 
@@ -842,14 +903,104 @@ function generateClientQRCode(url, customConfig = null) {
 // 打開客戶端客製化模態視窗
 function openClientCustomizeModal() {
   // 取得當前配置
-  const currentConfig = currentQRConfig || { ...QR_CONFIG, data: `${window.location.origin}/s/${currentUrlData.short_code}` }
+  let currentConfig
+
+  // 優先從 currentQRConfig 讀取（內存中的配置）
+  if (currentQRConfig) {
+    currentConfig = currentQRConfig
+  }
+  // 如果沒有 currentQRConfig，嘗試從 currentUrlData.qr_code_options 重建
+  else if (currentUrlData?.qr_code_options) {
+    const saved = currentUrlData.qr_code_options
+    const hexToRgba = (hex, opacity) => {
+      const r = parseInt(hex.slice(1, 3), 16)
+      const g = parseInt(hex.slice(3, 5), 16)
+      const b = parseInt(hex.slice(5, 7), 16)
+      return `rgba(${r}, ${g}, ${b}, ${opacity / 100})`
+    }
+
+    currentConfig = {
+      width: 300,
+      height: 300,
+      type: "svg",
+      data: `${window.location.origin}/s/${currentUrlData.short_code}`,
+      dotsOptions: {
+        color: saved.dotsColor || '#000000',
+        type: saved.dotsType || 'rounded'
+      },
+      backgroundOptions: {
+        color: hexToRgba(saved.bgColor || '#ffffff', saved.bgOpacity || 100)
+      },
+      cornersSquareOptions: {
+        type: saved.cornersSquareType || 'square',
+        color: saved.dotsColor || '#000000'
+      },
+      cornersDotOptions: {
+        type: saved.cornersDotType || 'square',
+        color: saved.dotsColor || '#000000'
+      },
+      qrOptions: {
+        errorCorrectionLevel: 'H'
+      }
+    }
+
+    if (saved.showLogo) {
+      currentConfig.image = "/images/tzuchi-logo.svg"
+      currentConfig.imageOptions = {
+        margin: 10,
+        imageSize: 0.3
+      }
+    }
+  }
+  // 最後才使用預設配置
+  else {
+    currentConfig = { ...QR_CONFIG, data: `${window.location.origin}/s/${currentUrlData.short_code}` }
+  }
+
+  // 從 RGBA 或 hex 提取顏色和透明度
+  const extractColorAndOpacity = (color) => {
+    try {
+      if (!color) return { hex: '#ffffff', opacity: 100 }
+
+      // 如果是 RGBA 格式
+      if (color.startsWith('rgba') || color.startsWith('rgb')) {
+        const match = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+),?\s*([\d.]+)?\)/)
+        if (match) {
+          const [, r, g, b, a] = match
+          const hex = '#' + [r, g, b].map(x => {
+            const h = parseInt(x).toString(16)
+            return h.length === 1 ? '0' + h : h
+          }).join('')
+          const opacity = a ? Math.round(parseFloat(a) * 100) : 100
+          return { hex, opacity }
+        }
+      }
+
+      // 如果是 hex 格式，直接返回
+      if (color.startsWith('#')) {
+        return { hex: color, opacity: 100 }
+      }
+
+      // 預設值
+      return { hex: '#ffffff', opacity: 100 }
+    } catch (error) {
+      console.error('Color extraction error:', error)
+      return { hex: '#ffffff', opacity: 100 }
+    }
+  }
+
+  const dotsColor = currentConfig.dotsOptions?.color || '#000000'
+  const bgColorData = extractColorAndOpacity(currentConfig.backgroundOptions?.color)
+  const cornersSquareType = currentConfig.cornersSquareOptions?.type || 'square'
+  const cornersDotType = currentConfig.cornersDotOptions?.type || 'square'
+  const dotsType = currentConfig.dotsOptions?.type || 'rounded'
 
   const modal = document.createElement('div')
   modal.id = 'customizeModal'
   modal.className = 'fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4'
 
   modal.innerHTML = `
-    <div class="relative bg-[#1e1e1e] rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div class="relative bg-[#1e1e1e] rounded-xl p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
       <button class="absolute top-4 right-4 text-white/60 hover:text-white z-10" onclick="document.getElementById('customizeModal').remove()">
         <span class="material-symbols-outlined">close</span>
       </button>
@@ -861,8 +1012,8 @@ function openClientCustomizeModal() {
         <div class="flex flex-col gap-4">
           <div class="bg-white/5 border border-white/10 rounded-lg p-4">
             <p class="text-white text-sm font-medium mb-3">即時預覽</p>
-            <div class="bg-white p-4 rounded-lg flex items-center justify-center min-h-[280px]">
-              <div id="qrPreviewCanvas"></div>
+            <div class="bg-white p-4 rounded-lg flex items-center justify-center" style="min-height: 280px; overflow: hidden;">
+              <div id="qrPreviewCanvas" style="width: 300px; height: 300px; transform: scale(0.83); transform-origin: center;"></div>
             </div>
           </div>
         </div>
@@ -875,13 +1026,23 @@ function openClientCustomizeModal() {
             <div class="space-y-3">
               <div>
                 <label class="text-white/80 text-xs mb-1 block">QR Code 顏色</label>
-                <input type="color" id="qrDotsColor" value="${currentConfig.dotsOptions?.color || '#000000'}"
+                <input type="color" id="qrDotsColor" value="${dotsColor}"
                        class="w-full h-10 rounded border border-white/20 bg-background-dark cursor-pointer">
               </div>
               <div>
                 <label class="text-white/80 text-xs mb-1 block">背景顏色</label>
-                <input type="color" id="qrBgColor" value="${currentConfig.backgroundOptions?.color || '#ffffff'}"
+                <input type="color" id="qrBgColor" value="${bgColorData.hex}"
                        class="w-full h-10 rounded border border-white/20 bg-background-dark cursor-pointer">
+              </div>
+              <div>
+                <label class="text-white/80 text-xs mb-1 block">背景透明度</label>
+                <input type="range" id="qrBgOpacity" min="0" max="100" value="${bgColorData.opacity}"
+                       class="w-full">
+                <div class="flex justify-between text-white/40 text-xs mt-1">
+                  <span>透明</span>
+                  <span id="qrBgOpacityValue">${bgColorData.opacity}%</span>
+                  <span>不透明</span>
+                </div>
               </div>
             </div>
           </div>
@@ -891,21 +1052,29 @@ function openClientCustomizeModal() {
             <p class="text-white text-sm font-medium mb-3">樣式設定</p>
             <div class="space-y-3">
               <div>
-                <label class="text-white/80 text-xs mb-1 block">Dots 樣式</label>
+                <label class="text-white/80 text-xs mb-1 block">Dots 樣式（主體方塊）</label>
                 <select id="qrDotsType" class="w-full rounded-lg text-white bg-background-dark border border-white/20 h-10 px-3 text-sm">
-                  <option value="square" ${currentConfig.dotsOptions?.type === 'square' ? 'selected' : ''}>方形</option>
-                  <option value="rounded" ${currentConfig.dotsOptions?.type === 'rounded' ? 'selected' : ''}>圓角</option>
-                  <option value="extra-rounded" ${currentConfig.dotsOptions?.type === 'extra-rounded' ? 'selected' : ''}>超圓角</option>
-                  <option value="dots" ${currentConfig.dotsOptions?.type === 'dots' ? 'selected' : ''}>圓點</option>
+                  <option value="square" ${dotsType === 'square' ? 'selected' : ''}>方形 (Square)</option>
+                  <option value="rounded" ${dotsType === 'rounded' ? 'selected' : ''}>圓角 (Rounded)</option>
+                  <option value="extra-rounded" ${dotsType === 'extra-rounded' ? 'selected' : ''}>超圓角 (Extra Rounded)</option>
+                  <option value="dots" ${dotsType === 'dots' ? 'selected' : ''}>圓點 (Dots)</option>
+                  <option value="classy" ${dotsType === 'classy' ? 'selected' : ''}>優雅 (Classy)</option>
+                  <option value="classy-rounded" ${dotsType === 'classy-rounded' ? 'selected' : ''}>優雅圓角 (Classy Rounded)</option>
                 </select>
               </div>
               <div>
-                <label class="text-white/80 text-xs mb-1 block">尺寸</label>
-                <select id="qrSize" class="w-full rounded-lg text-white bg-background-dark border border-white/20 h-10 px-3 text-sm">
-                  <option value="300" ${currentConfig.width === 300 ? 'selected' : ''}>300x300</option>
-                  <option value="400" ${currentConfig.width === 400 ? 'selected' : ''}>400x400</option>
-                  <option value="500" ${currentConfig.width === 500 ? 'selected' : ''}>500x500</option>
-                  <option value="600" ${currentConfig.width === 600 ? 'selected' : ''}>600x600</option>
+                <label class="text-white/80 text-xs mb-1 block">定位點外框樣式</label>
+                <select id="qrCornersSquareType" class="w-full rounded-lg text-white bg-background-dark border border-white/20 h-10 px-3 text-sm">
+                  <option value="square" ${cornersSquareType === 'square' ? 'selected' : ''}>方形 (Square)</option>
+                  <option value="extra-rounded" ${cornersSquareType === 'extra-rounded' ? 'selected' : ''}>超圓角 (Extra Rounded)</option>
+                  <option value="dot" ${cornersSquareType === 'dot' ? 'selected' : ''}>圓點 (Dot)</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-white/80 text-xs mb-1 block">定位點內部樣式</label>
+                <select id="qrCornersDotType" class="w-full rounded-lg text-white bg-background-dark border border-white/20 h-10 px-3 text-sm">
+                  <option value="square" ${cornersDotType === 'square' ? 'selected' : ''}>方形 (Square)</option>
+                  <option value="dot" ${cornersDotType === 'dot' ? 'selected' : ''}>圓點 (Dot)</option>
                 </select>
               </div>
             </div>
@@ -914,22 +1083,10 @@ function openClientCustomizeModal() {
           <!-- Logo 設定 -->
           <div class="bg-white/5 border border-white/10 rounded-lg p-4">
             <p class="text-white text-sm font-medium mb-3">Logo 設定</p>
-            <div class="space-y-3">
-              <div class="flex items-center gap-2">
-                <input type="checkbox" id="qrShowLogo" ${currentConfig.image ? 'checked' : ''}
-                       class="w-4 h-4 rounded border-white/20 bg-background-dark">
-                <label class="text-white/80 text-sm">顯示慈濟 Logo</label>
-              </div>
-              <div id="logoSizeContainer" ${!currentConfig.image ? 'style="display:none"' : ''}>
-                <label class="text-white/80 text-xs mb-1 block">Logo 大小</label>
-                <input type="range" id="qrLogoSize" min="0.2" max="0.5" step="0.05"
-                       value="${currentConfig.imageOptions?.imageSize || 0.4}"
-                       class="w-full">
-                <div class="flex justify-between text-white/40 text-xs mt-1">
-                  <span>小</span>
-                  <span>大</span>
-                </div>
-              </div>
+            <div class="flex items-center gap-2">
+              <input type="checkbox" id="qrShowLogo" ${currentConfig.image ? 'checked' : ''}
+                     class="w-4 h-4 rounded border-white/20 bg-background-dark">
+              <label class="text-white/80 text-sm">顯示慈濟 Logo</label>
             </div>
           </div>
 
@@ -950,113 +1107,219 @@ function openClientCustomizeModal() {
 
   document.body.appendChild(modal)
 
+  // 重置預覽實例（因為是新的 DOM 元素）
+  previewQRInstance = null
+
   // 初始化預覽
-  updateQRPreview()
+  setTimeout(() => updateQRPreview(), 100)
 
   // 綁定事件監聽器
-  const previewInputs = ['qrDotsColor', 'qrBgColor', 'qrDotsType', 'qrSize', 'qrShowLogo', 'qrLogoSize']
+  const previewInputs = ['qrDotsColor', 'qrBgColor', 'qrBgOpacity', 'qrDotsType', 'qrCornersSquareType', 'qrCornersDotType', 'qrShowLogo']
   previewInputs.forEach(id => {
     const element = document.getElementById(id)
     if (element) {
-      element.addEventListener('change', updateQRPreview)
-      element.addEventListener('input', updateQRPreview)
+      element.addEventListener('change', () => {
+        if (id === 'qrBgOpacity') {
+          document.getElementById('qrBgOpacityValue').textContent = element.value + '%'
+        }
+        updateQRPreview()
+      })
+      element.addEventListener('input', () => {
+        if (id === 'qrBgOpacity') {
+          document.getElementById('qrBgOpacityValue').textContent = element.value + '%'
+        }
+        updateQRPreview()
+      })
     }
-  })
-
-  // Logo 顯示/隱藏控制
-  document.getElementById('qrShowLogo').addEventListener('change', (e) => {
-    document.getElementById('logoSizeContainer').style.display = e.target.checked ? 'block' : 'none'
-    updateQRPreview()
   })
 
   // 套用按鈕
   document.getElementById('applyQrBtn').addEventListener('click', applyCustomQR)
 }
 
+// 全域預覽 QR Code 實例
+let previewQRInstance = null
+
 // 更新 QR Code 預覽
 function updateQRPreview() {
-  const previewCanvas = document.getElementById('qrPreviewCanvas')
-  if (!previewCanvas) return
+  try {
+    const previewCanvas = document.getElementById('qrPreviewCanvas')
+    if (!previewCanvas) return
 
-  previewCanvas.innerHTML = ''
+    const dotsColor = document.getElementById('qrDotsColor')?.value || '#000000'
+    const bgColor = document.getElementById('qrBgColor')?.value || '#ffffff'
+    const bgOpacity = parseInt(document.getElementById('qrBgOpacity')?.value || '100')
+    const dotsType = document.getElementById('qrDotsType')?.value || 'rounded'
+    const cornersSquareType = document.getElementById('qrCornersSquareType')?.value || 'square'
+    const cornersDotType = document.getElementById('qrCornersDotType')?.value || 'square'
+    const showLogo = document.getElementById('qrShowLogo')?.checked || false
 
-  const dotsColor = document.getElementById('qrDotsColor').value
-  const bgColor = document.getElementById('qrBgColor').value
-  const dotsType = document.getElementById('qrDotsType').value
-  const size = parseInt(document.getElementById('qrSize').value)
-  const showLogo = document.getElementById('qrShowLogo').checked
-  const logoSize = parseFloat(document.getElementById('qrLogoSize').value)
+    // Convert hex color and opacity to RGBA
+    const hexToRgba = (hex, opacity) => {
+      if (!hex || !hex.startsWith('#')) return 'rgba(255, 255, 255, 1)'
+      const r = parseInt(hex.slice(1, 3), 16)
+      const g = parseInt(hex.slice(3, 5), 16)
+      const b = parseInt(hex.slice(5, 7), 16)
+      const alpha = Math.max(0, Math.min(1, opacity / 100))
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`
+    }
 
-  const config = {
-    width: size,
-    height: size,
-    type: "svg",
-    data: `${window.location.origin}/s/${currentUrlData.short_code}`,
-    dotsOptions: {
-      color: dotsColor,
-      type: dotsType
-    },
-    backgroundOptions: {
-      color: bgColor
-    },
-    qrOptions: {
-      errorCorrectionLevel: 'H'
+    const config = {
+      width: 300,
+      height: 300,
+      type: "canvas",  // 使用 canvas 而不是 svg，渲染更可靠
+      data: `${window.location.origin}/s/${currentUrlData.short_code}`,
+      dotsOptions: {
+        color: dotsColor,
+        type: dotsType
+      },
+      backgroundOptions: {
+        color: hexToRgba(bgColor, bgOpacity)
+      },
+      cornersSquareOptions: {
+        type: cornersSquareType,
+        color: dotsColor
+      },
+      cornersDotOptions: {
+        type: cornersDotType,
+        color: dotsColor
+      },
+      qrOptions: {
+        errorCorrectionLevel: 'H'
+      }
+    }
+
+    if (showLogo) {
+      config.image = "/images/tzuchi-logo.svg"
+      config.imageOptions = {
+        margin: 10,
+        imageSize: 0.3
+      }
+    }
+
+    // 每次都完全清空容器並重新創建（因為 update() 方法似乎不可靠）
+    // 完全清空容器（使用多種方法確保清除）
+    previewCanvas.innerHTML = ''
+    previewCanvas.textContent = ''
+    while (previewCanvas.firstChild) {
+      previewCanvas.removeChild(previewCanvas.firstChild)
+    }
+
+    // 強制瀏覽器重繪
+    void previewCanvas.offsetHeight
+
+    // 創建新實例
+    previewQRInstance = new QRCodeStyling(config)
+
+    // 使用 setTimeout 確保 DOM 已經清空
+    setTimeout(() => {
+      previewQRInstance.append(previewCanvas)
+    }, 0)
+  } catch (error) {
+    console.error('Preview error:', error)
+    const previewCanvas = document.getElementById('qrPreviewCanvas')
+    if (previewCanvas) {
+      previewCanvas.innerHTML = '<div style="color: red; font-size: 12px;">預覽錯誤，請檢查設定</div>'
     }
   }
-
-  if (showLogo) {
-    config.image = "/images/tzuchi-logo.svg"
-    config.imageOptions = {
-      margin: 10,
-      imageSize: logoSize
-    }
-  }
-
-  const previewQR = new QRCodeStyling(config)
-  previewQR.append(previewCanvas)
 }
 
 // 套用自訂 QR Code
-function applyCustomQR() {
-  const dotsColor = document.getElementById('qrDotsColor').value
-  const bgColor = document.getElementById('qrBgColor').value
-  const dotsType = document.getElementById('qrDotsType').value
-  const size = parseInt(document.getElementById('qrSize').value)
-  const showLogo = document.getElementById('qrShowLogo').checked
-  const logoSize = parseFloat(document.getElementById('qrLogoSize').value)
+async function applyCustomQR() {
+  try {
+    const dotsColor = document.getElementById('qrDotsColor').value
+    const bgColor = document.getElementById('qrBgColor').value
+    const bgOpacity = parseInt(document.getElementById('qrBgOpacity').value)
+    const dotsType = document.getElementById('qrDotsType').value
+    const cornersSquareType = document.getElementById('qrCornersSquareType').value
+    const cornersDotType = document.getElementById('qrCornersDotType').value
+    const showLogo = document.getElementById('qrShowLogo').checked
 
-  const customConfig = {
-    width: size,
-    height: size,
-    type: "svg",
-    dotsOptions: {
-      color: dotsColor,
-      type: dotsType
-    },
-    backgroundOptions: {
-      color: bgColor
-    },
-    qrOptions: {
-      errorCorrectionLevel: 'H'
+    // Convert hex color and opacity to RGBA
+    const hexToRgba = (hex, opacity) => {
+      const r = parseInt(hex.slice(1, 3), 16)
+      const g = parseInt(hex.slice(3, 5), 16)
+      const b = parseInt(hex.slice(5, 7), 16)
+      return `rgba(${r}, ${g}, ${b}, ${opacity / 100})`
     }
-  }
 
-  if (showLogo) {
-    customConfig.image = "/images/tzuchi-logo.svg"
-    customConfig.imageOptions = {
-      margin: 10,
-      imageSize: logoSize
+    const qrConfig = {
+      dotsColor,
+      bgColor,
+      bgOpacity,
+      dotsType,
+      cornersSquareType,
+      cornersDotType,
+      showLogo
     }
+
+    const customConfig = {
+      width: 300,
+      height: 300,
+      type: "svg",
+      data: `${window.location.origin}/s/${currentUrlData.short_code}`,
+      dotsOptions: {
+        color: dotsColor,
+        type: dotsType
+      },
+      backgroundOptions: {
+        color: hexToRgba(bgColor, bgOpacity)
+      },
+      cornersSquareOptions: {
+        type: cornersSquareType,
+        color: dotsColor
+      },
+      cornersDotOptions: {
+        type: cornersDotType,
+        color: dotsColor
+      },
+      qrOptions: {
+        errorCorrectionLevel: 'H'
+      }
+    }
+
+    if (showLogo) {
+      customConfig.image = "/images/tzuchi-logo.svg"
+      customConfig.imageOptions = {
+        margin: 10,
+        imageSize: 0.3
+      }
+    }
+
+    // 顯示載入狀態
+    utils.showNotification('正在保存 QR Code...', 'info')
+
+    // 生成 PNG data URL
+    const qrCodeInstance = new QRCodeStyling(customConfig)
+    const pngBlob = await qrCodeInstance.getRawData('png')
+
+    // 轉換為 base64 data URL
+    const reader = new FileReader()
+    const dataUrl = await new Promise((resolve, reject) => {
+      reader.onloadend = () => resolve(reader.result)
+      reader.onerror = reject
+      reader.readAsDataURL(pngBlob)
+    })
+
+    // 使用 api.js 的 updateQRCode 方法（透過 Supabase JS）
+    const result = await api.updateQRCode(currentUrlId, qrConfig, dataUrl)
+
+    // 更新本地 QR Code 顯示
+    const fullShortUrl = `${window.location.origin}/s/${currentUrlData.short_code}`
+    generateClientQRCode(fullShortUrl, customConfig)
+
+    // 更新 currentUrlData
+    currentUrlData.qr_code_options = qrConfig  // 直接儲存物件
+    currentUrlData.qr_code_path = result.qr_code_path
+
+    // 關閉模態視窗
+    document.getElementById('customizeModal').remove()
+
+    utils.showNotification('QR Code 已保存！', 'success')
+  } catch (error) {
+    console.error('Error applying custom QR Code:', error)
+    utils.showNotification('保存失敗，請稍後再試', 'error')
   }
-
-  // 重新生成 QR Code
-  const fullShortUrl = `${window.location.origin}/s/${currentUrlData.short_code}`
-  generateClientQRCode(fullShortUrl, customConfig)
-
-  // 關閉模態視窗
-  document.getElementById('customizeModal').remove()
-
-  utils.showNotification('QR Code 已更新！', 'success')
 }
 
 // 修改下載按鈕功能為客戶端下載
@@ -1070,8 +1333,10 @@ downloadQrBtn.addEventListener('click', () => {
   }
 })
 
-// 頁面載入時執行
-window.addEventListener('DOMContentLoaded', () => {
+// 初始載入函數 - 由頁面在 auth 初始化後調用
+function initEdit() {
   loadUrlData()
-  loadThemes()
-})
+}
+
+// 導出給頁面使用
+window.initEdit = initEdit

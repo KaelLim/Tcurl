@@ -10,7 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
     <!-- QR Code Styling Library -->
-    <script type="text/javascript" src="https://unpkg.com/qr-code-styling@1.5.0/lib/qr-code-styling.js"></script>
+    <script type="text/javascript" src="https://unpkg.com/qr-code-styling@1.5.0/lib/qr-code-styling.js" integrity="sha384-CHvehSuS0IW8Qj9IlAETJXbHf/SEi62VXMgODXi9p3CC3NUIuThj1Y0uAFnl30VB" crossorigin="anonymous"></script>
     <script>
         tailwind.config = {
             darkMode: "class",
@@ -83,6 +83,22 @@
                         <span class="material-symbols-outlined text-white">bar_chart</span>
                         <p class="text-sm font-medium leading-normal">數據分析</p>
                     </a>
+                </div>
+                <!-- 使用者區塊 -->
+                <div id="userSection" class="hidden flex flex-col gap-2 pt-4 border-t border-white/10">
+                    <div class="flex items-center gap-3 px-3 py-2">
+                        <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                            <span class="material-symbols-outlined text-primary text-lg">person</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-white text-sm font-medium truncate" id="userDisplayName">使用者</p>
+                            <p class="text-white/40 text-xs truncate" id="userEmail">email@example.com</p>
+                        </div>
+                    </div>
+                    <button id="logoutBtn" class="flex items-center gap-3 px-3 py-2 rounded-lg text-white/60 hover:bg-red-500/20 hover:text-red-400 transition-colors">
+                        <span class="material-symbols-outlined">logout</span>
+                        <p class="text-sm font-medium leading-normal">登出</p>
+                    </button>
                 </div>
             </div>
             <div class="flex flex-col gap-4">
@@ -205,15 +221,49 @@
         </main>
     </div>
 
-    <!-- Include API and Links JS -->
+    <!-- Include Auth, API and Links JS -->
+    <script src="/js/auth.js"></script>
     <script src="/js/api.js"></script>
     <script src="/js/links.js"></script>
 
-    <!-- Realtime 功能已暫時停用 - 需要反向代理支援 WebSocket 升級 -->
-    <!-- 相關文件：REALTIME_NGINX_FIX.md -->
+    <!-- Auth State Handler -->
     <script>
+        // 頁面需要登入
+        async function initPage() {
+            // 檢查認證
+            const isAuthed = await requireAuth('/login.html')
+            if (!isAuthed) return
+
+            // 顯示使用者資訊
+            const userSection = document.getElementById('userSection')
+            const logoutBtn = document.getElementById('logoutBtn')
+
+            userSection.classList.remove('hidden')
+
+            const user = await auth.getUser()
+            if (user) {
+                document.getElementById('userDisplayName').textContent = user.user_metadata?.display_name || user.email?.split('@')[0] || '使用者'
+                document.getElementById('userEmail').textContent = user.email || ''
             }
-        })
+
+            // 登出按鈕
+            logoutBtn.addEventListener('click', async () => {
+                try {
+                    await auth.signOut()
+                    window.location.href = '/login.html'
+                } catch (error) {
+                    console.error('Logout error:', error)
+                }
+            })
+
+            // 認證完成後，初始化連結列表
+            if (window.initLinks) {
+                window.initLinks()
+            }
+        }
+
+        // 頁面載入時檢查認證
+        document.addEventListener('DOMContentLoaded', initPage)
     </script>
 </body>
 </html>

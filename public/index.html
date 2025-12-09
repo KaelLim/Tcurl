@@ -10,7 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
     <!-- QR Code Styling Library -->
-    <script type="text/javascript" src="https://unpkg.com/qr-code-styling@1.5.0/lib/qr-code-styling.js"></script>
+    <script type="text/javascript" src="https://unpkg.com/qr-code-styling@1.5.0/lib/qr-code-styling.js" integrity="sha384-CHvehSuS0IW8Qj9IlAETJXbHf/SEi62VXMgODXi9p3CC3NUIuThj1Y0uAFnl30VB" crossorigin="anonymous"></script>
     <script>
         tailwind.config = {
             darkMode: "class",
@@ -41,6 +41,21 @@
             'wght' 400,
             'GRAD' 0,
             'opsz' 24
+        }
+
+        /* 打字動畫 */
+        .typing-text {
+            color: #60a5fa;
+        }
+
+        .typing-cursor {
+            color: #60a5fa;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
         }
     </style>
 </head>
@@ -90,6 +105,34 @@
                         <p class="text-sm font-medium leading-normal">數據分析</p>
                     </a>
                 </div>
+                <!-- 使用者區塊 -->
+                <div id="userSection" class="hidden flex flex-col gap-2 pt-4 border-t border-white/10">
+                    <div class="flex items-center gap-3 px-3 py-2">
+                        <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                            <span class="material-symbols-outlined text-primary text-lg">person</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-white text-sm font-medium truncate" id="userDisplayName">使用者</p>
+                            <p class="text-white/40 text-xs truncate" id="userEmail">email@example.com</p>
+                        </div>
+                    </div>
+                    <button id="logoutBtn" class="flex items-center gap-3 px-3 py-2 rounded-lg text-white/60 hover:bg-red-500/20 hover:text-red-400 transition-colors">
+                        <span class="material-symbols-outlined">logout</span>
+                        <p class="text-sm font-medium leading-normal">登出</p>
+                    </button>
+                </div>
+
+                <!-- 登入按鈕（未登入時顯示）-->
+                <div id="loginSection" class="flex flex-col gap-2 pt-4 border-t border-white/10">
+                    <a href="/login.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-white hover:bg-primary/20 transition-colors">
+                        <span class="material-symbols-outlined">login</span>
+                        <p class="text-sm font-medium leading-normal">登入</p>
+                    </a>
+                    <a href="/register.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-white/60 hover:bg-white/10 transition-colors">
+                        <span class="material-symbols-outlined">person_add</span>
+                        <p class="text-sm font-medium leading-normal">註冊</p>
+                    </a>
+                </div>
             </div>
         </aside>
 
@@ -102,8 +145,10 @@
                 <!-- PageHeading -->
                 <div class="flex flex-wrap justify-between gap-3 text-center mb-8">
                     <div class="flex w-full flex-col items-center gap-3">
-                        <p class="text-white text-4xl sm:text-5xl font-black leading-tight tracking-[-0.033em]">縮短、分享、追蹤</p>
-                        <p class="text-white/60 text-base font-normal leading-normal max-w-md">幾秒內生成短網址和 QR Code。管理和追蹤你的連結的終極工具。</p>
+                        <p class="text-white text-4xl sm:text-5xl font-black leading-tight tracking-[-0.033em]">
+                            <span class="typing-text" id="typingText"></span><span class="typing-cursor">|</span>你的網址
+                        </p>
+                        <p class="text-white/60 text-base font-normal leading-normal">幾秒內生成短網址和 QR Code。管理和追蹤你的連結的終極工具。</p>
                     </div>
                 </div>
 
@@ -129,11 +174,16 @@
                         <label class="flex flex-col w-full">
                             <p class="text-white text-sm font-medium leading-normal pb-2">短網址</p>
                             <div class="relative flex items-center w-full">
-                                <input id="shortUrl" class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-primary focus:outline-0 focus:ring-0 border-0 bg-background-dark h-14 placeholder:text-white/40 p-[15px] text-base font-normal leading-normal pr-28" readonly="" value=""/>
-                                <button id="copyBtn" class="absolute right-2 flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded h-10 px-3 bg-white/10 hover:bg-white/20 text-white/80 hover:text-white gap-2 text-sm font-bold leading-normal tracking-[0.015em] transition-colors">
-                                    <span class="material-symbols-outlined text-lg">content_copy</span>
-                                    <span class="truncate">複製</span>
-                                </button>
+                                <input id="shortUrl" class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-primary focus:outline-0 focus:ring-0 border-0 bg-background-dark h-14 placeholder:text-white/40 p-[15px] text-base font-normal leading-normal pr-48" readonly="" value=""/>
+                                <div class="absolute right-2 flex gap-1">
+                                    <button id="copyBtn" class="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded h-10 px-3 bg-white/10 hover:bg-white/20 text-white/80 hover:text-white gap-2 text-sm font-bold leading-normal tracking-[0.015em] transition-colors" title="複製短網址 /s/">
+                                        <span class="material-symbols-outlined text-lg">content_copy</span>
+                                        <span class="truncate">複製</span>
+                                    </button>
+                                    <button id="copyAdBtn" class="flex cursor-pointer items-center justify-center overflow-hidden rounded h-10 px-3 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 gap-2 text-sm font-bold leading-normal tracking-[0.015em] transition-colors" title="複製廣告頁連結 /ad/">
+                                        <span class="material-symbols-outlined text-lg">ads_click</span>
+                                    </button>
+                                </div>
                             </div>
                         </label>
                         <div class="flex flex-col sm:flex-row gap-3">
@@ -175,9 +225,100 @@
         </main>
     </div>
 
-    <!-- Include API and Home JS -->
+    <!-- Typing Animation -->
+    <script>
+        (function() {
+            const words = ['縮短', '分享', '追蹤']
+            const typingText = document.getElementById('typingText')
+            let wordIndex = 0
+            let charIndex = 0
+            let isDeleting = false
+
+            const TYPING_SPEED = 200
+            const DELETING_SPEED = 150
+            const PAUSE_AFTER_WORD = 1800
+            const PAUSE_AFTER_DELETE = 400
+
+            function type() {
+                const currentWord = words[wordIndex]
+
+                if (!isDeleting) {
+                    // 打字中：逐字增加
+                    charIndex++
+                    typingText.textContent = currentWord.substring(0, charIndex)
+
+                    if (charIndex === currentWord.length) {
+                        // 打完，暫停後開始刪除
+                        setTimeout(() => {
+                            isDeleting = true
+                            type()
+                        }, PAUSE_AFTER_WORD)
+                        return
+                    }
+                } else {
+                    // 刪除中：逐字減少
+                    charIndex--
+                    typingText.textContent = currentWord.substring(0, charIndex)
+
+                    if (charIndex === 0) {
+                        // 刪完，換下一個詞
+                        isDeleting = false
+                        wordIndex = (wordIndex + 1) % words.length
+                        setTimeout(type, PAUSE_AFTER_DELETE)
+                        return
+                    }
+                }
+
+                setTimeout(type, isDeleting ? DELETING_SPEED : TYPING_SPEED)
+            }
+
+            // 開始動畫
+            type()
+        })()
+    </script>
+
+    <!-- Include Auth, API and Home JS -->
+    <script src="/js/auth.js"></script>
     <script src="/js/api.js"></script>
     <script src="/js/home.js"></script>
+
+    <!-- Auth State Handler -->
+    <script>
+        // 頁面需要登入
+        async function initPage() {
+            // 檢查認證，未登入則導向登入頁
+            const isAuthed = await requireAuth('/login.html')
+            if (!isAuthed) return
+
+            // 顯示使用者資訊
+            const userSection = document.getElementById('userSection')
+            const loginSection = document.getElementById('loginSection')
+            const logoutBtn = document.getElementById('logoutBtn')
+
+            userSection.classList.remove('hidden')
+            loginSection.classList.add('hidden')
+
+            const user = await auth.getUser()
+            if (user) {
+                document.getElementById('userDisplayName').textContent = user.user_metadata?.display_name || user.email?.split('@')[0] || '使用者'
+                document.getElementById('userEmail').textContent = user.email || ''
+            }
+
+            // 登出按鈕
+            logoutBtn.addEventListener('click', async () => {
+                try {
+                    await auth.signOut()
+                    window.location.href = '/login.html'
+                } catch (error) {
+                    console.error('Logout error:', error)
+                    utils.showNotification('登出失敗', 'error')
+                }
+            })
+        }
+
+        // 頁面載入時檢查認證
+        document.addEventListener('DOMContentLoaded', initPage)
+    </script>
 
     <!-- Mobile Menu Toggle Script -->
     <script>

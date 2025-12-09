@@ -1,0 +1,486 @@
+# TCurl API - Short URL Service
+
+> TCurl is a URL shortening service operated by Tzu Chi Foundation (慈濟基金會).
+> Base URL: `https://url.tzuchi.org`
+
+## Quick Reference
+
+| Action | Method | Endpoint | Auth Required |
+|--------|--------|----------|---------------|
+| Create short URL | POST | `/api/urls` | Yes |
+| List URLs | GET | `/api/urls` | Yes |
+| Get URL details | GET | `/api/urls/{id}` | Yes |
+| Update URL | PUT | `/api/urls/{id}` | Yes |
+| Delete URL | DELETE | `/api/urls/{id}` | Yes |
+| Update QR Code | PATCH | `/api/urls/{id}/qr-code` | Yes |
+| Get URL stats | GET | `/api/urls/{id}/stats` | Yes |
+| Get stats summary | GET | `/api/urls/stats/summary` | Yes |
+| Login | POST | `/api/auth/login` | No |
+| Get current user | GET | `/api/auth/me` | Yes |
+| Update profile | PUT | `/api/auth/profile` | Yes |
+| Redirect (short URL) | GET | `/s/{shortCode}` | No |
+| Redirect (ad page) | GET | `/ad/{shortCode}` | No |
+| Verify password | POST | `/api/urls/{shortCode}/verify-password` | No |
+
+---
+
+## Authentication
+
+All authenticated endpoints require a JWT Bearer token in the Authorization header:
+
+```
+Authorization: Bearer <access_token>
+```
+
+### Login to Get Token
+
+```http
+POST /api/auth/login
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "yourpassword"
+}
+```
+
+**Response:**
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIs...",
+  "refresh_token": "...",
+  "expires_in": 3600,
+  "token_type": "Bearer",
+  "user": {
+    "id": "uuid",
+    "email": "user@example.com"
+  }
+}
+```
+
+---
+
+## URL Management
+
+### Create Short URL
+
+```http
+POST /api/urls
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "original_url": "https://example.com/very-long-url",
+  "short_code": "mycode",        // optional, auto-generated if omitted
+  "expires_at": "2024-12-31T23:59:59Z"  // optional
+}
+```
+
+**Response (201):**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "short_code": "mycode",
+  "original_url": "https://example.com/very-long-url",
+  "short_url": "https://url.tzuchi.org/s/mycode",
+  "password_protected": false,
+  "expires_at": "2024-12-31T23:59:59Z",
+  "qr_code_generated": false,
+  "qr_code_path": null,
+  "qr_code_options": null,
+  "is_active": true,
+  "created_by": "user-uuid",
+  "created_at": "2024-01-15T10:30:00Z",
+  "updated_at": "2024-01-15T10:30:00Z"
+}
+```
+
+**Error Codes:**
+- `400` - Invalid URL or short code format
+- `401` - Unauthorized
+- `409` - Short code already exists
+
+### List URLs (Paginated)
+
+```http
+GET /api/urls?page=1&limit=10
+Authorization: Bearer <token>
+```
+
+**Response:**
+```json
+{
+  "data": [
+    {
+      "id": "uuid",
+      "short_code": "mycode",
+      "original_url": "https://example.com",
+      "created_at": "2024-01-15T10:30:00Z",
+      "is_active": true,
+      "clicks": 150,
+      "link_clicks": 100,
+      "qr_scans": 50,
+      "ad_views": 30,
+      "ad_clicks": 25,
+      "last_clicked_at": "2024-01-20T15:00:00Z",
+      "qr_code_generated": true,
+      "qr_code_path": "/qrcodes/mycode.png",
+      "password_protected": false,
+      "expires_at": null
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 25,
+    "totalPages": 3,
+    "hasNext": true,
+    "hasPrev": false
+  }
+}
+```
+
+### Get Single URL
+
+```http
+GET /api/urls/{id}
+Authorization: Bearer <token>
+```
+
+### Update URL
+
+```http
+PUT /api/urls/{id}
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "original_url": "https://new-url.com",       // optional
+  "password_protected": true,                   // optional
+  "password": "secretpassword",                 // required if password_protected=true
+  "expires_at": "2024-12-31T23:59:59Z"         // optional, null to remove
+}
+```
+
+### Delete URL
+
+```http
+DELETE /api/urls/{id}
+Authorization: Bearer <token>
+```
+
+**Response:**
+```json
+{
+  "message": "URL deleted successfully"
+}
+```
+
+---
+
+## QR Code Customization
+
+### Update QR Code Settings
+
+```http
+PATCH /api/urls/{id}/qr-code
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "qr_code_options": {
+    "dotsColor": "#713d3d",
+    "bgColor": "#ffffff",
+    "bgOpacity": 100,
+    "dotsType": "rounded",
+    "cornersSquareType": "square",
+    "cornersDotType": "square",
+    "showLogo": true
+  },
+  "qr_code_data_url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..."
+}
+```
+
+**QR Code Options:**
+
+| Property | Type | Values | Description |
+|----------|------|--------|-------------|
+| dotsColor | string | Hex color (e.g., "#000000") | Main QR code color |
+| bgColor | string | Hex color (e.g., "#ffffff") | Background color |
+| bgOpacity | integer | 0-100 | Background opacity percentage |
+| dotsType | string | square, rounded, extra-rounded, dots, classy, classy-rounded | Dot pattern style |
+| cornersSquareType | string | square, dot, extra-rounded | Corner square outer style |
+| cornersDotType | string | square, dot, rounded | Corner square inner style |
+| showLogo | boolean | true/false | Show Tzu Chi logo in center |
+
+**Response:**
+```json
+{
+  "success": true,
+  "qr_code_path": "/qrcodes/mycode.png",
+  "qr_code_options": { ... }
+}
+```
+
+---
+
+## Statistics
+
+### Get URL Statistics
+
+```http
+GET /api/urls/{id}/stats?days=30
+Authorization: Bearer <token>
+```
+
+**Response:**
+```json
+{
+  "total": {
+    "total_clicks": 150,
+    "link_clicks": 80,
+    "qr_scans": 40,
+    "ad_views": 20,
+    "ad_clicks": 10,
+    "last_clicked_at": "2024-01-20T15:00:00Z"
+  },
+  "daily": [
+    {
+      "date": "2024-01-20",
+      "total_clicks": 25,
+      "link_clicks": 15,
+      "qr_scans": 5,
+      "ad_views": 3,
+      "ad_clicks": 2
+    }
+  ]
+}
+```
+
+**Click Types Explained:**
+- `link_clicks` - Direct clicks on `/s/{shortCode}`
+- `qr_scans` - Clicks from QR code scans (`/s/{shortCode}?qr=1`)
+- `ad_views` - Views of the ad/anti-fraud page (`/ad/{shortCode}`)
+- `ad_clicks` - Clicks through from the ad page to destination
+
+### Get Summary Statistics
+
+```http
+GET /api/urls/stats/summary
+Authorization: Bearer <token>
+```
+
+**Response:**
+```json
+{
+  "totalLinks": 50,
+  "activeLinks": 45,
+  "totalClicks": 5000
+}
+```
+
+---
+
+## Public Endpoints (No Auth Required)
+
+### Short URL Redirect
+
+```http
+GET /s/{shortCode}
+```
+
+**Behavior:**
+- If password protected → Shows password input page (HTML)
+- If expired → Shows expiration page (HTML)
+- Otherwise → 302 redirect to original URL
+
+**QR Code Tracking:**
+```http
+GET /s/{shortCode}?qr=1
+```
+Adding `?qr=1` or `?qr=true` marks the click as a QR scan.
+
+### Ad/Anti-Fraud Page
+
+```http
+GET /ad/{shortCode}
+```
+
+Shows an intermediate page with:
+- 5-second countdown before allowing click
+- Display of destination URL for anti-fraud verification
+- Tzu Chi branding and official domain notice (url.tzuchi.org)
+
+Tracks `ad_view` when page loads and `ad_click` when user proceeds.
+
+### Verify Password-Protected URL
+
+```http
+POST /api/urls/{shortCode}/verify-password
+Content-Type: application/json
+
+{
+  "password": "secretpassword"
+}
+```
+
+**Success Response:**
+```json
+{
+  "original_url": "https://example.com",
+  "short_code": "mycode"
+}
+```
+
+**Error Codes:**
+- `400` - Missing password or URL not password-protected
+- `401` - Invalid password
+- `404` - Short URL not found
+- `410` - Short URL expired
+
+---
+
+## User Profile
+
+### Get Current User
+
+```http
+GET /api/auth/me
+Authorization: Bearer <token>
+```
+
+**Response:**
+```json
+{
+  "id": "user-uuid",
+  "email": "user@example.com",
+  "display_name": "John Doe",
+  "avatar_url": "https://example.com/avatar.jpg",
+  "metadata": {},
+  "created_at": "2024-01-01T00:00:00Z"
+}
+```
+
+### Update Profile
+
+```http
+PUT /api/auth/profile
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "display_name": "New Name",
+  "avatar_url": "https://example.com/new-avatar.jpg"
+}
+```
+
+---
+
+## Error Response Format
+
+All errors follow this format:
+
+```json
+{
+  "error": "Error Type",
+  "message": "Detailed error message",
+  "details": "Additional information (optional)"
+}
+```
+
+**Common HTTP Status Codes:**
+- `400` - Bad Request (invalid parameters)
+- `401` - Unauthorized (missing/invalid token)
+- `404` - Not Found
+- `409` - Conflict (e.g., duplicate short code)
+- `410` - Gone (expired resource)
+- `500` - Internal Server Error
+
+---
+
+## Short Code Format
+
+Valid short codes must match: `^[a-zA-Z0-9-]+$`
+- Allowed characters: letters (a-z, A-Z), numbers (0-9), hyphens (-)
+- Length: 1-50 characters
+- If not provided, system generates a 6-character random code
+
+---
+
+## URL Formats
+
+| Type | Format | Example |
+|------|--------|---------|
+| Short URL | `https://url.tzuchi.org/s/{shortCode}` | `https://url.tzuchi.org/s/event2024` |
+| Ad Page | `https://url.tzuchi.org/ad/{shortCode}` | `https://url.tzuchi.org/ad/event2024` |
+| QR Scan | `https://url.tzuchi.org/s/{shortCode}?qr=1` | `https://url.tzuchi.org/s/event2024?qr=1` |
+| QR Image | `https://url.tzuchi.org/qrcodes/{shortCode}.png` | `https://url.tzuchi.org/qrcodes/event2024.png` |
+
+---
+
+## Rate Limits
+
+Currently no rate limiting is enforced, but please use the API responsibly.
+
+---
+
+## OpenAPI Specification
+
+Full OpenAPI 3.0 specification available at:
+- YAML: `https://url.tzuchi.org/openapi.yaml`
+- Interactive docs: `https://url.tzuchi.org/docs`
+
+---
+
+## Example: Complete Workflow
+
+```bash
+# 1. Login
+TOKEN=$(curl -s -X POST https://url.tzuchi.org/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","password":"pass"}' \
+  | jq -r '.access_token')
+
+# 2. Create short URL
+curl -X POST https://url.tzuchi.org/api/urls \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"original_url":"https://example.com/long-url","short_code":"demo"}'
+
+# 3. Get statistics
+curl https://url.tzuchi.org/api/urls/{id}/stats?days=7 \
+  -H "Authorization: Bearer $TOKEN"
+
+# 4. Update with password protection
+curl -X PUT https://url.tzuchi.org/api/urls/{id} \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"password_protected":true,"password":"secret123"}'
+
+# 5. Delete
+curl -X DELETE https://url.tzuchi.org/api/urls/{id} \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+---
+
+## Notes for AI/LLM Integration
+
+1. **Authentication Flow**: Always obtain a fresh token before making authenticated requests. Tokens expire after 3600 seconds (1 hour).
+
+2. **Pagination**: When listing URLs, always handle pagination. Default limit is 10, maximum is 100.
+
+3. **Short Code Generation**: If you need predictable URLs, always provide a custom `short_code`. Otherwise, the system generates a random 6-character code.
+
+4. **QR Codes**: QR codes are generated client-side and uploaded as Base64 PNG. The backend stores them at `/qrcodes/{shortCode}.png`.
+
+5. **Statistics Tracking**:
+   - Use `/s/{code}` for regular link clicks
+   - Use `/s/{code}?qr=1` for QR scan tracking
+   - Use `/ad/{code}` for ad page flow (tracks views and clicks separately)
+
+6. **Password Protection**: When enabling password protection, the password is hashed with bcrypt. Original password is never stored.
+
+7. **Expiration**: Set `expires_at` to `null` to remove expiration. Expired URLs return 410 Gone.
+
+8. **Row Level Security (RLS)**: Users can only access their own URLs. The API automatically filters by authenticated user.

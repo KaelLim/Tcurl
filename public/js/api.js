@@ -1,106 +1,357 @@
-// API 基礎配置
-const API_BASE_URL = window.location.origin
+// 資料操作模組 - 使用 Supabase JS 直接操作
+// API endpoints (/api/*) 是給外部開發者使用的
 
-// API 輔助函數
+const BASE_URL = window.location.origin
+
+// 生成短代碼（使用密碼學安全的隨機數）
+function generateShortCode(length = 6) {
+  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  const array = new Uint32Array(length)
+  crypto.getRandomValues(array)
+  return Array.from(array, x => chars[x % chars.length]).join('')
+}
+
+// 資料操作
 const api = {
-  // 建立短網址
-  async createUrl(originalUrl) {
-    const response = await fetch(`${API_BASE_URL}/api/urls`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ original_url: originalUrl })
-    })
-
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.message || 'Failed to create short URL')
+  // 取得 Supabase Client
+  getClient() {
+    if (!window.auth) {
+      throw new Error('Auth module not loaded')
     }
-
-    return response.json()
+    return window.auth.getClient()
   },
 
-  // 取得所有短網址
-  async getUrls() {
-    const response = await fetch(`${API_BASE_URL}/api/urls`)
+  // 建立短網址
+  async createUrl(originalUrl, customShortCode = null) {
+    const client = this.getClient()
+    if (!client) throw new Error('請先登入')
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch URLs')
+    const user = await window.auth.getUser()
+    if (!user) throw new Error('請先登入')
+
+    // 生成或使用自訂短代碼
+    let shortCode = customShortCode
+    if (!shortCode) {
+      // 檢查唯一性並生成
+      let attempts = 0
+      while (attempts < 10) {
+        shortCode = generateShortCode(6)
+        const { data: existing } = await client
+          .from('urls')
+          .select('short_code')
+          .eq('short_code', shortCode)
+          .single()
+
+        if (!existing) break
+        attempts++
+      }
+      if (attempts >= 10) {
+        throw new Error('無法生成唯一的短代碼')
+      }
     }
 
-    return response.json()
+    // 插入資料
+    const { data, error } = await client
+      .from('urls')
+      .insert({
+        short_code: shortCode,
+        original_url: originalUrl,
+        created_by: user.id
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Create URL error:', error)
+      throw new Error(error.message || '建立短網址失敗')
+    }
+
+    return {
+      ...data,
+      short_url: `${BASE_URL}/s/${shortCode}`
+    }
+  },
+
+  // 取得所有短網址（分頁）
+  async getUrls(page = 1, limit = 10) {
+    const client = this.getClient()
+    if (!client) throw new Error('請先登入')
+
+    const offset = (page - 1) * limit
+
+    // 取得總數
+    const { count, error: countError } = await client
+      .from('urls')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_active', true)
+
+    if (countError) throw new Error('取得資料失敗')
+
+    // 取得分頁資料
+    const { data: urlsData, error: urlsError } = await client
+      .from('urls')
+      .select('*')
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1)
+
+    if (urlsError) throw new Error('取得資料失敗')
+
+    // 取得點擊統計
+    const urlIds = urlsData?.map(u => u.id) || []
+    let statsMap = new Map()
+
+    if (urlIds.length > 0) {
+      const { data: clicksData } = await client
+        .from('url_clicks')
+        .select('url_id, event_type, clicked_at')
+        .in('url_id', urlIds)
+
+      for (const urlId of urlIds) {
+        const clicks = clicksData?.filter(c => c.url_id === urlId) || []
+        const linkClicks = clicks.filter(c => c.event_type === 'link_click').length
+        const qrScans = clicks.filter(c => c.event_type === 'qr_scan').length
+        const lastClick = clicks.length > 0
+          ? clicks.sort((a, b) => new Date(b.clicked_at) - new Date(a.clicked_at))[0].clicked_at
+          : null
+
+        statsMap.set(urlId, {
+          total: clicks.length,
+          link: linkClicks,
+          qr: qrScans,
+          last: lastClick
+        })
+      }
+    }
+
+    // 合併資料
+    const mergedData = urlsData?.map(url => {
+      const stats = statsMap.get(url.id) || { total: 0, link: 0, qr: 0, last: null }
+      return {
+        ...url,
+        clicks: stats.total,
+        link_clicks: stats.link,
+        qr_scans: stats.qr,
+        last_clicked_at: stats.last
+      }
+    })
+
+    const totalPages = Math.ceil((count || 0) / limit)
+
+    return {
+      data: mergedData,
+      pagination: {
+        page,
+        limit,
+        total: count || 0,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1
+      }
+    }
   },
 
   // 取得單個短網址詳情
   async getUrl(id) {
-    const response = await fetch(`${API_BASE_URL}/api/urls/${id}`)
+    const client = this.getClient()
+    if (!client) throw new Error('請先登入')
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch URL details')
+    const { data, error } = await client
+      .from('urls')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (error || !data) {
+      throw new Error('找不到此短網址')
     }
 
-    return response.json()
+    return data
   },
 
   // 更新短網址
-  async updateUrl(id, data) {
-    const response = await fetch(`${API_BASE_URL}/api/urls/${id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(data)
-    })
+  async updateUrl(id, updates) {
+    const client = this.getClient()
+    if (!client) throw new Error('請先登入')
 
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.message || 'Failed to update URL')
+    const { data, error } = await client
+      .from('urls')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) {
+      throw new Error(error.message || '更新失敗')
     }
 
-    return response.json()
+    return data
   },
 
-  // 刪除（停用）短網址
+  // 刪除短網址
   async deleteUrl(id) {
-    const response = await fetch(`${API_BASE_URL}/api/urls/${id}`, {
-      method: 'DELETE'
-    })
+    const client = this.getClient()
+    if (!client) throw new Error('請先登入')
 
-    if (!response.ok) {
-      throw new Error('Failed to delete URL')
+    const { error } = await client
+      .from('urls')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      throw new Error(error.message || '刪除失敗')
     }
 
-    return response.json()
+    return { success: true }
   },
 
-  // 取得 QR Code (Base64)
-  async getQRCode(shortCode) {
-    const response = await fetch(`${API_BASE_URL}/api/qrcode/${shortCode}`)
+  // 更新 QR Code 配置
+  async updateQRCode(id, qrCodeOptions, qrCodeDataUrl = null) {
+    const client = this.getClient()
+    if (!client) throw new Error('請先登入')
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch QR code')
+    const updates = {
+      qr_code_options: qrCodeOptions,
+      qr_code_generated: true
     }
 
-    return response.json()
-  },
+    // 如果有 PNG data URL，需要透過後端保存檔案
+    if (qrCodeDataUrl) {
+      const token = await window.auth.getAccessToken()
+      const response = await fetch(`${BASE_URL}/api/urls/${id}/qr-code`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          qr_code_options: qrCodeOptions,
+          qr_code_data_url: qrCodeDataUrl
+        })
+      })
 
-  // 取得統計數據（從即時 Views）
-  async getUrlStats(id, days = 30) {
-    const timestamp = Date.now()
-    const response = await fetch(`${API_BASE_URL}/api/urls/${id}/stats?days=${days}&_=${timestamp}`, {
-      cache: 'no-store',
-      headers: {
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache'
+      if (!response.ok) {
+        throw new Error('儲存 QR Code 失敗')
       }
-    })
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch URL statistics')
+      return response.json()
     }
 
-    return response.json()
+    // 只更新配置，不保存檔案
+    const { data, error } = await client
+      .from('urls')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) {
+      throw new Error(error.message || '更新 QR Code 失敗')
+    }
+
+    return data
+  },
+
+  // 取得統計數據
+  async getUrlStats(id, days = 30) {
+    const client = this.getClient()
+    if (!client) throw new Error('請先登入')
+
+    // 確認 URL 存在且屬於該使用者
+    const { data: urlData, error: urlError } = await client
+      .from('urls')
+      .select('id')
+      .eq('id', id)
+      .single()
+
+    if (urlError || !urlData) {
+      throw new Error('找不到此短網址')
+    }
+
+    // 取得點擊統計
+    const { data: clicksData, error: clicksError } = await client
+      .from('url_clicks')
+      .select('event_type, clicked_at')
+      .eq('url_id', id)
+
+    if (clicksError) {
+      throw new Error('取得統計失敗')
+    }
+
+    const clicks = clicksData || []
+    const linkClicks = clicks.filter(c => c.event_type === 'link_click').length
+    const qrScans = clicks.filter(c => c.event_type === 'qr_scan').length
+    const lastClickedAt = clicks.length > 0
+      ? clicks.sort((a, b) => new Date(b.clicked_at) - new Date(a.clicked_at))[0].clicked_at
+      : null
+
+    // 計算每日統計
+    const dailyMap = new Map()
+    for (const click of clicks) {
+      const date = new Date(click.clicked_at).toISOString().split('T')[0]
+      const existing = dailyMap.get(date) || { total: 0, link: 0, qr: 0 }
+      existing.total++
+      if (click.event_type === 'link_click') existing.link++
+      if (click.event_type === 'qr_scan') existing.qr++
+      dailyMap.set(date, existing)
+    }
+
+    const dailyStats = Array.from(dailyMap.entries())
+      .map(([date, stats]) => ({
+        date,
+        total_clicks: stats.total,
+        link_clicks: stats.link,
+        qr_scans: stats.qr
+      }))
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, days)
+
+    return {
+      total: {
+        total_clicks: clicks.length,
+        link_clicks: linkClicks,
+        qr_scans: qrScans,
+        last_clicked_at: lastClickedAt
+      },
+      daily: dailyStats
+    }
+  },
+
+  // 取得統計摘要
+  async getStatsSummary() {
+    const client = this.getClient()
+    if (!client) throw new Error('請先登入')
+
+    // 取得使用者的 URLs
+    const { data: urlsData, error } = await client
+      .from('urls')
+      .select('id, is_active')
+
+    if (error) {
+      throw new Error('取得統計失敗')
+    }
+
+    const totalLinks = urlsData?.length || 0
+    const activeLinks = urlsData?.filter(u => u.is_active).length || 0
+
+    // 取得總點擊數
+    const urlIds = urlsData?.map(u => u.id) || []
+    let totalClicks = 0
+
+    if (urlIds.length > 0) {
+      const { count } = await client
+        .from('url_clicks')
+        .select('*', { count: 'exact', head: true })
+        .in('url_id', urlIds)
+
+      totalClicks = count || 0
+    }
+
+    return {
+      totalLinks,
+      activeLinks,
+      totalClicks
+    }
   }
 }
 
@@ -119,7 +370,6 @@ const utils = {
 
   // 顯示通知訊息
   showNotification(message, type = 'success') {
-    // 簡單的通知實作（可以之後用更好的 UI 替換）
     const notification = document.createElement('div')
     notification.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 ${
       type === 'success' ? 'bg-green-500' : 'bg-red-500'

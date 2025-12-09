@@ -14,6 +14,7 @@ export type Database = {
           clicked_at: string | null
           id: string
           is_qr_scan: boolean | null
+          event_type: string | null
           url_id: string
           user_agent: string | null
         }
@@ -21,6 +22,7 @@ export type Database = {
           clicked_at?: string | null
           id?: string
           is_qr_scan?: boolean | null
+          event_type?: string | null
           url_id: string
           user_agent?: string | null
         }
@@ -28,6 +30,7 @@ export type Database = {
           clicked_at?: string | null
           id?: string
           is_qr_scan?: boolean | null
+          event_type?: string | null
           url_id?: string
           user_agent?: string | null
         }

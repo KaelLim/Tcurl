@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html class="dark" lang="zh-TW">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>登入 - TCurl 慈濟短網址服務</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com" rel="preconnect"/>
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1337ec",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101322",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings:
+            'FILL' 0,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 24
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-md">
+        <!-- Logo & Title -->
+        <div class="flex flex-col items-center gap-4 mb-8">
+            <div class="flex items-center gap-3">
+                <img src="https://info.tzuchi.org/favicon.svg" alt="TCurl Logo" class="w-16 h-auto">
+                <div>
+                    <h1 class="text-white text-3xl font-bold">TCurl</h1>
+                    <p class="text-white/60 text-sm">慈濟短網址服務</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Login Form Card -->
+        <div class="rounded-xl border border-white/10 bg-white/5 p-6 sm:p-8 shadow-2xl shadow-black/20">
+            <h2 class="text-white text-2xl font-bold text-center mb-6">登入帳號</h2>
+
+            <!-- Error Message -->
+            <div id="errorMessage" class="hidden mb-4 p-3 rounded-lg bg-red-500/20 border border-red-500/50 text-red-400 text-sm">
+            </div>
+
+            <!-- Success Message -->
+            <div id="successMessage" class="hidden mb-4 p-3 rounded-lg bg-green-500/20 border border-green-500/50 text-green-400 text-sm">
+            </div>
+
+            <form id="loginForm" class="flex flex-col gap-4">
+                <!-- Email -->
+                <label class="flex flex-col w-full">
+                    <p class="text-white text-sm font-medium leading-normal pb-2">電子郵件</p>
+                    <input
+                        id="email"
+                        type="email"
+                        required
+                        class="form-input w-full rounded-lg text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-white/20 bg-background-dark h-12 placeholder:text-white/40 px-4 text-base font-normal leading-normal transition-all"
+                        placeholder="your@email.com"
+                    />
+                </label>
+
+                <!-- Password -->
+                <label class="flex flex-col w-full">
+                    <p class="text-white text-sm font-medium leading-normal pb-2">密碼</p>
+                    <div class="relative">
+                        <input
+                            id="password"
+                            type="password"
+                            required
+                            class="form-input w-full rounded-lg text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-white/20 bg-background-dark h-12 placeholder:text-white/40 px-4 pr-12 text-base font-normal leading-normal transition-all"
+                            placeholder="輸入密碼"
+                        />
+                        <button
+                            type="button"
+                            id="togglePassword"
+                            class="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/60 transition-colors"
+                        >
+                            <span class="material-symbols-outlined text-xl" id="passwordIcon">visibility_off</span>
+                        </button>
+                    </div>
+                </label>
+
+                <!-- Forgot Password -->
+                <div class="flex justify-end">
+                    <a href="/forgot-password.html" class="text-primary hover:text-blue-400 text-sm transition-colors">
+                        忘記密碼？
+                    </a>
+                </div>
+
+                <!-- Submit Button -->
+                <button
+                    type="submit"
+                    id="submitBtn"
+                    class="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-primary hover:bg-blue-600 transition-colors text-white gap-2 text-base font-bold leading-normal tracking-[0.015em] shadow-[0_0_20px_theme(colors.primary/0.4)] mt-2"
+                >
+                    <span id="btnText">登入</span>
+                    <span id="btnLoading" class="hidden">
+                        <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </span>
+                </button>
+            </form>
+
+            <!-- Divider -->
+            <div class="flex items-center gap-4 my-6">
+                <div class="flex-1 h-px bg-white/10"></div>
+                <span class="text-white/40 text-sm">或</span>
+                <div class="flex-1 h-px bg-white/10"></div>
+            </div>
+
+            <!-- Register Link -->
+            <p class="text-center text-white/60">
+                還沒有帳號？
+                <a href="/register.html" class="text-primary hover:text-blue-400 font-medium transition-colors">
+                    立即註冊
+                </a>
+            </p>
+        </div>
+
+        <!-- Back to Home -->
+        <div class="mt-6 text-center">
+            <a href="/" class="text-white/40 hover:text-white/60 text-sm transition-colors inline-flex items-center gap-1">
+                <span class="material-symbols-outlined text-lg">arrow_back</span>
+                返回首頁
+            </a>
+        </div>
+    </div>
+
+    <!-- Auth Script -->
+    <script src="/js/auth.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            // 檢查是否已登入
+            await auth.init()
+            const isLoggedIn = await auth.isLoggedIn()
+            if (isLoggedIn) {
+                window.location.href = getRedirectUrl()
+                return
+            }
+
+            const form = document.getElementById('loginForm')
+            const emailInput = document.getElementById('email')
+            const passwordInput = document.getElementById('password')
+            const togglePassword = document.getElementById('togglePassword')
+            const passwordIcon = document.getElementById('passwordIcon')
+            const submitBtn = document.getElementById('submitBtn')
+            const btnText = document.getElementById('btnText')
+            const btnLoading = document.getElementById('btnLoading')
+            const errorMessage = document.getElementById('errorMessage')
+            const successMessage = document.getElementById('successMessage')
+
+            // 切換密碼顯示
+            togglePassword.addEventListener('click', () => {
+                const type = passwordInput.type === 'password' ? 'text' : 'password'
+                passwordInput.type = type
+                passwordIcon.textContent = type === 'password' ? 'visibility_off' : 'visibility'
+            })
+
+            // 表單提交
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault()
+
+                // 重置訊息
+                errorMessage.classList.add('hidden')
+                successMessage.classList.add('hidden')
+
+                // 顯示載入狀態
+                submitBtn.disabled = true
+                btnText.classList.add('hidden')
+                btnLoading.classList.remove('hidden')
+
+                try {
+                    const email = emailInput.value.trim()
+                    const password = passwordInput.value
+
+                    await auth.signIn(email, password)
+
+                    // 登入成功
+                    successMessage.textContent = '登入成功，正在跳轉...'
+                    successMessage.classList.remove('hidden')
+
+                    // 跳轉到原本要訪問的頁面或首頁
+                    setTimeout(() => {
+                        window.location.href = getRedirectUrl()
+                    }, 1000)
+                } catch (error) {
+                    // 顯示錯誤訊息
+                    let message = '登入失敗，請檢查您的帳號密碼'
+                    if (error.message.includes('Invalid login credentials')) {
+                        message = '帳號或密碼錯誤'
+                    } else if (error.message.includes('Email not confirmed')) {
+                        message = '請先驗證您的電子郵件'
+                    }
+                    errorMessage.textContent = message
+                    errorMessage.classList.remove('hidden')
+
+                    // 重置按鈕
+                    submitBtn.disabled = false
+                    btnText.classList.remove('hidden')
+                    btnLoading.classList.add('hidden')
+                }
+            })
+        })
+    </script>
+</body>
+</html>
