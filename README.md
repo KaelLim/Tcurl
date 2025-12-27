@@ -26,19 +26,21 @@
 - **密碼保護** - 為敏感連結設定密碼保護
 - **過期時間** - 設定連結有效期限，過期自動失效
 - **點擊追蹤** - 完整的點擊分析（連結點擊 vs QR 掃描）
+- **廣告頁面** - 可選的中間頁面，顯示目標資訊
 
 ### 效能優化
 - **Redis 快取層** - 熱門連結快取，降低資料庫負載
 - **Nginx 反向代理快取** - 支援即時快取清除
-- **Materialized Views** - 預計算統計資料，每分鐘自動刷新
-- **高併發支援** - 壓力測試達 1000+ RPS
+- **即時點擊追蹤** - 透過 tail -f 監聽 Nginx 日誌，即時記錄所有點擊
+- **高併發支援** - Deno 原生高效能運行時
 
 ### 安全機制
 - **Supabase Auth** - 完整的使用者驗證系統
 - **Row Level Security (RLS)** - 資料庫層級的存取控制
 - **Rate Limiting** - API 速率限制，防止濫用
-- **CORS & Helmet** - 完整的 HTTP 安全標頭
+- **Secure Headers** - 完整的 HTTP 安全標頭
 - **密碼雜湊** - bcrypt 加密儲存
+- **稽核日誌** - ISO 27001 A.12.4 合規
 
 ---
 
@@ -52,8 +54,8 @@
                                   │
                                   ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                     Fastify + TypeScript                         │
-│                       (Node.js 後端)                             │
+│                      Hono + TypeScript                           │
+│                        (Deno 後端)                               │
 └─────────────────────────────────────────────────────────────────┘
                          │              │
                          ▼              ▼
@@ -67,13 +69,13 @@
 
 | 層級 | 技術 |
 |------|------|
-| **後端框架** | Fastify + TypeScript |
+| **執行環境** | Deno 2.x |
+| **後端框架** | Hono |
 | **資料庫** | PostgreSQL (Supabase) |
-| **快取** | Redis (ioredis) |
+| **快取** | Redis |
 | **驗證** | Supabase Auth + JWT |
 | **前端** | Vanilla JS + TailwindCSS |
 | **反向代理** | Nginx + Cache Purge |
-| **程序管理** | PM2 |
 
 ---
 
@@ -81,7 +83,7 @@
 
 ### 系統需求
 
-- Node.js 18+
+- Deno 2.0+
 - Redis 6+
 - PostgreSQL 14+ (或 Supabase)
 - Nginx (選用，用於生產環境)
@@ -93,18 +95,25 @@
 git clone https://github.com/KaelLim/Tcurl.git
 cd Tcurl
 
-# 2. 安裝依賴
-npm install
-
-# 3. 設定環境變數
+# 2. 設定環境變數
 cp .env.example .env
 # 編輯 .env 填入你的設定
 
-# 4. 編譯 TypeScript
-npm run build
+# 3. 啟動開發模式
+deno task dev
 
-# 5. 啟動服務
-npm start
+# 4. 啟動生產模式
+deno task start
+```
+
+### Deno 任務
+
+```bash
+deno task dev      # 開發模式（自動重載）
+deno task start    # 生產模式
+deno task check    # 類型檢查
+deno task lint     # 程式碼檢查
+deno task fmt      # 格式化程式碼
 ```
 
 ### 環境變數
@@ -113,7 +122,6 @@ npm start
 # 伺服器設定
 PORT=3000
 HOST=0.0.0.0
-BASE_URL=https://your-domain.com
 
 # Supabase 設定
 SUPABASE_URL=http://localhost:8000
@@ -127,6 +135,9 @@ REDIS_PASSWORD=your-redis-password
 
 # 短代碼設定
 SHORT_CODE_LENGTH=6
+
+# 點擊追蹤（可選）
+CLICK_WATCHER_ENABLED=true
 ```
 
 ---
@@ -143,6 +154,7 @@ SHORT_CODE_LENGTH=6
 | `PUT` | `/api/urls/:id` | 更新短網址 |
 | `DELETE` | `/api/urls/:id` | 刪除短網址 |
 | `GET` | `/s/:shortCode` | 短網址重導向 |
+| `GET` | `/ad/:shortCode` | 廣告頁面（顯示目標資訊） |
 
 ### 建立短網址範例
 
@@ -170,22 +182,43 @@ curl -X POST https://your-domain.com/api/urls \
 }
 ```
 
-完整 API 文件請參考：`/docs` 或 `/swagger`
-
 ---
 
 ## 部署指南
 
-### 使用 PM2 部署
+### 直接執行
 
 ```bash
-# 編譯並啟動
-npm run build
-pm2 start ecosystem.config.cjs
+# 啟動服務
+deno task start
 
-# 查看狀態
-pm2 status
-pm2 logs shorturl-api
+# 背景執行
+nohup deno task start > /var/log/tcurl.log 2>&1 &
+```
+
+### 使用 systemd
+
+```ini
+# /etc/systemd/system/tcurl.service
+[Unit]
+Description=Tcurl Short URL Service
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/path/to/tcurl
+ExecStart=/home/user/.deno/bin/deno task start
+Restart=on-failure
+Environment=DENO_ENV=production
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl enable tcurl
+sudo systemctl start tcurl
 ```
 
 ### Nginx 設定範例
@@ -205,15 +238,31 @@ server {
 
     # 短網址重導向（快取 5 分鐘）
     location /s/ {
+        access_log /var/log/nginx/shorturl-clicks.log shorturl_tracking;
         proxy_pass http://127.0.0.1:3000;
         proxy_cache shorturl_cache;
-        proxy_cache_valid 200 302 5m;
+        proxy_cache_key "shorturl$request_uri";
+        proxy_cache_valid 302 5m;
+    }
+
+    # 快取清除
+    location ~ /purge/s/(.+)$ {
+        allow 127.0.0.1;
+        deny all;
+        proxy_cache_purge shorturl_cache "shorturl/s/$1";
+    }
+
+    # 廣告頁面（不快取）
+    location ^~ /ad/ {
+        add_header Cache-Control "no-store, no-cache, must-revalidate";
+        proxy_pass http://127.0.0.1:3000;
+        proxy_no_cache 1;
     }
 
     # API 請求（不快取）
     location /api/ {
         proxy_pass http://127.0.0.1:3000;
-        proxy_cache off;
+        proxy_no_cache 1;
     }
 
     # 靜態檔案
@@ -240,7 +289,8 @@ CREATE TABLE urls (
     expires_at TIMESTAMPTZ,
     is_active BOOLEAN DEFAULT true,
     password_hash TEXT,
-    qr_code_generated BOOLEAN DEFAULT false
+    qr_code_generated BOOLEAN DEFAULT false,
+    qr_code_options JSONB
 );
 
 -- 點擊記錄表
@@ -249,37 +299,18 @@ CREATE TABLE url_clicks (
     url_id UUID REFERENCES urls(id) ON DELETE CASCADE,
     clicked_at TIMESTAMPTZ DEFAULT NOW(),
     user_agent TEXT,
-    event_type VARCHAR(20) DEFAULT 'link_click',
-    is_qr_scan BOOLEAN DEFAULT false
+    event_type VARCHAR(20) DEFAULT 'link_click'
 );
 ```
 
-### Materialized Views
+### 事件類型
 
-```sql
--- 多時間維度統計（每分鐘自動刷新）
-CREATE MATERIALIZED VIEW url_recent_stats AS
-SELECT
-    url_id,
-    short_code,
-    count(*) FILTER (WHERE clicked_at >= CURRENT_DATE) AS today_total,
-    count(*) FILTER (WHERE clicked_at >= date_trunc('week', CURRENT_DATE)) AS week_total,
-    count(*) FILTER (WHERE clicked_at >= date_trunc('month', CURRENT_DATE)) AS month_total,
-    count(*) AS all_time_total
-FROM urls LEFT JOIN url_clicks ON urls.id = url_clicks.url_id
-GROUP BY url_id, short_code;
-```
-
----
-
-## 效能測試結果
-
-| 測試類型 | 並發數 | RPS | 平均延遲 | 成功率 |
-|----------|--------|-----|----------|--------|
-| 基準測試 | 10 | 847 | 11.7ms | 100% |
-| 負載測試 | 50 | 1,047 | 47.5ms | 100% |
-| 壓力測試 | 100 | 996 | 99.8ms | 100% |
-| 尖峰測試 | 200 | 881 | 224ms | 100% |
+| event_type | 說明 |
+|------------|------|
+| `link_click` | 直接點擊短網址 |
+| `qr_scan` | 掃描 QR Code |
+| `ad_view` | 廣告頁面曝光 |
+| `ad_click` | 廣告頁面點擊 |
 
 ---
 
@@ -287,22 +318,37 @@ GROUP BY url_id, short_code;
 
 ```
 Tcurl/
-├── src/                    # TypeScript 原始碼
-│   ├── index.ts           # 應用程式入口
-│   ├── routes/            # API 路由
-│   ├── services/          # 服務層（Redis, Supabase）
-│   ├── utils/             # 工具函數
-│   └── types/             # TypeScript 型別定義
-├── public/                # 前端靜態檔案
-│   ├── *.html            # HTML 頁面
-│   └── js/               # JavaScript 檔案
-├── scripts/              # 腳本（測試、維護）
-├── migrations/           # SQL 遷移檔
-├── backups/              # 備份指南
-├── package.json
-├── tsconfig.json
-└── ecosystem.config.cjs  # PM2 設定
+├── src/                        # TypeScript 原始碼
+│   ├── main.ts                # 應用程式入口
+│   ├── routes/                # API 路由
+│   │   └── urls.ts
+│   ├── services/              # 服務層
+│   │   ├── supabase.ts       # Supabase 客戶端
+│   │   ├── redis.ts          # Redis 快取
+│   │   ├── nginx-cache.ts    # Nginx 快取清除
+│   │   └── click-log-watcher.ts  # 點擊日誌監聽
+│   ├── utils/                 # 工具函數
+│   │   ├── html-templates.ts # HTML 模板
+│   │   ├── shortcode.ts      # 短代碼生成
+│   │   ├── url-validator.ts  # URL 驗證
+│   │   └── audit-logger.ts   # 稽核日誌
+│   └── types/                 # TypeScript 型別定義
+├── public/                    # 前端靜態檔案
+│   ├── *.html                # HTML 頁面
+│   └── js/                   # JavaScript 檔案
+├── backups/                   # 資料庫備份指南
+├── deno.json                  # Deno 設定
+└── deno.lock                  # 依賴鎖定檔
 ```
+
+---
+
+## 分支說明
+
+| 分支 | 說明 |
+|------|------|
+| `main` | Deno + Hono 版本（目前使用） |
+| `nodejs` | Node.js + Fastify 版本（舊版） |
 
 ---
 
