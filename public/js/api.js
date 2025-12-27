@@ -387,27 +387,15 @@ const utils = {
     }, 3000)
   },
 
-  // 格式化日期
+  // 格式化日期（顯示日期 + 時間）
   formatDate(dateString) {
     const date = new Date(dateString)
-    const now = new Date()
-    const diffMs = now - date
-    const diffSecs = Math.floor(diffMs / 1000)
-    const diffMins = Math.floor(diffSecs / 60)
-    const diffHours = Math.floor(diffMins / 60)
-    const diffDays = Math.floor(diffHours / 24)
-
-    if (diffDays > 30) {
-      return date.toLocaleDateString('zh-TW')
-    } else if (diffDays > 0) {
-      return `${diffDays} 天前`
-    } else if (diffHours > 0) {
-      return `${diffHours} 小時前`
-    } else if (diffMins > 0) {
-      return `${diffMins} 分鐘前`
-    } else {
-      return '剛剛'
-    }
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    return `${year}/${month}/${day} ${hours}:${minutes}`
   },
 
   // 下載 QR Code
