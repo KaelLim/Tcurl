@@ -1,0 +1,56 @@
+# TCurl 短網址系統 - Deno 版本
+# systemd 服務配置檔
+#
+# 安裝方式:
+#   sudo cp tcurl-deno.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable tcurl-deno
+#   sudo systemctl start tcurl-deno
+#
+# 查看日誌:
+#   sudo journalctl -u tcurl-deno -f
+
+[Unit]
+Description=TCurl Short URL Service (Deno)
+Documentation=https://github.com/tzuchi/shorturl-api
+After=network.target redis.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/web/html/urlpj/shorturl-api
+
+# 載入環境變數
+EnvironmentFile=/web/html/urlpj/shorturl-api/.env
+
+# Deno 權限設定（符合 ISO 27001 最小權限原則）
+# --allow-net: 網路存取（API 服務、Supabase、Redis）
+# --allow-read: 讀取靜態檔案和 .env
+# --allow-write: 寫入 QR Code 和日誌
+# --allow-env: 讀取環境變數
+ExecStart=/home/kaelsohappy1/.deno/bin/deno run \
+    --env \
+    --allow-net \
+    --allow-read=/web/html/urlpj/shorturl-api \
+    --allow-write=/web/html/urlpj/shorturl-api/public/qrcodes,/web/html/urlpj/shorturl-api/logs \
+    --allow-env \
+    /web/html/urlpj/shorturl-api/src/main.ts
+
+# 重啟策略
+Restart=on-failure
+RestartSec=5
+
+# 日誌
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tcurl-deno
+
+# 安全性設定 (ISO 27001 A.12.6)
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ReadWritePaths=/web/html/urlpj/shorturl-api/logs /web/html/urlpj/shorturl-api/public/qrcodes
+
+[Install]
+WantedBy=multi-user.target

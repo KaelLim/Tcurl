@@ -1,28 +1,58 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js'
-import dotenv from 'dotenv'
+/**
+ * Supabase 客戶端服務 - Deno 版本
+ *
+ * 提供兩種客戶端模式：
+ * 1. Service Client - 繞過 RLS，用於系統級操作
+ * 2. User Client - 遵守 RLS，用於使用者級操作
+ *
+ * @module services/supabase
+ */
 
-dotenv.config()
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY!
+// Supabase 連線設定
+const supabaseUrl = Deno.env.get('SUPABASE_URL');
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
 
-if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error('Missing Supabase environment variables')
+// 全域 Supabase 客戶端實例
+let _supabase: SupabaseClient | null = null;
+
+/**
+ * 初始化 Supabase 連線
+ * @throws 如果缺少必要的環境變數
+ */
+export function initSupabase(): void {
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error(
+      'Missing Supabase environment variables: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required'
+    );
+  }
+
+  _supabase = createClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+
+  console.log('✅ Supabase connected successfully');
 }
 
 /**
- * Service Role Client - 繞過 RLS，用於：
+ * Service Role Client - 繞過 RLS
+ *
+ * 用於：
  * - 短網址重定向（公開訪問）
  * - 記錄點擊統計
  * - 系統級操作
  */
-export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
+export function getSupabase(): SupabaseClient {
+  if (!_supabase) {
+    throw new Error('Supabase not initialized. Call initSupabase() first.');
   }
-})
+  return _supabase;
+}
 
 /**
  * 建立使用者專屬的 Supabase Client
@@ -32,17 +62,23 @@ export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseServic
  * @returns Supabase Client with user context
  */
 export function createUserClient(accessToken: string): SupabaseClient {
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error(
+      'Missing Supabase environment variables: SUPABASE_URL and SUPABASE_ANON_KEY are required'
+    );
+  }
+
   return createClient(supabaseUrl, supabaseAnonKey, {
     global: {
       headers: {
-        Authorization: `Bearer ${accessToken}`
-      }
+        Authorization: `Bearer ${accessToken}`,
+      },
     },
     auth: {
       autoRefreshToken: false,
-      persistSession: false
-    }
-  })
+      persistSession: false,
+    },
+  });
 }
 
 /**
@@ -53,9 +89,9 @@ export function createUserClient(accessToken: string): SupabaseClient {
  */
 export function extractToken(authHeader: string | undefined): string | null {
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return null
+    return null;
   }
-  return authHeader.substring(7) // Remove 'Bearer ' prefix
+  return authHeader.substring(7); // Remove 'Bearer ' prefix
 }
 
 /**
@@ -64,14 +100,32 @@ export function extractToken(authHeader: string | undefined): string | null {
  * @param accessToken - JWT Token
  * @returns User info or null
  */
-export async function verifyAndGetUser(accessToken: string) {
+export async function verifyAndGetUser(
+  accessToken: string
+): Promise<{ id: string; email?: string } | null> {
   try {
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken)
+    const supabase = getSupabase();
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser(accessToken);
+
     if (error || !user) {
-      return null
+      return null;
     }
-    return user
+
+    return {
+      id: user.id,
+      email: user.email,
+    };
   } catch {
-    return null
+    return null;
   }
 }
+
+// 為了向後相容，也導出 supabase 作為 getter
+export const supabase = {
+  get client(): SupabaseClient {
+    return getSupabase();
+  },
+};

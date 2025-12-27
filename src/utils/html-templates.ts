@@ -31,7 +31,9 @@ function escapeJs(str: string): string {
 }
 
 export function renderPasswordPage(shortCode: string, isQrScan: boolean = false): string {
-  const qrParam = isQrScan ? '&qr=true' : ''
+  // Note: qrParam would be used for form action if needed
+  const _qrParam = isQrScan ? '&qr=true' : '';
+  void _qrParam; // Suppress unused warning
 
   return `<!DOCTYPE html>
 <html class="dark" lang="zh-TW">
@@ -167,7 +169,8 @@ export function renderPasswordPage(shortCode: string, isQrScan: boolean = false)
 </html>`
 }
 
-export function renderNotFoundPage(shortCode: string): string {
+export function renderNotFoundPage(_shortCode: string): string {
+  // Note: shortCode parameter preserved for future use (e.g., analytics)
   return `<!DOCTYPE html>
 <html class="dark" lang="zh-TW">
 <head>

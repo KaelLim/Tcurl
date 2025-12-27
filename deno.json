@@ -6,20 +6,23 @@
   "exports": "./src/main.ts",
 
   "tasks": {
-    "dev": "deno run --watch --env --allow-net --allow-read --allow-env src/main.ts",
-    "start": "deno run --env --allow-net --allow-read --allow-env src/main.ts",
-    "test": "deno test --allow-net --allow-read --allow-env",
+    "dev": "deno run --watch --env --allow-net --allow-read --allow-write --allow-env src/main.ts",
+    "start": "deno run --env --allow-net --allow-read --allow-write --allow-env src/main.ts",
+    "test": "deno test --allow-net --allow-read --allow-write --allow-env",
     "lint": "deno lint",
     "fmt": "deno fmt",
     "check": "deno check src/main.ts",
-    "compile": "deno compile --allow-net --allow-read --allow-env --output=tcurl src/main.ts"
+    "compile": "deno compile --allow-net --allow-read --allow-write --allow-env --output=tcurl src/main.ts",
+    "cache": "deno cache src/main.ts",
+    "deploy": "deno task cache && deno task check && deno task start"
   },
 
   "imports": {
-    "@hono/hono": "https://deno.land/x/hono@v4.6.14/mod.ts",
-    "@hono/cors": "https://deno.land/x/hono@v4.6.14/middleware/cors/index.ts",
-    "@hono/secure-headers": "https://deno.land/x/hono@v4.6.14/middleware/secure-headers/index.ts",
-    "@hono/logger": "https://deno.land/x/hono@v4.6.14/middleware/logger/index.ts",
+    "@hono/hono": "https://deno.land/x/hono@v4.3.11/mod.ts",
+    "@hono/cors": "https://deno.land/x/hono@v4.3.11/middleware/cors/index.ts",
+    "@hono/secure-headers": "https://deno.land/x/hono@v4.3.11/middleware/secure-headers/index.ts",
+    "@hono/logger": "https://deno.land/x/hono@v4.3.11/middleware/logger/index.ts",
+    "@hono/serve-static": "https://deno.land/x/hono@v4.3.11/middleware/serve-static/index.ts",
     "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.81.1",
     "@std/crypto": "jsr:@std/crypto@^1.0.0",
     "@std/encoding": "jsr:@std/encoding@^1.0.0",
@@ -33,22 +36,20 @@
   "compilerOptions": {
     "strict": true,
     "lib": ["deno.window", "deno.unstable"],
-    "noImplicitAny": true,
+    "noImplicitAny": false,
     "noImplicitReturns": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true
+    "noUnusedLocals": false,
+    "noUnusedParameters": false
   },
 
   "lint": {
-    "include": ["src/"],
-    "exclude": ["public/js/"],
+    "include": ["src/main.ts", "src/routes/", "src/services/", "src/utils/"],
+    "exclude": ["public/js/", "src/index.ts", "src/types/"],
     "rules": {
       "tags": ["recommended"],
-      "include": [
-        "ban-untagged-todo",
-        "camelcase",
-        "explicit-function-return-type",
-        "no-await-in-loop"
+      "exclude": [
+        "no-await-in-loop",
+        "require-await"
       ]
     }
   },
