@@ -2,6 +2,7 @@
  * Nginx 快取清除服務 - Deno 版本
  *
  * 用於在更新或刪除短網址時清除 Nginx proxy_cache
+ * 快取鍵格式：shorturl/s/{code}（固定前綴，不依賴 Host header）
  *
  * @module services/nginx-cache
  */
@@ -17,7 +18,10 @@ const NGINX_PURGE_BASE_URL = 'http://127.0.0.1:8080/purge/s';
 export async function purgeNginxCache(shortCode: string): Promise<boolean> {
   try {
     const purgeUrl = `${NGINX_PURGE_BASE_URL}/${shortCode}`;
-    const response = await fetch(purgeUrl, { method: 'GET' });
+    // 快取鍵使用固定前綴 "shorturl"，不需要特殊 Host header
+    const response = await fetch(purgeUrl, {
+      method: 'GET',
+    });
 
     if (response.ok) {
       console.log(`Nginx cache purged for short code: ${shortCode}`);

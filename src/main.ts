@@ -10,7 +10,7 @@ import { Hono } from '@hono/hono';
 import { cors } from '@hono/cors';
 import { secureHeaders } from '@hono/secure-headers';
 import { logger } from '@hono/logger';
-import { serveStatic } from '@hono/serve-static';
+// serveStatic 已替換為自訂靜態檔案處理
 
 // 載入環境變數
 import '@std/dotenv/load';
@@ -179,38 +179,71 @@ app.get('/api', (c) => {
 // 註冊 URL 路由
 app.route('/', urlRoutes);
 
-// 靜態文件服務（放在最後）- Deno 版本
-app.use(
-  '/*',
-  serveStatic({
-    root: './public',
-    getContent: async (path: string) => {
-      try {
-        const file = await Deno.readFile(`./public${path}`);
-        return file.buffer as ArrayBuffer;
-      } catch {
-        // Try index.html for directory paths
-        if (!path.includes('.')) {
-          try {
-            const indexPath = path.endsWith('/') ? `${path}index.html` : `${path}/index.html`;
-            const file = await Deno.readFile(`./public${indexPath}`);
-            return file.buffer as ArrayBuffer;
-          } catch {
-            return null;
-          }
-        }
-        return null;
-      }
-    },
-  })
-);
+// MIME type 對照表
+const MIME_TYPES: Record<string, string> = {
+  '.html': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
+  '.txt': 'text/plain; charset=utf-8',
+};
 
-// Fallback to index.html for SPA routes
-app.get('*', async (c) => {
+// 取得 MIME type
+function getMimeType(path: string): string {
+  const ext = path.substring(path.lastIndexOf('.'));
+  return MIME_TYPES[ext] || 'application/octet-stream';
+}
+
+// 靜態文件服務（放在最後）- Deno 版本
+app.get('/*', async (c) => {
+  const path = c.req.path;
+
+  // 嘗試讀取靜態檔案
   try {
-    const content = await Deno.readTextFile('./public/index.html');
-    return c.html(content);
+    const filePath = `./public${path}`;
+    const file = await Deno.readFile(filePath);
+    const mimeType = getMimeType(path);
+
+    return new Response(file, {
+      headers: {
+        'Content-Type': mimeType,
+        'Cache-Control': 'public, max-age=3600',
+      },
+    });
   } catch {
+    // 如果是目錄，嘗試 index.html
+    if (!path.includes('.')) {
+      try {
+        const indexPath = path.endsWith('/') ? `${path}index.html` : `${path}/index.html`;
+        const file = await Deno.readFile(`./public${indexPath}`);
+        return new Response(file, {
+          headers: {
+            'Content-Type': 'text/html; charset=utf-8',
+          },
+        });
+      } catch {
+        // Fallback to index.html for SPA routes
+        try {
+          const content = await Deno.readFile('./public/index.html');
+          return new Response(content, {
+            headers: {
+              'Content-Type': 'text/html; charset=utf-8',
+            },
+          });
+        } catch {
+          return c.text('Not Found', 404);
+        }
+      }
+    }
     return c.text('Not Found', 404);
   }
 });

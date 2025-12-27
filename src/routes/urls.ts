@@ -1339,22 +1339,32 @@ urlRoutes.get('/api/internal/track/s/:shortCode', async (c) => {
 });
 
 // ============================================================
-// 美化路由
+// 美化路由 - 直接提供 HTML（不重導向）
 // ============================================================
 
 urlRoutes.get('/links', async (c) => {
-  return c.redirect('/links.html', 302);
+  const content = await Deno.readTextFile('./public/links.html');
+  return c.html(content);
 });
 
 urlRoutes.get('/edit/:id', async (c) => {
-  const id = c.req.param('id');
-  return c.redirect(`/edit.html?id=${id}`, 302);
+  // 直接提供 edit.html，JavaScript 會從 URL 路徑讀取 ID
+  const content = await Deno.readTextFile('./public/edit.html');
+  return c.html(content);
 });
 
 urlRoutes.get('/analytics', async (c) => {
-  return c.redirect('/analytics.html', 302);
+  const content = await Deno.readTextFile('./public/analytics.html');
+  return c.html(content);
+});
+
+urlRoutes.get('/analytics/:id', async (c) => {
+  // 支援 /analytics/uuid 格式
+  const content = await Deno.readTextFile('./public/analytics.html');
+  return c.html(content);
 });
 
 urlRoutes.get('/docs', async (c) => {
-  return c.redirect('/docs.html', 302);
+  const content = await Deno.readTextFile('./public/docs.html');
+  return c.html(content);
 });
