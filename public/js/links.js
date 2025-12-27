@@ -152,7 +152,9 @@ function createUrlRow(url) {
       ${utils.formatDate(url.created_at)}
     </td>
     <td class="p-4">
-      <button class="text-white/60 hover:text-white transition-colors" onclick="event.stopPropagation(); showClientQRCodeModal('${shortUrl}', '${url.short_code}')" title="查看 QR Code">
+      <button class="text-white/60 hover:text-white p-2 rounded-lg hover:bg-white/10 transition-colors"
+              onclick="event.stopPropagation(); showQRCodeModal('${url.id}')"
+              title="顯示 QR Code">
         <span class="material-symbols-outlined">qr_code_2</span>
       </button>
     </td>
@@ -178,132 +180,6 @@ async function copyShortUrl(shortUrl) {
   } else {
     utils.showNotification('複製失敗', 'error')
   }
-}
-
-// 查看或生成 QR Code
-async function viewQRCode(shortCode, urlData) {
-  try {
-    // 檢查是否已有 QR Code
-    if (urlData.qr_code_generated && urlData.qr_code_path) {
-      // 已有 QR Code，直接顯示
-      showQRCodeModal(shortCode, urlData.qr_code_path, urlData.id)
-    } else {
-      // 沒有 QR Code，顯示生成選項
-      showQRGenerateModal(shortCode, urlData.id)
-    }
-  } catch (error) {
-    console.error('Error loading QR code:', error)
-    utils.showNotification('載入 QR Code 失敗', 'error')
-  }
-}
-
-// 顯示 QR Code 模態視窗
-function showQRCodeModal(shortCode, qrCodePath, urlId) {
-  const modal = document.createElement('div')
-  modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50'
-  // 加上時間戳避免瀏覽器快取
-  const qrCodeUrl = `${window.location.origin}${qrCodePath}?t=${Date.now()}`
-  modal.innerHTML = `
-    <div class="relative bg-[#1e1e1e] rounded-xl p-6 max-w-md w-full mx-4">
-      <button class="absolute top-4 right-4 text-white/60 hover:text-white" onclick="this.closest('.fixed').remove()">
-        <span class="material-symbols-outlined">close</span>
-      </button>
-      <h3 class="text-white text-xl font-bold mb-4">QR Code</h3>
-      <div class="bg-white p-4 rounded-lg mb-4 flex justify-center">
-        <img src="${qrCodeUrl}" alt="QR Code" class="w-64 h-64">
-      </div>
-      <div class="flex gap-2">
-        <button onclick="utils.downloadQRCode('${qrCodeUrl}', 'qrcode_${shortCode}.png'); utils.showNotification('QR Code 已下載', 'success')" class="flex-1 bg-primary hover:bg-primary/90 text-white rounded-lg py-3 font-bold">
-          下載
-        </button>
-        <button onclick="this.closest('.fixed').remove(); regenerateQRCodeFor('${shortCode}', '${urlId}')" class="flex-1 bg-white/10 hover:bg-white/20 text-white rounded-lg py-3 font-bold">
-          重新生成
-        </button>
-      </div>
-    </div>
-  `
-  document.body.appendChild(modal)
-
-  // 點擊背景關閉
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) {
-      modal.remove()
-    }
-  })
-}
-
-// 顯示 QR Code 生成選項模態視窗
-async function showQRGenerateModal(shortCode, urlId) {
-  // 載入主題
-  const response = await fetch('/api/qrcode/themes')
-  const data = await response.json()
-  const themes = data.themes
-
-  const modal = document.createElement('div')
-  modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50'
-  modal.innerHTML = `
-    <div class="relative bg-[#1e1e1e] rounded-xl p-6 max-w-md w-full mx-4">
-      <button class="absolute top-4 right-4 text-white/60 hover:text-white" onclick="this.closest('.fixed').remove()">
-        <span class="material-symbols-outlined">close</span>
-      </button>
-      <h3 class="text-white text-xl font-bold mb-4">生成 QR Code</h3>
-      <p class="text-white/60 text-sm mb-4">這個短網址還沒有 QR Code，請選擇主題生成：</p>
-      <select id="modalThemeSelect" class="w-full rounded-lg text-white bg-background-dark border border-white/20 h-12 px-3 text-sm mb-4">
-        ${themes.map(theme => `<option value="${theme.id}">${theme.name} - ${theme.description}</option>`).join('')}
-      </select>
-      <button id="modalGenerateBtn" class="w-full bg-primary hover:bg-primary/90 text-white rounded-lg py-3 font-bold">
-        生成 QR Code
-      </button>
-    </div>
-  `
-  document.body.appendChild(modal)
-
-  // 點擊背景關閉
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) {
-      modal.remove()
-    }
-  })
-
-  // 生成按鈕事件
-  document.getElementById('modalGenerateBtn').addEventListener('click', async () => {
-    const themeId = document.getElementById('modalThemeSelect').value
-    const btn = document.getElementById('modalGenerateBtn')
-    btn.disabled = true
-    btn.textContent = '生成中...'
-
-    try {
-      const response = await fetch(`/api/urls/${urlId}/qrcode`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ themeId })
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to generate QR code')
-      }
-
-      const result = await response.json()
-      modal.remove()
-      utils.showNotification('QR Code 生成成功！', 'success')
-
-      // 重新載入列表以更新狀態
-      await loadUrls()
-
-      // 顯示生成的 QR Code
-      showQRCodeModal(shortCode, result.qr_code_path, urlId)
-    } catch (error) {
-      console.error('Error generating QR code:', error)
-      utils.showNotification('生成失敗', 'error')
-      btn.disabled = false
-      btn.textContent = '生成 QR Code'
-    }
-  })
-}
-
-// 重新生成 QR Code
-function regenerateQRCodeFor(shortCode, urlId) {
-  showQRGenerateModal(shortCode, urlId)
 }
 
 // 編輯 URL（導向到編輯頁面）
@@ -423,18 +299,10 @@ nextPageBtn.addEventListener('click', () => {
   }
 })
 
-// 初始載入函數 - 由頁面在 auth 初始化後調用
-function initLinks() {
-  loadUrls()
-}
+// ======== QR Code 功能 ========
 
-// 導出給頁面使用
-window.initLinks = initLinks
-
-// ======== 客戶端 QR Code 生成 ========
-
-// QR Code 配置
-const QR_CONFIG = {
+// QR Code 預設配置
+const QR_DEFAULT_CONFIG = {
   width: 300,
   height: 300,
   type: "svg",
@@ -451,50 +319,134 @@ const QR_CONFIG = {
   },
   imageOptions: {
     margin: 10,
-    imageSize: 0.4
+    imageSize: 0.3
   }
 }
 
-// 顯示客戶端 QR Code 模態視窗
-function showClientQRCodeModal(shortUrl, shortCode) {
+// 將 hex 顏色和透明度轉換為 rgba
+function hexToRgba(hex, opacity) {
+  if (!hex || !hex.startsWith('#')) return 'rgba(255, 255, 255, 1)'
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  return `rgba(${r}, ${g}, ${b}, ${opacity / 100})`
+}
+
+// 根據 qr_code_options 建立 QRCodeStyling 配置
+function buildQRConfig(shortUrl, qrCodeOptions) {
+  if (!qrCodeOptions) {
+    // 使用預設配置
+    return { ...QR_DEFAULT_CONFIG, data: shortUrl }
+  }
+
+  const config = {
+    width: 300,
+    height: 300,
+    type: "svg",
+    data: shortUrl,
+    dotsOptions: {
+      color: qrCodeOptions.dotsColor || '#000000',
+      type: qrCodeOptions.dotsType || 'rounded'
+    },
+    backgroundOptions: {
+      color: hexToRgba(qrCodeOptions.bgColor || '#ffffff', qrCodeOptions.bgOpacity ?? 100)
+    },
+    cornersSquareOptions: {
+      type: qrCodeOptions.cornersSquareType || 'square',
+      color: qrCodeOptions.dotsColor || '#000000'
+    },
+    cornersDotOptions: {
+      type: qrCodeOptions.cornersDotType || 'square',
+      color: qrCodeOptions.dotsColor || '#000000'
+    },
+    qrOptions: {
+      errorCorrectionLevel: 'H'
+    }
+  }
+
+  if (qrCodeOptions.showLogo) {
+    config.image = "/images/tzuchi-logo.svg"
+    config.imageOptions = {
+      margin: 10,
+      imageSize: 0.3
+    }
+  }
+
+  return config
+}
+
+// 顯示 QR Code Modal
+function showQRCodeModal(urlId) {
+  // 從 allUrls 中找到對應的 URL 資料
+  const urlData = allUrls.find(u => u.id === urlId)
+  if (!urlData) {
+    utils.showNotification('找不到連結資料', 'error')
+    return
+  }
+
+  const shortUrl = `${window.location.origin}/s/${urlData.short_code}`
+  const qrConfig = buildQRConfig(shortUrl, urlData.qr_code_options)
+
+  // 建立 Modal
   const modal = document.createElement('div')
-  modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50'
+  modal.id = 'qrCodeModal'
+  modal.className = 'fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4'
+  modal.onclick = (e) => {
+    if (e.target === modal) closeQRCodeModal()
+  }
+
   modal.innerHTML = `
-    <div class="relative bg-[#1e1e1e] rounded-xl p-6 max-w-md w-full mx-4">
-      <button class="absolute top-4 right-4 text-white/60 hover:text-white" onclick="this.closest('.fixed').remove()">
+    <div class="relative bg-[#1e1e1e] rounded-xl p-6 max-w-md w-full">
+      <button class="absolute top-4 right-4 text-white/60 hover:text-white" onclick="closeQRCodeModal()">
         <span class="material-symbols-outlined">close</span>
       </button>
-      <h3 class="text-white text-xl font-bold mb-4">QR Code - ${shortCode}</h3>
-      <div class="bg-white p-4 rounded-lg mb-4 flex justify-center">
-        <div id="qrCodeModalCanvas"></div>
+
+      <h3 class="text-white text-xl font-bold mb-2">QR Code</h3>
+      <p class="text-white/60 text-sm mb-4">${urlData.short_code}</p>
+
+      <div class="bg-white p-4 rounded-lg flex items-center justify-center mb-4">
+        <div id="qrCodeCanvas" style="width: 300px; height: 300px;"></div>
       </div>
+
       <div class="flex gap-2">
-        <button id="downloadModalQrBtn" class="flex-1 bg-primary hover:bg-primary/90 text-white rounded-lg py-3 font-bold flex items-center justify-center gap-2">
-          <span class="material-symbols-outlined text-lg">download</span>
-          <span>下載</span>
+        <button id="downloadQrBtn" class="flex-1 flex items-center justify-center gap-2 bg-primary hover:bg-blue-600 text-white rounded-lg py-3 font-medium transition-colors">
+          <span class="material-symbols-outlined">download</span>
+          下載 PNG
+        </button>
+        <button onclick="window.location.href='/edit/${urlData.id}'" class="flex-1 flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white rounded-lg py-3 font-medium transition-colors">
+          <span class="material-symbols-outlined">edit</span>
+          客製化
         </button>
       </div>
     </div>
   `
+
   document.body.appendChild(modal)
 
   // 生成 QR Code
-  const qrCodeInstance = new QRCodeStyling({
-    ...QR_CONFIG,
-    data: shortUrl
-  })
-  qrCodeInstance.append(document.getElementById('qrCodeModalCanvas'))
+  const qrCodeCanvas = document.getElementById('qrCodeCanvas')
+  const qrCode = new QRCodeStyling(qrConfig)
+  qrCode.append(qrCodeCanvas)
 
-  // 下載按鈕事件
-  document.getElementById('downloadModalQrBtn').addEventListener('click', () => {
-    qrCodeInstance.download({ name: `qrcode_${shortCode}`, extension: "png" })
+  // 下載按鈕
+  document.getElementById('downloadQrBtn').onclick = () => {
+    qrCode.download({ name: `qrcode_${urlData.short_code}`, extension: 'png' })
     utils.showNotification('QR Code 已下載！', 'success')
-  })
-
-  // 點擊背景關閉
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) {
-      modal.remove()
-    }
-  })
+  }
 }
+
+// 關閉 QR Code Modal
+function closeQRCodeModal() {
+  const modal = document.getElementById('qrCodeModal')
+  if (modal) modal.remove()
+}
+
+// 初始載入函數 - 由頁面在 auth 初始化後調用
+function initLinks() {
+  loadUrls()
+}
+
+// 導出給頁面使用
+window.initLinks = initLinks
+window.showQRCodeModal = showQRCodeModal
+window.closeQRCodeModal = closeQRCodeModal
