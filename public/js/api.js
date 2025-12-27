@@ -169,20 +169,24 @@ const api = {
     return data
   },
 
-  // 更新短網址
+  // 更新短網址（透過後端 API 處理密碼 hash）
   async updateUrl(id, updates) {
-    const client = this.getClient()
-    if (!client) throw new Error('請先登入')
+    const token = await window.auth?.getAccessToken()
+    if (!token) throw new Error('請先登入')
 
-    const { data, error } = await client
-      .from('urls')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single()
+    const response = await fetch(`${BASE_URL}/api/urls/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(updates)
+    })
 
-    if (error) {
-      throw new Error(error.message || '更新失敗')
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.error || data.message || '更新失敗')
     }
 
     return data
