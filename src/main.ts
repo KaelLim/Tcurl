@@ -21,6 +21,7 @@ import { urlRoutes } from './routes/urls.ts';
 // 導入服務
 import { initSupabase } from './services/supabase.ts';
 import { initRedis } from './services/redis.ts';
+import { startClickLogWatcher } from './services/click-log-watcher.ts';
 
 // 導入稽核日誌（ISO 27001 A.12.4）
 import { createAuditMiddleware, logSystemStart } from './utils/audit-logger.ts';
@@ -274,6 +275,11 @@ logSystemStart({
   port,
   host,
   environment: Deno.env.get('DENO_ENV') || 'production',
+});
+
+// 啟動 Nginx 點擊日誌監聽（背景執行）
+startClickLogWatcher().catch((err) => {
+  console.error('❌ Click log watcher failed:', err);
 });
 
 Deno.serve({ port, hostname: host }, app.fetch);
