@@ -4,7 +4,7 @@
     <meta charset="utf-8"/>
     <link rel="icon" type="image/svg+xml" href="https://info.tzuchi.org/favicon.svg"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>連結頁面 - TCurl</title>
+    <title>我的連結 - TCurl</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com" rel="preconnect"/>
     <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
@@ -60,9 +60,9 @@
     </style>
 </head>
 <body class="bg-background-light dark:bg-background-dark font-display">
-    <div class="flex min-h-screen">
+    <div class="flex h-screen overflow-hidden">
         <!-- SideNavBar -->
-        <aside class="w-64 flex-shrink-0 bg-[#111218] p-4 flex flex-col justify-between border-r border-r-[#3b3f54]">
+        <aside class="w-64 flex-shrink-0 bg-[#111218] p-4 flex flex-col justify-between border-r border-r-[#3b3f54] h-full overflow-y-auto">
             <div class="flex flex-col gap-8">
                 <div class="flex items-center gap-2 p-2">
                     <img src="https://info.tzuchi.org/favicon.svg" alt="TCurl Logo" style="width: 76px; height: 40px;">
@@ -110,12 +110,12 @@
         </aside>
 
         <!-- Main Content -->
-        <main class="flex-1 p-8">
+        <main class="flex-1 p-8 overflow-y-auto">
             <div class="max-w-7xl mx-auto">
                 <!-- PageHeading -->
                 <div class="flex flex-wrap justify-between items-center gap-4 mb-6">
                     <div class="flex flex-col gap-1">
-                        <p class="text-white text-4xl font-black leading-tight tracking-[-0.033em]">連結頁面</p>
+                        <p class="text-white text-4xl font-black leading-tight tracking-[-0.033em]">我的連結</p>
                         <p class="text-[#9da1b9] text-base font-normal leading-normal">管理和追蹤你的短網址。</p>
                     </div>
                 </div>
