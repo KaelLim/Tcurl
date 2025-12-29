@@ -140,6 +140,33 @@ SHORT_CODE_LENGTH=6
 CLICK_WATCHER_ENABLED=true
 ```
 
+### Google OAuth 設置（Supabase Self-Hosted）
+
+若使用自架 Supabase，需在 Supabase 的 `.env` 中設定 Google OAuth：
+
+```env
+# Google OAuth
+GOTRUE_EXTERNAL_GOOGLE_ENABLED=true
+GOTRUE_EXTERNAL_GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+GOTRUE_EXTERNAL_GOOGLE_SECRET=your-google-client-secret
+GOTRUE_EXTERNAL_GOOGLE_REDIRECT_URI=https://your-supabase-domain/auth/v1/callback
+```
+
+**Google Cloud Console 設定：**
+
+1. 前往 [Google Cloud Console](https://console.cloud.google.com/)
+2. 建立或選擇專案
+3. 前往「API 和服務」→「憑證」
+4. 建立「OAuth 2.0 用戶端 ID」（網頁應用程式）
+5. 設定：
+   - **已授權的 JavaScript 來源**：`https://your-frontend-domain`
+   - **已授權的重新導向 URI**：`https://your-supabase-domain/auth/v1/callback`
+
+**重啟 Supabase Auth：**
+```bash
+cd /path/to/supabase && docker compose restart auth
+```
+
 ---
 
 ## API 文件
