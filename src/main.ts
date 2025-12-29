@@ -54,9 +54,9 @@ app.use(
         'cdn.jsdelivr.net',
         'unpkg.com',
       ],
-      styleSrc: ["'self'", "'unsafe-inline'", 'cdn.tailwindcss.com', 'fonts.googleapis.com'],
+      styleSrc: ["'self'", "'unsafe-inline'", 'cdn.tailwindcss.com', 'fonts.googleapis.com', 'unpkg.com'],
       fontSrc: ["'self'", 'fonts.gstatic.com', 'fonts.googleapis.com'],
-      imgSrc: ["'self'", 'data:', 'blob:', 'info.tzuchi.org', '*.tzuchi.org'],
+      imgSrc: ["'self'", 'data:', 'blob:', 'info.tzuchi.org', '*.tzuchi.org', 'validator.swagger.io'],
       connectSrc: [
         "'self'",
         Deno.env.get('SUPABASE_URL') || 'https://*.supabase.co',
