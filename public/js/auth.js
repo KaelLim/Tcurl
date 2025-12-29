@@ -79,6 +79,23 @@ const auth = {
     return data
   },
 
+  // Google OAuth 登入
+  async signInWithGoogle(redirectTo = '/') {
+    const client = await initSupabase()
+    const { data, error } = await client.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}${redirectTo}`
+      }
+    })
+
+    if (error) {
+      throw new Error(error.message)
+    }
+
+    return data
+  },
+
   // 登出
   async signOut() {
     const client = await initSupabase()
