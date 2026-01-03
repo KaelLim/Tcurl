@@ -99,7 +99,7 @@
                 </div>
 
                 <!-- Stats Cards -->
-                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
                     <div class="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/5 p-5">
                         <p class="text-white/80 text-base font-medium leading-normal">總連結數</p>
                         <p id="totalUrls" class="text-white tracking-light text-3xl font-bold leading-tight">-</p>
@@ -111,14 +111,19 @@
                         <p class="text-white/60 text-base font-medium leading-normal">所有連結的點擊</p>
                     </div>
                     <div class="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/5 p-5">
-                        <p class="text-white/80 text-base font-medium leading-normal">平均點擊數</p>
-                        <p id="avgClicks" class="text-white tracking-light text-3xl font-bold leading-tight">-</p>
-                        <p class="text-white/60 text-base font-medium leading-normal">每個連結平均</p>
-                    </div>
-                    <div class="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/5 p-5">
                         <p class="text-white/80 text-base font-medium leading-normal">QR 掃描數</p>
                         <p id="totalQrScans" class="text-white tracking-light text-3xl font-bold leading-tight">-</p>
                         <p class="text-white/60 text-base font-medium leading-normal">透過 QR Code 訪問</p>
+                    </div>
+                    <div class="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/5 p-5">
+                        <p class="text-white/80 text-base font-medium leading-normal">廣告曝光數</p>
+                        <p id="totalAdViews" class="text-white tracking-light text-3xl font-bold leading-tight">-</p>
+                        <p class="text-white/60 text-base font-medium leading-normal">廣告頁面曝光</p>
+                    </div>
+                    <div class="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/5 p-5">
+                        <p class="text-white/80 text-base font-medium leading-normal">廣告點擊數</p>
+                        <p id="totalAdClicks" class="text-white tracking-light text-3xl font-bold leading-tight">-</p>
+                        <p class="text-white/60 text-base font-medium leading-normal">廣告頁面點擊</p>
                     </div>
                 </div>
 
@@ -348,13 +353,17 @@
             const totalClicks = allUrls.reduce((sum, url) => sum + (url.clicks || 0), 0)
             document.getElementById('totalClicks').textContent = totalClicks.toLocaleString()
 
-            // 平均點擊數
-            const avgClicks = allUrls.length > 0 ? Math.round(totalClicks / allUrls.length) : 0
-            document.getElementById('avgClicks').textContent = avgClicks.toLocaleString()
-
             // QR 掃描數
             const totalQrScans = allUrls.reduce((sum, url) => sum + (url.qr_scans || 0), 0)
             document.getElementById('totalQrScans').textContent = totalQrScans.toLocaleString()
+
+            // 廣告曝光數
+            const totalAdViews = allUrls.reduce((sum, url) => sum + (url.ad_views || 0), 0)
+            document.getElementById('totalAdViews').textContent = totalAdViews.toLocaleString()
+
+            // 廣告點擊數
+            const totalAdClicks = allUrls.reduce((sum, url) => sum + (url.ad_clicks || 0), 0)
+            document.getElementById('totalAdClicks').textContent = totalAdClicks.toLocaleString()
         }
 
         function renderTopUrls() {
