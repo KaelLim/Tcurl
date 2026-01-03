@@ -624,13 +624,20 @@ urlRoutes.get('/s/:shortCode', async (c) => {
       return c.html(renderPasswordPage(shortCode, isQrScan));
     }
 
-    // 記錄點擊（異步，不阻塞回應）
-    void supabase
+    // 記錄點擊（異步，不阻塞回應，但記錄錯誤）
+    supabase
       .from('url_clicks')
       .insert({
         url_id: data.id,
         user_agent: c.req.header('user-agent') || null,
         event_type: isQrScan ? 'qr_scan' : 'link_click',
+      })
+      .then(({ error }) => {
+        if (error) {
+          console.error(`[ClickRecord] Failed to record click for ${shortCode}:`, error.message);
+        } else {
+          console.log(`[ClickRecord] Recorded click for ${shortCode} (${isQrScan ? 'qr_scan' : 'link_click'})`);
+        }
       });
 
     console.log(`Redirect: ${shortCode} -> ${data.original_url}`);
