@@ -111,14 +111,20 @@ const api = {
         const clicks = clicksData?.filter(c => c.url_id === urlId) || []
         const linkClicks = clicks.filter(c => c.event_type === 'link_click').length
         const qrScans = clicks.filter(c => c.event_type === 'qr_scan').length
+        const adViews = clicks.filter(c => c.event_type === 'ad_view').length
+        const adClicks = clicks.filter(c => c.event_type === 'ad_click').length
+        // 總點擊數：排除 ad_view（曝光不算點擊）
+        const totalClicks = linkClicks + qrScans + adClicks
         const lastClick = clicks.length > 0
           ? clicks.sort((a, b) => new Date(b.clicked_at) - new Date(a.clicked_at))[0].clicked_at
           : null
 
         statsMap.set(urlId, {
-          total: clicks.length,
+          total: totalClicks,
           link: linkClicks,
           qr: qrScans,
+          ad_views: adViews,
+          ad_clicks: adClicks,
           last: lastClick
         })
       }
@@ -126,12 +132,14 @@ const api = {
 
     // 合併資料
     const mergedData = urlsData?.map(url => {
-      const stats = statsMap.get(url.id) || { total: 0, link: 0, qr: 0, last: null }
+      const stats = statsMap.get(url.id) || { total: 0, link: 0, qr: 0, ad_views: 0, ad_clicks: 0, last: null }
       return {
         ...url,
         clicks: stats.total,
         link_clicks: stats.link,
         qr_scans: stats.qr,
+        ad_views: stats.ad_views,
+        ad_clicks: stats.ad_clicks,
         last_clicked_at: stats.last
       }
     })
