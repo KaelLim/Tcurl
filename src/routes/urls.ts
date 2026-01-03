@@ -11,7 +11,6 @@ import * as bcrypt from 'bcrypt';
 
 // 導入服務
 import { getSupabase, createUserClient, extractToken } from '../services/supabase.ts';
-import { redis, CACHE_KEYS, CACHE_TTL } from '../services/redis.ts';
 import { purgeNginxCache } from '../services/nginx-cache.ts';
 
 // 導入工具函數
@@ -340,14 +339,12 @@ urlRoutes.put('/api/urls/:id', async (c) => {
     return c.json({ error: 'URL not found' }, 404);
   }
 
-  // 清除快取
+  // 清除 Nginx 快取
   try {
-    const cacheKey = CACHE_KEYS.URL(data.short_code);
-    await redis.del(cacheKey);
     await purgeNginxCache(data.short_code);
-    console.log(`Cache invalidated for ${data.short_code} after update`);
+    console.log(`Nginx cache invalidated for ${data.short_code} after update`);
   } catch (cacheError) {
-    console.error('Failed to invalidate cache:', cacheError);
+    console.error('Failed to invalidate Nginx cache:', cacheError);
   }
 
   return c.json(data);
@@ -459,13 +456,11 @@ urlRoutes.patch('/api/urls/:id/qr-code', async (c) => {
     );
   }
 
-  // 清除快取
+  // 清除 Nginx 快取
   try {
-    const cacheKey = CACHE_KEYS.URL(urlData.short_code);
-    await redis.del(cacheKey);
     await purgeNginxCache(urlData.short_code);
   } catch (cacheError) {
-    console.error('Failed to invalidate cache:', cacheError);
+    console.error('Failed to invalidate Nginx cache:', cacheError);
   }
 
   return c.json({
@@ -516,13 +511,11 @@ urlRoutes.delete('/api/urls/:id', async (c) => {
     return c.json({ error: 'Failed to delete URL' }, 500);
   }
 
-  // 清除快取
+  // 清除 Nginx 快取
   try {
-    const cacheKey = CACHE_KEYS.URL(urlData.short_code);
-    await redis.del(cacheKey);
     await purgeNginxCache(urlData.short_code);
   } catch (cacheError) {
-    console.error('Failed to invalidate cache:', cacheError);
+    console.error('Failed to invalidate Nginx cache:', cacheError);
   }
 
   return c.json({ message: 'URL deleted successfully' });
@@ -600,7 +593,7 @@ urlRoutes.post('/api/urls/:shortCode/verify-password', async (c) => {
 // ============================================================
 
 /**
- * 短網址重定向（使用 Redis 快取）
+ * 短網址重定向（Nginx 快取處理，Deno 只處理 MISS/EXPIRED）
  */
 urlRoutes.get('/s/:shortCode', async (c) => {
   const shortCode = c.req.param('shortCode');
@@ -608,39 +601,7 @@ urlRoutes.get('/s/:shortCode', async (c) => {
   const isQrScan = qr === '1' || qr === 'true';
 
   try {
-    // 1. 先查 Redis 快取
-    const cacheKey = CACHE_KEYS.URL(shortCode);
-    const cached = await redis.get(cacheKey);
-
-    if (cached) {
-      const cachedData = JSON.parse(cached);
-
-      // 檢查過期時間
-      if (cachedData.expires_at && new Date(cachedData.expires_at) < new Date()) {
-        await redis.del(cacheKey);
-        return c.html(renderExpiredPage(cachedData.expires_at));
-      }
-
-      // 檢查是否需要密碼保護
-      if (cachedData.password_protected && cachedData.password_hash) {
-        return c.html(renderPasswordPage(shortCode, isQrScan));
-      }
-
-      // 異步記錄點擊（不等待）
-      const supabase = getSupabase();
-      void supabase
-        .from('url_clicks')
-        .insert({
-          url_id: cachedData.id,
-          user_agent: c.req.header('user-agent') || null,
-          event_type: isQrScan ? 'qr_scan' : 'link_click',
-        });
-
-      console.log(`Cache hit for ${shortCode}`);
-      return c.redirect(cachedData.original_url, 302);
-    }
-
-    // 2. 快取未命中，查詢資料庫
+    // 查詢資料庫
     const supabase = getSupabase();
     const { data, error } = await supabase
       .from('urls')
@@ -663,22 +624,7 @@ urlRoutes.get('/s/:shortCode', async (c) => {
       return c.html(renderPasswordPage(shortCode, isQrScan));
     }
 
-    // 3. 存入 Redis 快取
-    await redis.setex(
-      cacheKey,
-      CACHE_TTL.URL,
-      JSON.stringify({
-        id: data.id,
-        original_url: data.original_url,
-        short_code: data.short_code,
-        password_protected: data.password_protected,
-        password_hash: data.password_hash,
-        expires_at: data.expires_at,
-      })
-    );
-
-    // 4. 記錄點擊
-    // Fire-and-forget click recording (async, non-blocking)
+    // 記錄點擊（異步，不阻塞回應）
     void supabase
       .from('url_clicks')
       .insert({
@@ -687,42 +633,11 @@ urlRoutes.get('/s/:shortCode', async (c) => {
         event_type: isQrScan ? 'qr_scan' : 'link_click',
       });
 
-    console.log(`Cache miss for ${shortCode}, cached now`);
+    console.log(`Redirect: ${shortCode} -> ${data.original_url}`);
     return c.redirect(data.original_url, 302);
-  } catch (redisError) {
-    // Redis 錯誤，降級為直接查資料庫
-    console.error('Redis error, falling back to database:', redisError);
-
-    const supabase = getSupabase();
-    const { data, error } = await supabase
-      .from('urls')
-      .select('*')
-      .eq('short_code', shortCode)
-      .eq('is_active', true)
-      .single();
-
-    if (error || !data) {
-      return c.json({ error: 'Short URL not found' }, 404);
-    }
-
-    if (data.expires_at && new Date(data.expires_at) < new Date()) {
-      return c.html(renderExpiredPage(data.expires_at));
-    }
-
-    if (data.password_protected && data.password_hash) {
-      return c.html(renderPasswordPage(shortCode, isQrScan));
-    }
-
-    // Fire-and-forget click recording (async, non-blocking)
-    void supabase
-      .from('url_clicks')
-      .insert({
-        url_id: data.id,
-        user_agent: c.req.header('user-agent') || null,
-        event_type: isQrScan ? 'qr_scan' : 'link_click',
-      });
-
-    return c.redirect(data.original_url, 302);
+  } catch (err) {
+    console.error('Redirect error:', err);
+    return c.json({ error: 'Internal server error' }, 500);
   }
 });
 
@@ -1295,36 +1210,21 @@ urlRoutes.get('/api/internal/track/s/:shortCode', async (c) => {
   const isQrScan = qr === '1' || qr === 'true';
 
   try {
-    const cacheKey = CACHE_KEYS.URL(shortCode);
-    let urlId: string | null = null;
+    // 從資料庫查詢 URL ID
+    const supabase = getSupabase();
+    const { data } = await supabase
+      .from('urls')
+      .select('id')
+      .eq('short_code', shortCode)
+      .eq('is_active', true)
+      .single();
 
-    // 從 Redis 取得
-    const cached = await redis.get(cacheKey);
-    if (cached) {
-      const cachedData = JSON.parse(cached);
-      urlId = cachedData.id;
-    } else {
-      // 從資料庫查詢
-      const supabase = getSupabase();
-      const { data } = await supabase
-        .from('urls')
-        .select('id')
-        .eq('short_code', shortCode)
-        .eq('is_active', true)
-        .single();
-
-      if (data) {
-        urlId = data.id;
-      }
-    }
-
-    if (!urlId) {
+    if (!data) {
       return new Response(null, { status: 204 });
     }
 
-    const supabase = getSupabase();
     await supabase.from('url_clicks').insert({
-      url_id: urlId,
+      url_id: data.id,
       user_agent: c.req.header('user-agent') || null,
       ip_address: c.req.header('x-real-ip') || 'unknown',
       event_type: isQrScan ? 'qr_scan' : 'link_click',

@@ -1,0 +1,33 @@
+[Unit]
+Description=TCurl Short URL API
+Documentation=https://url.tzuchi.org/docs
+After=network.target
+
+[Service]
+Type=simple
+User=kaelsohappy1
+Group=kaelsohappy1
+WorkingDirectory=/web/html/urlpj/shorturl-api
+
+# Deno 執行指令
+ExecStart=/home/kaelsohappy1/.deno/bin/deno task start
+
+# 環境變數（從 .env 讀取）
+EnvironmentFile=/web/html/urlpj/shorturl-api/.env
+
+# 重啟策略
+Restart=always
+RestartSec=5
+
+# 進程管理 - 關鍵設定
+KillMode=control-group
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+# 日誌
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=shorturl-api
+
+[Install]
+WantedBy=multi-user.target

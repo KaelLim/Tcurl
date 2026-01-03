@@ -20,7 +20,6 @@ import { urlRoutes } from './routes/urls.ts';
 
 // 導入服務
 import { initSupabase } from './services/supabase.ts';
-import { initRedis } from './services/redis.ts';
 import { startClickLogWatcher } from './services/click-log-watcher.ts';
 
 // 導入稽核日誌（ISO 27001 A.12.4）
@@ -259,7 +258,6 @@ const host = Deno.env.get('HOST') || '0.0.0.0';
 // 初始化服務
 try {
   await initSupabase();
-  await initRedis();
   console.log('✅ Services initialized');
 } catch (error) {
   console.error('❌ Failed to initialize services:', error);

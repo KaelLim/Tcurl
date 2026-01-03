@@ -28,7 +28,7 @@ deno task test
 - **Runtime**: Deno 2.x
 - **Framework**: Hono (not Fastify - migrated from Node.js)
 - **Database**: Supabase (PostgreSQL + Auth)
-- **Cache**: Redis
+- **Cache**: Nginx (no Redis - Nginx handles all caching)
 - **Frontend**: Vanilla JS + TailwindCSS + QRCodeStyling
 
 ### Critical: Supabase Dual-Client Pattern
@@ -52,12 +52,15 @@ const userClient = createUserClient(accessToken)
 ```
 User Request
     ↓
-Nginx (SSL, caching for /s/* routes only)
+Nginx (SSL, caching for /s/* routes)
+    ↓
+├── Cache HIT → Direct response (ClickWatcher records via log)
+└── Cache MISS/EXPIRED → Deno backend
     ↓
 Hono (src/main.ts)
     ↓
 ├── Static files: /public/*
-├── Short URL redirect: /s/:code → Redis cache → Supabase
+├── Short URL redirect: /s/:code → Supabase → record click
 ├── API routes: /api/* → src/routes/urls.ts
 └── Auth: Supabase JWT validation
 ```
@@ -69,7 +72,7 @@ Hono (src/main.ts)
 | `src/main.ts` | Hono app entry, middleware (CSP, CORS, logging), static serving |
 | `src/routes/urls.ts` | All URL CRUD, QR code, stats, password protection, redirect logic |
 | `src/services/supabase.ts` | Supabase clients (service + user factory) |
-| `src/services/redis.ts` | Redis client, cache keys, TTL config |
+| `src/services/click-log-watcher.ts` | Monitors Nginx logs and records cache HIT clicks |
 | `src/utils/html-templates.ts` | Password prompt, expired, ad interstitial pages |
 | `public/js/auth.js` | Frontend Supabase auth (includes Google OAuth) |
 
@@ -111,15 +114,12 @@ Only `/s/*` routes are cached by Nginx. API, static files, and other routes bypa
 
 ## Cache Strategy
 
-```typescript
-CACHE_KEYS = {
-  URL: (shortCode) => `url:${shortCode}`,        // TTL: 1 hour
-  URL_LIST: (page, limit) => `urls:list:...`,    // TTL: 5 min
-  URL_STATS: (urlId, days) => `url:stats:...`    // TTL: 5 min
-}
-```
+Caching is handled entirely by Nginx for `/s/*` routes:
+- **Nginx caches 302 redirects** for short URLs (configurable TTL)
+- **No application-level cache** (Redis removed for simplicity)
+- **Click tracking**: ClickWatcher monitors Nginx logs for HIT events
 
-**Invalidation**: On create/update/delete, clear related keys + call Nginx purge.
+**Cache Invalidation**: On URL update/delete, call `purgeNginxCache(shortCode)` to clear Nginx cache.
 
 ## Authentication
 
@@ -133,8 +133,18 @@ CACHE_KEYS = {
 Key variables in `.env`:
 ```
 SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
-REDIS_HOST, REDIS_PORT, REDIS_PASSWORD
 PORT, HOST, BASE_URL
 ```
 
 Supabase OAuth is configured in `/docker/supabase/.env` with `GOTRUE_EXTERNAL_GOOGLE_*` variables.
+
+## Service Management
+
+The service is managed by systemd:
+```bash
+sudo systemctl start shorturl-api    # Start
+sudo systemctl stop shorturl-api     # Stop (kills all child processes)
+sudo systemctl restart shorturl-api  # Restart
+sudo systemctl status shorturl-api   # Status
+journalctl -u shorturl-api -f        # Live logs
+```
