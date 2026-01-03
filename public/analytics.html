@@ -215,6 +215,8 @@
             })
             const linkClicks = data.map(d => d.link_clicks || 0)
             const qrScans = data.map(d => d.qr_scans || 0)
+            const adViews = data.map(d => d.ad_views || 0)
+            const adClicks = data.map(d => d.ad_clicks || 0)
 
             // 如果已有圖表，先銷毀
             if (dailyChart) {
@@ -240,6 +242,22 @@
                             data: qrScans,
                             borderColor: '#10b981',
                             backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        },
+                        {
+                            label: '廣告曝光',
+                            data: adViews,
+                            borderColor: '#f59e0b',
+                            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        },
+                        {
+                            label: '廣告點擊',
+                            data: adClicks,
+                            borderColor: '#ef4444',
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
                             tension: 0.4,
                             fill: true
                         }
