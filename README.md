@@ -29,8 +29,7 @@
 - **廣告頁面** - 可選的中間頁面，顯示目標資訊
 
 ### 效能優化
-- **Redis 快取層** - 熱門連結快取，降低資料庫負載
-- **Nginx 反向代理快取** - 支援即時快取清除
+- **Nginx 反向代理快取** - 99% 請求由 Nginx 快取處理，支援即時快取清除
 - **即時點擊追蹤** - 透過 tail -f 監聽 Nginx 日誌，即時記錄所有點擊
 - **高併發支援** - Deno 原生高效能運行時
 
@@ -57,12 +56,12 @@
 │                      Hono + TypeScript                           │
 │                        (Deno 後端)                               │
 └─────────────────────────────────────────────────────────────────┘
-                         │              │
-                         ▼              ▼
-              ┌──────────────┐  ┌──────────────┐
-              │    Redis     │  │   Supabase   │
-              │   (快取層)    │  │ (PostgreSQL) │
-              └──────────────┘  └──────────────┘
+                                  │
+                                  ▼
+                        ┌──────────────┐
+                        │   Supabase   │
+                        │ (PostgreSQL) │
+                        └──────────────┘
 ```
 
 ### 技術棧
@@ -72,7 +71,7 @@
 | **執行環境** | Deno 2.x |
 | **後端框架** | Hono |
 | **資料庫** | PostgreSQL (Supabase) |
-| **快取** | Redis |
+| **快取** | Nginx（無 Redis，簡化架構） |
 | **驗證** | Supabase Auth + JWT |
 | **前端** | Vanilla JS + TailwindCSS |
 | **反向代理** | Nginx + Cache Purge |
@@ -84,9 +83,8 @@
 ### 系統需求
 
 - Deno 2.0+
-- Redis 6+
 - PostgreSQL 14+ (或 Supabase)
-- Nginx (選用，用於生產環境)
+- Nginx (選用，用於生產環境快取)
 
 ### 安裝步驟
 
@@ -127,11 +125,6 @@ HOST=0.0.0.0
 SUPABASE_URL=http://localhost:8000
 SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-
-# Redis 設定
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_PASSWORD=your-redis-password
 
 # 短代碼設定
 SHORT_CODE_LENGTH=6
@@ -351,7 +344,6 @@ Tcurl/
 │   │   └── urls.ts
 │   ├── services/              # 服務層
 │   │   ├── supabase.ts       # Supabase 客戶端
-│   │   ├── redis.ts          # Redis 快取
 │   │   ├── nginx-cache.ts    # Nginx 快取清除
 │   │   └── click-log-watcher.ts  # 點擊日誌監聽
 │   ├── utils/                 # 工具函數
