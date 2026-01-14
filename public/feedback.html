@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html class="dark" lang="zh-TW">
+<head>
+    <meta charset="utf-8"/>
+    <link rel="icon" type="image/svg+xml" href="https://info.tzuchi.org/favicon.svg"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>社群建議 - TCurl</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com" rel="preconnect"/>
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1337ec",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101322",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+        .material-symbols-outlined {
+            font-variation-settings:
+            'FILL' 0,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 24
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display">
+    <div class="flex h-screen overflow-hidden">
+        <!-- SideNavBar -->
+        <aside class="w-64 flex-shrink-0 bg-[#111218] p-4 flex flex-col justify-between border-r border-r-[#3b3f54] h-full overflow-y-auto">
+            <div class="flex flex-col gap-8">
+                <div class="flex items-center gap-2 p-2">
+                    <img src="https://info.tzuchi.org/favicon.svg" alt="TCurl Logo" style="width: 76px; height: 40px;">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h1 class="text-white text-xl font-bold">TCurl</h1>
+                            <span class="px-1.5 py-0.5 text-xs font-bold bg-amber-500 text-black rounded">BETA</span>
+                        </div>
+                        <p class="text-white/90 text-xs">慈濟短網址</p>
+                    </div>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <a class="flex items-center gap-3 px-3 py-2 rounded-lg text-white hover:bg-[#282b39]" href="/">
+                        <span class="material-symbols-outlined text-white">home</span>
+                        <p class="text-sm font-medium leading-normal">首頁</p>
+                    </a>
+                    <a class="flex items-center gap-3 px-3 py-2 rounded-lg text-white hover:bg-[#282b39]" href="/links">
+                        <span class="material-symbols-outlined text-white">link</span>
+                        <p class="text-sm font-medium leading-normal">我的連結</p>
+                    </a>
+                    <a class="flex items-center gap-3 px-3 py-2 rounded-lg text-white hover:bg-[#282b39]" href="/analytics">
+                        <span class="material-symbols-outlined text-white">bar_chart</span>
+                        <p class="text-sm font-medium leading-normal">數據分析</p>
+                    </a>
+                    <a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-[#282b39] text-white" href="/feedback">
+                        <span class="material-symbols-outlined text-white">forum</span>
+                        <p class="text-sm font-medium leading-normal">社群建議</p>
+                    </a>
+                </div>
+                <!-- 使用者區塊 -->
+                <div id="userSection" class="hidden flex flex-col gap-2 pt-4 border-t border-white/10">
+                    <div class="flex items-center gap-3 px-3 py-2">
+                        <div id="userAvatar" class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center overflow-hidden">
+                            <span class="material-symbols-outlined text-primary text-lg">person</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-white text-sm font-medium truncate" id="userDisplayName">使用者</p>
+                            <p class="text-white/80 text-xs truncate" id="userEmail">email@example.com</p>
+                        </div>
+                    </div>
+                    <button id="logoutBtn" class="flex items-center gap-3 px-3 py-2 rounded-lg text-white/90 hover:bg-red-500/20 hover:text-red-400 transition-colors">
+                        <span class="material-symbols-outlined">logout</span>
+                        <p class="text-sm font-medium leading-normal">登出</p>
+                    </button>
+                </div>
+            </div>
+            <div class="flex flex-col gap-4">
+                <button id="newFeedbackBtn" class="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90">
+                    <span class="truncate">發表建議</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-8 overflow-y-auto">
+            <div class="max-w-4xl mx-auto">
+                <!-- PageHeading -->
+                <div class="flex flex-wrap justify-between items-center gap-4 mb-6">
+                    <div class="flex flex-col gap-1">
+                        <p class="text-white text-4xl font-black leading-tight tracking-[-0.033em]">社群建議</p>
+                        <p class="text-[#9da1b9] text-base font-normal leading-normal">分享您的建議、回報問題或提出疑問</p>
+                    </div>
+                </div>
+
+                <!-- Filters -->
+                <div class="flex flex-wrap items-center gap-4 mb-6">
+                    <div class="flex gap-3">
+                        <select id="categoryFilter" class="h-10 rounded-lg bg-[#1c1d27] text-white px-4 text-sm border-none focus:ring-2 focus:ring-primary/50">
+                            <option value="all">全部分類</option>
+                            <option value="suggestion">建議</option>
+                            <option value="bug">Bug</option>
+                            <option value="question">問題</option>
+                            <option value="other">其他</option>
+                        </select>
+                        <select id="statusFilter" class="h-10 rounded-lg bg-[#1c1d27] text-white px-4 text-sm border-none focus:ring-2 focus:ring-primary/50">
+                            <option value="all">全部狀態</option>
+                            <option value="open">待處理</option>
+                            <option value="in_progress">處理中</option>
+                            <option value="resolved">已解決</option>
+                            <option value="closed">已關閉</option>
+                        </select>
+                        <select id="sortFilter" class="h-10 rounded-lg bg-[#1c1d27] text-white px-4 text-sm border-none focus:ring-2 focus:ring-primary/50">
+                            <option value="newest">最新</option>
+                            <option value="oldest">最舊</option>
+                            <option value="most_votes">最多投票</option>
+                            <option value="most_comments">最多留言</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Feedbacks List -->
+                <div id="feedbacksList" class="space-y-4">
+                    <!-- Loading -->
+                    <div id="loadingState" class="flex items-center justify-center py-12">
+                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                        <span class="ml-3 text-white/90">載入中...</span>
+                    </div>
+                </div>
+
+                <!-- Empty State -->
+                <div id="emptyState" class="hidden text-center py-16">
+                    <span class="material-symbols-outlined text-6xl text-white/30 mb-4">forum</span>
+                    <p class="text-white/90 text-lg mb-2">還沒有任何建議</p>
+                    <p class="text-white/70 text-sm mb-6">成為第一個分享建議的人吧</p>
+                    <button onclick="openNewFeedbackModal()" class="px-5 py-3 bg-primary hover:bg-blue-600 text-white rounded-lg font-bold transition-colors">
+                        發表第一個建議
+                    </button>
+                </div>
+
+                <!-- Stats Summary -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                    <div class="rounded-xl border border-[#3b3f54] bg-[#111218] p-4">
+                        <p class="text-white/90 text-sm">總建議數</p>
+                        <p id="totalFeedbacks" class="text-white text-2xl font-bold">-</p>
+                    </div>
+                    <div class="rounded-xl border border-[#3b3f54] bg-[#111218] p-4">
+                        <p class="text-white/90 text-sm">待處理</p>
+                        <p id="openFeedbacks" class="text-white text-2xl font-bold">-</p>
+                    </div>
+                    <div class="rounded-xl border border-[#3b3f54] bg-[#111218] p-4">
+                        <p class="text-white/90 text-sm">已解決</p>
+                        <p id="resolvedFeedbacks" class="text-white text-2xl font-bold">-</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- New Feedback Modal -->
+    <div id="newFeedbackModal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+        <div class="bg-[#1c1d27] rounded-xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto border border-[#3b3f54]">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-white text-xl font-bold">發表建議</h3>
+                <button onclick="closeNewFeedbackModal()" class="text-white/90 hover:text-white">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <form id="newFeedbackForm" class="space-y-4">
+                <div>
+                    <label class="text-white text-sm font-medium block mb-2">分類</label>
+                    <select id="newCategory" class="w-full bg-[#111218] text-white border border-[#3b3f54] rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50">
+                        <option value="suggestion">建議</option>
+                        <option value="bug">Bug 回報</option>
+                        <option value="question">問題詢問</option>
+                        <option value="other">其他</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-white text-sm font-medium block mb-2">標題 <span class="text-red-400">*</span></label>
+                    <input type="text" id="newTitle" maxlength="200" required
+                           class="w-full bg-[#111218] text-white border border-[#3b3f54] rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                           placeholder="簡短描述您的建議或問題">
+                </div>
+                <div>
+                    <label class="text-white text-sm font-medium block mb-2">內容 <span class="text-red-400">*</span></label>
+                    <textarea id="newContent" rows="5" required
+                              class="w-full bg-[#111218] text-white border border-[#3b3f54] rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
+                              placeholder="詳細說明..."></textarea>
+                </div>
+                <div class="flex gap-3 pt-4">
+                    <button type="button" onclick="closeNewFeedbackModal()" class="flex-1 px-4 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg font-medium transition-colors">
+                        取消
+                    </button>
+                    <button type="submit" class="flex-1 px-4 py-3 bg-primary hover:bg-blue-600 text-white rounded-lg font-bold transition-colors">
+                        發佈
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/js/auth.js"></script>
+    <script src="/js/api.js"></script>
+    <script>
+        // Category & Status config with icons
+        const categoryConfig = {
+            suggestion: { label: '建議', icon: 'lightbulb', class: 'text-yellow-400' },
+            bug: { label: 'Bug', icon: 'bug_report', class: 'text-red-400' },
+            question: { label: '問題', icon: 'help', class: 'text-blue-400' },
+            other: { label: '其他', icon: 'description', class: 'text-white/70' }
+        };
+        const statusConfig = {
+            open: { label: '待處理', icon: 'schedule', class: 'bg-green-500/20 text-green-400' },
+            in_progress: { label: '處理中', icon: 'autorenew', class: 'bg-yellow-500/20 text-yellow-400' },
+            resolved: { label: '已解決', icon: 'check_circle', class: 'bg-blue-500/20 text-blue-400' },
+            closed: { label: '已關閉', icon: 'cancel', class: 'bg-white/10 text-white/70' }
+        };
+
+        let allFeedbacks = [];
+
+        // Load feedbacks
+        async function loadFeedbacks() {
+            const category = document.getElementById('categoryFilter').value;
+            const status = document.getElementById('statusFilter').value;
+            const sort = document.getElementById('sortFilter').value;
+
+            document.getElementById('loadingState').classList.remove('hidden');
+            document.getElementById('emptyState').classList.add('hidden');
+
+            try {
+                const token = await auth.getAccessToken();
+                const params = new URLSearchParams();
+                if (category !== 'all') params.append('category', category);
+                if (status !== 'all') params.append('status', status);
+                params.append('sort', sort);
+
+                const response = await fetch(`/api/feedbacks?${params}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!response.ok) throw new Error('Failed to fetch feedbacks');
+                allFeedbacks = await response.json();
+
+                document.getElementById('loadingState').classList.add('hidden');
+
+                if (allFeedbacks.length === 0) {
+                    document.getElementById('emptyState').classList.remove('hidden');
+                    document.getElementById('feedbacksList').innerHTML = '';
+                    updateStats([]);
+                    return;
+                }
+
+                renderFeedbacks(allFeedbacks);
+                updateStats(allFeedbacks);
+            } catch (error) {
+                console.error('Error loading feedbacks:', error);
+                document.getElementById('loadingState').classList.add('hidden');
+                utils.showNotification('載入失敗', 'error');
+            }
+        }
+
+        // Update stats
+        function updateStats(feedbacks) {
+            document.getElementById('totalFeedbacks').textContent = feedbacks.length;
+            document.getElementById('openFeedbacks').textContent = feedbacks.filter(f => f.status === 'open').length;
+            document.getElementById('resolvedFeedbacks').textContent = feedbacks.filter(f => f.status === 'resolved').length;
+        }
+
+        // Render feedbacks as cards
+        function renderFeedbacks(feedbacks) {
+            const container = document.getElementById('feedbacksList');
+            container.innerHTML = feedbacks.map(f => {
+                const cat = categoryConfig[f.category] || categoryConfig.other;
+                const stat = statusConfig[f.status] || statusConfig.open;
+                const authorName = f.author?.display_name || '匿名用戶';
+                const timeAgo = utils.formatRelativeTime(f.created_at);
+
+                return `
+                    <a href="/feedback/${f.id}" class="block rounded-xl border border-[#3b3f54] bg-[#111218] hover:bg-[#1c1d27] p-5 transition-colors">
+                        <div class="flex items-start justify-between gap-4">
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <span class="material-symbols-outlined text-lg ${cat.class}">${cat.icon}</span>
+                                    <span class="text-sm ${cat.class}">${cat.label}</span>
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full ${stat.class}">
+                                        <span class="material-symbols-outlined text-xs">${stat.icon}</span>
+                                        ${stat.label}
+                                    </span>
+                                </div>
+                                <h3 class="text-white text-lg font-medium mb-2 truncate">${escapeHtml(f.title)}</h3>
+                                <p class="text-white/70 text-sm line-clamp-2">${escapeHtml(f.content)}</p>
+                            </div>
+                            <div class="flex flex-col items-end gap-2 flex-shrink-0">
+                                <div class="flex items-center gap-1 text-white/90">
+                                    <span class="material-symbols-outlined text-lg">thumb_up</span>
+                                    <span class="text-sm font-medium">${f.vote_count || 0}</span>
+                                </div>
+                                <div class="flex items-center gap-1 text-white/70">
+                                    <span class="material-symbols-outlined text-lg">chat_bubble</span>
+                                    <span class="text-sm">${f.comment_count || 0}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 mt-4 text-white/70 text-sm">
+                            <span class="material-symbols-outlined text-base">person</span>
+                            <span>${escapeHtml(authorName)}</span>
+                            <span>·</span>
+                            <span>${timeAgo}</span>
+                        </div>
+                    </a>
+                `;
+            }).join('');
+        }
+
+        // Escape HTML
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, '&amp;')
+                      .replace(/</g, '&lt;')
+                      .replace(/>/g, '&gt;')
+                      .replace(/"/g, '&quot;')
+                      .replace(/'/g, '&#039;');
+        }
+
+        // Modal functions
+        function openNewFeedbackModal() {
+            document.getElementById('newFeedbackModal').classList.remove('hidden');
+        }
+
+        function closeNewFeedbackModal() {
+            document.getElementById('newFeedbackModal').classList.add('hidden');
+            document.getElementById('newFeedbackForm').reset();
+        }
+
+        // Submit new feedback
+        document.getElementById('newFeedbackForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const title = document.getElementById('newTitle').value.trim();
+            const content = document.getElementById('newContent').value.trim();
+            const category = document.getElementById('newCategory').value;
+
+            if (!title || !content) {
+                utils.showNotification('請填寫標題和內容', 'error');
+                return;
+            }
+
+            try {
+                const token = await auth.getAccessToken();
+                const response = await fetch('/api/feedbacks', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ title, content, category })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to create feedback');
+                }
+
+                const newFeedback = await response.json();
+                utils.showNotification('建議已發佈', 'success');
+                closeNewFeedbackModal();
+
+                // Redirect to detail page
+                window.location.href = `/feedback/${newFeedback.id}`;
+            } catch (error) {
+                console.error('Error creating feedback:', error);
+                utils.showNotification(error.message || '發佈失敗', 'error');
+            }
+        });
+
+        // Filter change handlers
+        document.getElementById('categoryFilter').addEventListener('change', loadFeedbacks);
+        document.getElementById('statusFilter').addEventListener('change', loadFeedbacks);
+        document.getElementById('sortFilter').addEventListener('change', loadFeedbacks);
+
+        // New feedback button
+        document.getElementById('newFeedbackBtn').addEventListener('click', openNewFeedbackModal);
+
+        // Close modal on escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeNewFeedbackModal();
+        });
+
+        // Close modal on backdrop click
+        document.getElementById('newFeedbackModal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('newFeedbackModal')) {
+                closeNewFeedbackModal();
+            }
+        });
+
+        // Init page
+        async function initPage() {
+            await auth.init();
+            const isLoggedIn = await auth.isLoggedIn();
+
+            if (!isLoggedIn) {
+                window.location.href = '/login.html';
+                return;
+            }
+
+            // Show user section
+            document.getElementById('userSection').classList.remove('hidden');
+
+            // Get user info
+            const user = await auth.getUser();
+            if (user) {
+                const meta = user.user_metadata || {};
+                const displayName = meta.chinese_firstname && meta.chinese_lastname
+                    ? `${meta.chinese_lastname}${meta.chinese_firstname}`
+                    : meta.display_name || meta.name || user.email?.split('@')[0];
+                document.getElementById('userDisplayName').textContent = displayName;
+                document.getElementById('userEmail').textContent = user.email;
+            }
+
+            // Logout handler
+            document.getElementById('logoutBtn').addEventListener('click', async () => {
+                try {
+                    await auth.signOut();
+                } catch (error) {
+                    console.error('Logout error:', error);
+                }
+            });
+
+            // Load feedbacks
+            loadFeedbacks();
+        }
+
+        document.addEventListener('DOMContentLoaded', initPage);
+    </script>
+</body>
+</html>

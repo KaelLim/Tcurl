@@ -50,8 +50,11 @@
                 <div class="flex items-center gap-2 p-2">
                     <img src="https://info.tzuchi.org/favicon.svg" alt="TCurl Logo" style="width: 76px; height: 40px;">
                     <div>
-                        <h1 class="text-white text-xl font-bold">TCurl</h1>
-                        <p class="text-white/60 text-xs">慈濟短網址</p>
+                        <div class="flex items-center gap-2">
+                            <h1 class="text-white text-xl font-bold">TCurl</h1>
+                            <span class="px-1.5 py-0.5 text-[10px] font-bold bg-amber-500 text-black rounded">BETA</span>
+                        </div>
+                        <p class="text-white/90 text-xs">慈濟短網址</p>
                     </div>
                 </div>
                 <div class="flex flex-col gap-2">
@@ -67,6 +70,10 @@
                         <span class="material-symbols-outlined text-white">bar_chart</span>
                         <p class="text-sm font-medium leading-normal">數據分析</p>
                     </a>
+                    <a class="flex items-center gap-3 px-3 py-2 rounded-lg text-white hover:bg-[#282b39]" href="/feedback">
+                        <span class="material-symbols-outlined text-white">forum</span>
+                        <p class="text-sm font-medium leading-normal">社群建議</p>
+                    </a>
                 </div>
                 <!-- 使用者區塊 -->
                 <div id="userSection" class="hidden flex flex-col gap-2 pt-4 border-t border-white/10">
@@ -76,10 +83,10 @@
                         </div>
                         <div class="flex-1 min-w-0">
                             <p class="text-white text-sm font-medium truncate" id="userDisplayName">使用者</p>
-                            <p class="text-white/40 text-xs truncate" id="userEmail">email@example.com</p>
+                            <p class="text-white/80 text-xs truncate" id="userEmail">email@example.com</p>
                         </div>
                     </div>
-                    <button id="logoutBtn" class="flex items-center gap-3 px-3 py-2 rounded-lg text-white/60 hover:bg-red-500/20 hover:text-red-400 transition-colors">
+                    <button id="logoutBtn" class="flex items-center gap-3 px-3 py-2 rounded-lg text-white/90 hover:bg-red-500/20 hover:text-red-400 transition-colors">
                         <span class="material-symbols-outlined">logout</span>
                         <p class="text-sm font-medium leading-normal">登出</p>
                     </button>
@@ -94,36 +101,36 @@
                 <div class="flex flex-wrap items-center justify-between gap-4">
                     <div class="flex flex-col gap-2">
                         <p class="text-white text-3xl md:text-4xl font-bold leading-tight tracking-[-0.033em]">數據分析總覽</p>
-                        <p class="text-white/60 text-sm font-normal leading-normal">查看所有短網址的使用統計</p>
+                        <p class="text-white/90 text-sm font-normal leading-normal">查看所有短網址的使用統計</p>
                     </div>
                 </div>
 
                 <!-- Stats Cards -->
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
                     <div class="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/5 p-5">
-                        <p class="text-white/80 text-base font-medium leading-normal">總連結數</p>
+                        <p class="text-white/90 text-base font-medium leading-normal">總連結數</p>
                         <p id="totalUrls" class="text-white tracking-light text-3xl font-bold leading-tight">-</p>
-                        <p class="text-white/60 text-base font-medium leading-normal">已建立的短網址</p>
+                        <p class="text-white/90 text-base font-medium leading-normal">已建立的短網址</p>
                     </div>
                     <div class="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/5 p-5">
-                        <p class="text-white/80 text-base font-medium leading-normal">總點擊數</p>
+                        <p class="text-white/90 text-base font-medium leading-normal">總點擊數</p>
                         <p id="totalClicks" class="text-white tracking-light text-3xl font-bold leading-tight">-</p>
-                        <p class="text-white/60 text-base font-medium leading-normal">所有連結的點擊</p>
+                        <p class="text-white/90 text-base font-medium leading-normal">所有連結的點擊</p>
                     </div>
                     <div class="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/5 p-5">
-                        <p class="text-white/80 text-base font-medium leading-normal">QR 掃描數</p>
+                        <p class="text-white/90 text-base font-medium leading-normal">QR 掃描數</p>
                         <p id="totalQrScans" class="text-white tracking-light text-3xl font-bold leading-tight">-</p>
-                        <p class="text-white/60 text-base font-medium leading-normal">透過 QR Code 訪問</p>
+                        <p class="text-white/90 text-base font-medium leading-normal">透過 QR Code 訪問</p>
                     </div>
                     <div class="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/5 p-5">
-                        <p class="text-white/80 text-base font-medium leading-normal">廣告曝光數</p>
+                        <p class="text-white/90 text-base font-medium leading-normal">廣告曝光數</p>
                         <p id="totalAdViews" class="text-white tracking-light text-3xl font-bold leading-tight">-</p>
-                        <p class="text-white/60 text-base font-medium leading-normal">廣告頁面曝光</p>
+                        <p class="text-white/90 text-base font-medium leading-normal">廣告頁面曝光</p>
                     </div>
                     <div class="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/5 p-5">
-                        <p class="text-white/80 text-base font-medium leading-normal">廣告點擊數</p>
+                        <p class="text-white/90 text-base font-medium leading-normal">廣告點擊數</p>
                         <p id="totalAdClicks" class="text-white tracking-light text-3xl font-bold leading-tight">-</p>
-                        <p class="text-white/60 text-base font-medium leading-normal">廣告頁面點擊</p>
+                        <p class="text-white/90 text-base font-medium leading-normal">廣告頁面點擊</p>
                     </div>
                 </div>
 
@@ -149,17 +156,17 @@
                         <table class="w-full">
                             <thead>
                                 <tr class="border-b border-white/10">
-                                    <th class="text-left text-white/80 text-sm font-medium p-3">排名</th>
-                                    <th class="text-left text-white/80 text-sm font-medium p-3">短代碼</th>
-                                    <th class="text-left text-white/80 text-sm font-medium p-3">原始網址</th>
-                                    <th class="text-left text-white/80 text-sm font-medium p-3">點擊數</th>
-                                    <th class="text-left text-white/80 text-sm font-medium p-3">佔比</th>
-                                    <th class="text-left text-white/80 text-sm font-medium p-3">操作</th>
+                                    <th class="text-left text-white text-base font-medium p-3">排名</th>
+                                    <th class="text-left text-white text-base font-medium p-3">短代碼</th>
+                                    <th class="text-left text-white text-base font-medium p-3">原始網址</th>
+                                    <th class="text-left text-white text-base font-medium p-3">點擊數</th>
+                                    <th class="text-left text-white text-base font-medium p-3">佔比</th>
+                                    <th class="text-left text-white text-base font-medium p-3">操作</th>
                                 </tr>
                             </thead>
                             <tbody id="topUrlsBody">
                                 <tr>
-                                    <td colspan="6" class="text-center p-8 text-white/60">載入中...</td>
+                                    <td colspan="6" class="text-center p-8 text-white/90">載入中...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -375,7 +382,7 @@
             const tbody = document.getElementById('topUrlsBody')
 
             if (topUrls.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" class="text-center p-8 text-white/60">尚無數據</td></tr>'
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center p-8 text-white/90">尚無數據</td></tr>'
                 return
             }
 
@@ -390,34 +397,34 @@
                     <tr class="border-b border-white/5 hover:bg-white/5">
                         <td class="p-3">
                             <span class="inline-flex items-center justify-center w-8 h-8 rounded-full ${
-                                index < 3 ? 'bg-primary/20 text-primary' : 'bg-white/10 text-white/60'
-                            } font-bold text-sm">
+                                index < 3 ? 'bg-blue-500/20 text-blue-400' : 'bg-white/10 text-white'
+                            } font-bold text-base">
                                 ${index + 1}
                             </span>
                         </td>
                         <td class="p-3">
-                            <a href="${shortUrl}" target="_blank" class="text-primary hover:underline font-medium">
+                            <a href="${shortUrl}" target="_blank" class="text-blue-400 hover:text-blue-300 hover:underline font-medium text-base">
                                 ${url.short_code}
                             </a>
                         </td>
                         <td class="p-3">
-                            <span class="text-white/80 text-sm" title="${url.original_url}">
+                            <span class="text-white text-base" title="${url.original_url}">
                                 ${displayUrl}
                             </span>
                         </td>
                         <td class="p-3">
-                            <span class="text-white font-bold">${(url.clicks || 0).toLocaleString()}</span>
+                            <span class="text-white font-bold text-base">${(url.clicks || 0).toLocaleString()}</span>
                         </td>
                         <td class="p-3">
                             <div class="flex items-center gap-2">
                                 <div class="flex-1 h-2 bg-white/10 rounded-full overflow-hidden">
-                                    <div class="h-full bg-primary rounded-full" style="width: ${percentage}%"></div>
+                                    <div class="h-full bg-blue-500 rounded-full" style="width: ${percentage}%"></div>
                                 </div>
-                                <span class="text-white/60 text-sm w-12 text-right">${percentage}%</span>
+                                <span class="text-white text-base w-14 text-right">${percentage}%</span>
                             </div>
                         </td>
                         <td class="p-3">
-                            <button class="text-white/60 hover:text-white transition-colors" onclick="showClientQRCodeModal('${url.id}')" title="查看 QR Code">
+                            <button class="text-white hover:text-blue-400 transition-colors" onclick="showClientQRCodeModal('${url.id}')" title="查看 QR Code">
                                 <span class="material-symbols-outlined">qr_code_2</span>
                             </button>
                         </td>
@@ -529,7 +536,7 @@
           modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50'
           modal.innerHTML = `
             <div class="relative bg-[#1e1e1e] rounded-xl p-6 max-w-md w-full mx-4">
-              <button class="absolute top-4 right-4 text-white/60 hover:text-white" onclick="this.closest('.fixed').remove()">
+              <button class="absolute top-4 right-4 text-white/90 hover:text-white" onclick="this.closest('.fixed').remove()">
                 <span class="material-symbols-outlined">close</span>
               </button>
               <h3 class="text-white text-xl font-bold mb-4">QR Code - ${urlData.short_code}</h3>
@@ -599,7 +606,7 @@
             logoutBtn.addEventListener('click', async () => {
                 try {
                     await auth.signOut()
-                    window.location.href = '/login.html'
+                    // signOut 已處理重導向
                 } catch (error) {
                     console.error('Logout error:', error)
                 }

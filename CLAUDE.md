@@ -74,7 +74,7 @@ Hono (src/main.ts)
 | `src/services/supabase.ts` | Supabase clients (service + user factory) |
 | `src/services/click-log-watcher.ts` | Monitors Nginx logs and records cache HIT clicks |
 | `src/utils/html-templates.ts` | Password prompt, expired, ad interstitial pages |
-| `public/js/auth.js` | Frontend Supabase auth (includes Google OAuth) |
+| `public/js/auth.js` | Frontend Supabase auth (Keycloak OIDC) |
 
 ## Database Schema
 
@@ -105,7 +105,7 @@ fetch(`/api/urls/${id}?_=${Date.now()}`, { cache: 'no-store' })
 
 ### 4. CSP for External Resources
 When adding new external resources, update CSP in `src/main.ts`:
-- `imgSrc` - for images (includes `*.googleusercontent.com` for OAuth avatars)
+- `imgSrc` - for images
 - `styleSrc` - for CSS
 - `scriptSrc` - for JS
 
@@ -125,8 +125,8 @@ Caching is handled entirely by Nginx for `/s/*` routes:
 
 - **Backend**: JWT from `Authorization: Bearer <token>` header
 - **Frontend**: Supabase client in `public/js/auth.js`
-- **Google OAuth**: Configured via Supabase GoTrue (`GOTRUE_EXTERNAL_GOOGLE_*` env vars)
-- **User metadata** from Google: `user.user_metadata.avatar_url`, `user.user_metadata.full_name`
+- **Keycloak OIDC**: Configured via Supabase GoTrue (`GOTRUE_EXTERNAL_KEYCLOAK_*` env vars)
+- **User metadata** from Keycloak: `user.user_metadata.email`, `user.user_metadata.chinese_firstname`, `user.user_metadata.chinese_lastname`
 
 ## Environment Variables
 
@@ -136,7 +136,7 @@ SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
 PORT, HOST, BASE_URL
 ```
 
-Supabase OAuth is configured in `/docker/supabase/.env` with `GOTRUE_EXTERNAL_GOOGLE_*` variables.
+Supabase Keycloak OIDC is configured in `/docker/supabase/.env` with `GOTRUE_EXTERNAL_KEYCLOAK_*` variables.
 
 ## Service Management
 

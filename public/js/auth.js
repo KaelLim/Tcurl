@@ -7,6 +7,10 @@ const SUPABASE_URL = window.location.origin.includes('localhost')
 
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzUwMzQ4ODAwLCJleHAiOjE5MDgxMTUyMDB9.gAgVJVSC45QFHO7gqEirpCquw-3w1k6pqWpoOQRA-Qg'
 
+// Keycloak 設定
+const KEYCLOAK_URL = 'https://auth.tzuchi.net/realms/tzuchi'
+const KEYCLOAK_CLIENT_ID = 'tcurl'
+
 // 動態載入 Supabase SDK
 let supabaseClient = null
 
@@ -41,51 +45,14 @@ const auth = {
     return supabaseClient
   },
 
-  // 登入
-  async signIn(email, password) {
-    const client = await initSupabase()
-    const { data, error } = await client.auth.signInWithPassword({
-      email,
-      password
-    })
-
-    if (error) {
-      throw new Error(error.message)
-    }
-
-    return data
-  },
-
-  // 註冊（使用後端 API，自動確認不需要郵件驗證）
-  async signUp(email, password, displayName = null) {
-    const response = await fetch('/api/auth/register', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        email,
-        password,
-        display_name: displayName || email.split('@')[0]
-      })
-    })
-
-    const data = await response.json()
-
-    if (!response.ok) {
-      throw new Error(data.message || '註冊失敗')
-    }
-
-    return data
-  },
-
-  // Google OAuth 登入
-  async signInWithGoogle(redirectTo = '/') {
+  // Keycloak OIDC 登入（慈濟員工）
+  async signInWithKeycloak(redirectTo = '/') {
     const client = await initSupabase()
     const { data, error } = await client.auth.signInWithOAuth({
-      provider: 'google',
+      provider: 'keycloak',
       options: {
-        redirectTo: `${window.location.origin}${redirectTo}`
+        redirectTo: `${window.location.origin}${redirectTo}`,
+        scopes: 'openid profile email'  // Keycloak 22+ 必須明確傳入 openid
       }
     })
 
@@ -96,17 +63,23 @@ const auth = {
     return data
   },
 
-  // 登出
-  async signOut() {
+  // 登出（同時登出 Supabase 和 Keycloak）
+  async signOut(redirectTo = '/login.html') {
     const client = await initSupabase()
     const { error } = await client.auth.signOut()
 
     if (error) {
-      throw new Error(error.message)
+      console.error('Supabase signOut error:', error)
     }
 
     // 清除本地儲存
     localStorage.removeItem('supabase.auth.token')
+
+    // 重導向到 Keycloak 登出頁面，登出後自動返回應用程式
+    const keycloakLogoutUrl = `${KEYCLOAK_URL}/protocol/openid-connect/logout?` +
+      `client_id=${KEYCLOAK_CLIENT_ID}&` +
+      `post_logout_redirect_uri=${encodeURIComponent(window.location.origin + redirectTo)}`
+    window.location.href = keycloakLogoutUrl
   },
 
   // 取得當前 Session
@@ -140,6 +113,66 @@ const auth = {
     return !!session
   },
 
+  // 解析 JWT Token（用於檢視 token 內容）
+  decodeJwt(token) {
+    try {
+      const base64Url = token.split('.')[1]
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      )
+      return JSON.parse(jsonPayload)
+    } catch (e) {
+      console.error('Failed to decode JWT:', e)
+      return null
+    }
+  },
+
+  // 取得完整的 Session 資訊（包含 provider token）
+  async getFullSession() {
+    const client = await initSupabase()
+    const { data: { session }, error } = await client.auth.getSession()
+
+    if (error || !session) {
+      return null
+    }
+
+    // 解析 Supabase access token
+    const supabaseTokenData = this.decodeJwt(session.access_token)
+
+    // 解析 provider token（如果有的話，這是原始的 Keycloak token）
+    const providerTokenData = session.provider_token
+      ? this.decodeJwt(session.provider_token)
+      : null
+
+    return {
+      session,
+      supabaseTokenData,
+      providerTokenData,
+      // Keycloak 角色權限通常在這裡
+      resourceAccess: providerTokenData?.resource_access || null,
+      realmAccess: providerTokenData?.realm_access || null
+    }
+  },
+
+  // 檢查使用者是否有特定角色
+  async hasRole(role, clientId = 'tcurl') {
+    const fullSession = await this.getFullSession()
+    if (!fullSession?.resourceAccess?.[clientId]?.roles) {
+      return false
+    }
+    return fullSession.resourceAccess[clientId].roles.includes(role)
+  },
+
+  // 取得使用者的所有角色
+  async getRoles(clientId = 'tcurl') {
+    const fullSession = await this.getFullSession()
+    return fullSession?.resourceAccess?.[clientId]?.roles || []
+  },
+
   // 監聽認證狀態變化
   onAuthStateChange(callback) {
     if (!supabaseClient) {
@@ -156,29 +189,6 @@ const auth = {
     return () => subscription.unsubscribe()
   },
 
-  // 重設密碼（發送重設郵件）
-  async resetPassword(email) {
-    const client = await initSupabase()
-    const { error } = await client.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password.html`
-    })
-
-    if (error) {
-      throw new Error(error.message)
-    }
-  },
-
-  // 更新密碼
-  async updatePassword(newPassword) {
-    const client = await initSupabase()
-    const { error } = await client.auth.updateUser({
-      password: newPassword
-    })
-
-    if (error) {
-      throw new Error(error.message)
-    }
-  }
 }
 
 // 頁面保護：需要登入才能訪問

@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html class="dark" lang="zh-TW">
+<head>
+    <meta charset="utf-8"/>
+    <link rel="icon" type="image/svg+xml" href="https://info.tzuchi.org/favicon.svg"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>建議詳情 - TCurl</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com" rel="preconnect"/>
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1337ec",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101322",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+        .material-symbols-outlined {
+            font-variation-settings:
+            'FILL' 0,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 24
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display">
+    <div class="flex h-screen overflow-hidden">
+        <!-- SideNavBar -->
+        <aside class="w-64 flex-shrink-0 bg-[#111218] p-4 flex flex-col justify-between border-r border-r-[#3b3f54] h-full overflow-y-auto">
+            <div class="flex flex-col gap-8">
+                <div class="flex items-center gap-2 p-2">
+                    <img src="https://info.tzuchi.org/favicon.svg" alt="TCurl Logo" style="width: 76px; height: 40px;">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h1 class="text-white text-xl font-bold">TCurl</h1>
+                            <span class="px-1.5 py-0.5 text-xs font-bold bg-amber-500 text-black rounded">BETA</span>
+                        </div>
+                        <p class="text-white/90 text-xs">慈濟短網址</p>
+                    </div>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <a class="flex items-center gap-3 px-3 py-2 rounded-lg text-white hover:bg-[#282b39]" href="/">
+                        <span class="material-symbols-outlined text-white">home</span>
+                        <p class="text-sm font-medium leading-normal">首頁</p>
+                    </a>
+                    <a class="flex items-center gap-3 px-3 py-2 rounded-lg text-white hover:bg-[#282b39]" href="/links">
+                        <span class="material-symbols-outlined text-white">link</span>
+                        <p class="text-sm font-medium leading-normal">我的連結</p>
+                    </a>
+                    <a class="flex items-center gap-3 px-3 py-2 rounded-lg text-white hover:bg-[#282b39]" href="/analytics">
+                        <span class="material-symbols-outlined text-white">bar_chart</span>
+                        <p class="text-sm font-medium leading-normal">數據分析</p>
+                    </a>
+                    <a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-[#282b39] text-white" href="/feedback">
+                        <span class="material-symbols-outlined text-white">forum</span>
+                        <p class="text-sm font-medium leading-normal">社群建議</p>
+                    </a>
+                </div>
+                <!-- 使用者區塊 -->
+                <div id="userSection" class="hidden flex flex-col gap-2 pt-4 border-t border-white/10">
+                    <div class="flex items-center gap-3 px-3 py-2">
+                        <div id="userAvatar" class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center overflow-hidden">
+                            <span class="material-symbols-outlined text-primary text-lg">person</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-white text-sm font-medium truncate" id="userDisplayName">使用者</p>
+                            <p class="text-white/80 text-xs truncate" id="userEmail">email@example.com</p>
+                        </div>
+                    </div>
+                    <button id="logoutBtn" class="flex items-center gap-3 px-3 py-2 rounded-lg text-white/90 hover:bg-red-500/20 hover:text-red-400 transition-colors">
+                        <span class="material-symbols-outlined">logout</span>
+                        <p class="text-sm font-medium leading-normal">登出</p>
+                    </button>
+                </div>
+            </div>
+            <div class="flex flex-col gap-4">
+                <a href="/feedback" class="flex w-full cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-lg h-10 px-4 bg-white/10 text-white text-sm font-medium leading-normal tracking-[0.015em] hover:bg-white/20 transition-colors">
+                    <span class="material-symbols-outlined text-lg">arrow_back</span>
+                    <span class="truncate">返回列表</span>
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-8 overflow-y-auto">
+            <div class="max-w-4xl mx-auto">
+                <!-- Loading -->
+                <div id="loadingState" class="flex items-center justify-center py-16">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    <span class="ml-3 text-white/90">載入中...</span>
+                </div>
+
+                <!-- Feedback Detail -->
+                <div id="feedbackDetail" class="hidden">
+                    <!-- Header Card -->
+                    <div class="overflow-hidden rounded-xl border border-[#3b3f54] bg-[#111218] mb-6">
+                        <!-- Top bar with category and status -->
+                        <div class="bg-[#1c1d27] px-6 py-4 flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div id="categoryBadge" class="flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-lg" id="categoryIcon"></span>
+                                    <span class="text-base font-medium" id="categoryLabel"></span>
+                                </div>
+                                <span id="statusBadge" class="inline-flex items-center gap-1 px-2 py-1 text-sm rounded-full">
+                                    <span class="material-symbols-outlined text-sm" id="statusIcon"></span>
+                                    <span id="statusLabel"></span>
+                                </span>
+                            </div>
+                            <button id="voteBtn" class="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors">
+                                <span class="material-symbols-outlined">thumb_up</span>
+                                <span>投票</span>
+                                <span id="voteCount" class="font-bold">(0)</span>
+                            </button>
+                        </div>
+
+                        <!-- Content -->
+                        <div class="p-6">
+                            <h1 id="feedbackTitle" class="text-white text-2xl font-bold mb-4"></h1>
+                            <div id="feedbackContent" class="text-white/90 text-base leading-relaxed whitespace-pre-wrap mb-6"></div>
+
+                            <div class="flex items-center gap-3 text-white/70 text-sm border-t border-[#3b3f54] pt-4">
+                                <span class="material-symbols-outlined text-lg">person</span>
+                                <span id="authorName"></span>
+                                <span>·</span>
+                                <span id="createdAt"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Comments Section -->
+                    <div class="overflow-hidden rounded-xl border border-[#3b3f54] bg-[#111218]">
+                        <div class="bg-[#1c1d27] px-6 py-4">
+                            <h2 class="text-white text-lg font-bold flex items-center gap-2">
+                                <span class="material-symbols-outlined">chat_bubble</span>
+                                留言
+                                <span id="commentCount" class="text-white/70 font-normal">(0)</span>
+                            </h2>
+                        </div>
+
+                        <div class="p-6">
+                            <!-- Comment Form -->
+                            <form id="commentForm" class="mb-6">
+                                <textarea id="commentInput" rows="3"
+                                          class="w-full bg-[#1c1d27] text-white border border-[#3b3f54] rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none mb-3"
+                                          placeholder="輸入您的留言..."></textarea>
+                                <div class="flex justify-end">
+                                    <button type="submit" class="px-5 py-2 bg-primary hover:bg-blue-600 text-white rounded-lg font-medium transition-colors">
+                                        送出留言
+                                    </button>
+                                </div>
+                            </form>
+
+                            <!-- Comments List -->
+                            <div id="commentsList" class="space-y-4">
+                                <!-- Comments will be rendered here -->
+                            </div>
+
+                            <!-- Empty Comments -->
+                            <div id="emptyComments" class="hidden text-center py-8">
+                                <span class="material-symbols-outlined text-4xl text-white/30 mb-2">chat_bubble_outline</span>
+                                <p class="text-white/70">還沒有留言，成為第一個留言的人吧</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Not Found -->
+                <div id="notFoundState" class="hidden text-center py-16">
+                    <span class="material-symbols-outlined text-6xl text-white/30 mb-4">error</span>
+                    <p class="text-white/90 text-lg mb-2">找不到該建議</p>
+                    <a href="/feedback" class="text-blue-400 hover:underline">返回列表</a>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/js/auth.js"></script>
+    <script src="/js/api.js"></script>
+    <script>
+        let currentFeedback = null;
+        let currentUserId = null;
+
+        // Category & Status config with icons
+        const categoryConfig = {
+            suggestion: { label: '建議', icon: 'lightbulb', class: 'text-yellow-400' },
+            bug: { label: 'Bug', icon: 'bug_report', class: 'text-red-400' },
+            question: { label: '問題', icon: 'help', class: 'text-blue-400' },
+            other: { label: '其他', icon: 'description', class: 'text-white/70' }
+        };
+        const statusConfig = {
+            open: { label: '待處理', icon: 'schedule', class: 'bg-green-500/20 text-green-400' },
+            in_progress: { label: '處理中', icon: 'autorenew', class: 'bg-yellow-500/20 text-yellow-400' },
+            resolved: { label: '已解決', icon: 'check_circle', class: 'bg-blue-500/20 text-blue-400' },
+            closed: { label: '已關閉', icon: 'cancel', class: 'bg-white/10 text-white/70' }
+        };
+
+        // Get feedback ID from URL
+        function getFeedbackId() {
+            const path = window.location.pathname;
+            const match = path.match(/\/feedback\/([a-f0-9-]+)/i);
+            return match ? match[1] : null;
+        }
+
+        // Load feedback detail
+        async function loadFeedback() {
+            const feedbackId = getFeedbackId();
+            if (!feedbackId) {
+                showNotFound();
+                return;
+            }
+
+            try {
+                const token = await auth.getAccessToken();
+                const response = await fetch(`/api/feedbacks/${feedbackId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        showNotFound();
+                        return;
+                    }
+                    throw new Error('Failed to fetch feedback');
+                }
+
+                currentFeedback = await response.json();
+                renderFeedback();
+
+            } catch (error) {
+                console.error('Error loading feedback:', error);
+                utils.showNotification('載入失敗', 'error');
+            }
+        }
+
+        // Render feedback detail
+        function renderFeedback() {
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('feedbackDetail').classList.remove('hidden');
+
+            const f = currentFeedback;
+            const cat = categoryConfig[f.category] || categoryConfig.other;
+            const stat = statusConfig[f.status] || statusConfig.open;
+
+            // Update page title
+            document.title = `${f.title} - TCurl`;
+
+            // Category
+            document.getElementById('categoryIcon').textContent = cat.icon;
+            document.getElementById('categoryIcon').className = `material-symbols-outlined text-lg ${cat.class}`;
+            document.getElementById('categoryLabel').textContent = cat.label;
+            document.getElementById('categoryLabel').className = `text-base font-medium ${cat.class}`;
+
+            // Status
+            document.getElementById('statusIcon').textContent = stat.icon;
+            document.getElementById('statusLabel').textContent = stat.label;
+            document.getElementById('statusBadge').className = `inline-flex items-center gap-1 px-2 py-1 text-sm rounded-full ${stat.class}`;
+
+            // Content
+            document.getElementById('feedbackTitle').textContent = f.title;
+            document.getElementById('feedbackContent').textContent = f.content;
+
+            // Author
+            document.getElementById('authorName').textContent = f.author?.display_name || '匿名用戶';
+            document.getElementById('createdAt').textContent = utils.formatDate(f.created_at);
+
+            // Vote button
+            updateVoteButton();
+
+            // Comments
+            document.getElementById('commentCount').textContent = `(${f.comment_count || 0})`;
+            renderComments(f.comments || []);
+        }
+
+        // Update vote button state
+        function updateVoteButton() {
+            const btn = document.getElementById('voteBtn');
+            const count = document.getElementById('voteCount');
+            count.textContent = `(${currentFeedback.vote_count || 0})`;
+
+            if (currentFeedback.user_voted) {
+                btn.className = 'flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors bg-primary text-white';
+            } else {
+                btn.className = 'flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors bg-white/10 hover:bg-white/20 text-white';
+            }
+        }
+
+        // Render comments
+        function renderComments(comments) {
+            const container = document.getElementById('commentsList');
+            const emptyState = document.getElementById('emptyComments');
+
+            if (comments.length === 0) {
+                container.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            container.innerHTML = comments.map(c => {
+                const authorName = c.author?.display_name || '匿名用戶';
+                const isOwn = c.created_by === currentUserId;
+                const timeAgo = utils.formatRelativeTime(c.created_at);
+
+                return `
+                    <div class="bg-[#1c1d27] rounded-lg p-4 ${c.is_official ? 'border-l-4 border-primary' : ''}">
+                        <div class="flex items-start justify-between gap-4">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <span class="text-white font-medium">${escapeHtml(authorName)}</span>
+                                    ${c.is_official ? '<span class="px-2 py-0.5 text-xs bg-primary/20 text-blue-400 rounded">官方</span>' : ''}
+                                    <span class="text-white/70 text-sm">${timeAgo}</span>
+                                </div>
+                                <p class="text-white/90 whitespace-pre-wrap">${escapeHtml(c.content)}</p>
+                            </div>
+                            ${isOwn ? `
+                                <button onclick="deleteComment('${c.id}')" class="text-white/70 hover:text-red-400 transition-colors" title="刪除留言">
+                                    <span class="material-symbols-outlined text-lg">delete</span>
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Escape HTML
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, '&amp;')
+                      .replace(/</g, '&lt;')
+                      .replace(/>/g, '&gt;')
+                      .replace(/"/g, '&quot;')
+                      .replace(/'/g, '&#039;');
+        }
+
+        // Show not found
+        function showNotFound() {
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('notFoundState').classList.remove('hidden');
+        }
+
+        // Vote handler
+        document.getElementById('voteBtn').addEventListener('click', async () => {
+            try {
+                const token = await auth.getAccessToken();
+                const response = await fetch(`/api/feedbacks/${currentFeedback.id}/vote`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!response.ok) throw new Error('Failed to vote');
+                const result = await response.json();
+
+                currentFeedback.user_voted = result.voted;
+                currentFeedback.vote_count = currentFeedback.vote_count + (result.voted ? 1 : -1);
+                updateVoteButton();
+
+                utils.showNotification(result.voted ? '已投票' : '已取消投票', 'success');
+            } catch (error) {
+                console.error('Error voting:', error);
+                utils.showNotification('操作失敗', 'error');
+            }
+        });
+
+        // Comment form handler
+        document.getElementById('commentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const content = document.getElementById('commentInput').value.trim();
+            if (!content) return;
+
+            try {
+                const token = await auth.getAccessToken();
+                const response = await fetch(`/api/feedbacks/${currentFeedback.id}/comments`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ content })
+                });
+
+                if (!response.ok) throw new Error('Failed to add comment');
+                const newComment = await response.json();
+
+                // Add to list
+                if (!currentFeedback.comments) currentFeedback.comments = [];
+                currentFeedback.comments.push(newComment);
+                currentFeedback.comment_count = (currentFeedback.comment_count || 0) + 1;
+
+                // Update UI
+                document.getElementById('commentInput').value = '';
+                document.getElementById('commentCount').textContent = `(${currentFeedback.comment_count})`;
+                renderComments(currentFeedback.comments);
+
+                utils.showNotification('留言已送出', 'success');
+            } catch (error) {
+                console.error('Error adding comment:', error);
+                utils.showNotification('留言失敗', 'error');
+            }
+        });
+
+        // Delete comment
+        async function deleteComment(commentId) {
+            if (!confirm('確定要刪除這則留言嗎？')) return;
+
+            try {
+                const token = await auth.getAccessToken();
+                const response = await fetch(`/api/feedbacks/${currentFeedback.id}/comments/${commentId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!response.ok) throw new Error('Failed to delete comment');
+
+                // Remove from list
+                currentFeedback.comments = currentFeedback.comments.filter(c => c.id !== commentId);
+                currentFeedback.comment_count = Math.max(0, (currentFeedback.comment_count || 1) - 1);
+
+                // Update UI
+                document.getElementById('commentCount').textContent = `(${currentFeedback.comment_count})`;
+                renderComments(currentFeedback.comments);
+
+                utils.showNotification('留言已刪除', 'success');
+            } catch (error) {
+                console.error('Error deleting comment:', error);
+                utils.showNotification('刪除失敗', 'error');
+            }
+        }
+
+        // Init page
+        async function initPage() {
+            await auth.init();
+            const isLoggedIn = await auth.isLoggedIn();
+
+            if (!isLoggedIn) {
+                window.location.href = '/login.html';
+                return;
+            }
+
+            // Show user section
+            document.getElementById('userSection').classList.remove('hidden');
+
+            // Get user info
+            const user = await auth.getUser();
+            if (user) {
+                currentUserId = user.id;
+                const meta = user.user_metadata || {};
+                const displayName = meta.chinese_firstname && meta.chinese_lastname
+                    ? `${meta.chinese_lastname}${meta.chinese_firstname}`
+                    : meta.display_name || meta.name || user.email?.split('@')[0];
+                document.getElementById('userDisplayName').textContent = displayName;
+                document.getElementById('userEmail').textContent = user.email;
+            }
+
+            // Logout handler
+            document.getElementById('logoutBtn').addEventListener('click', async () => {
+                try {
+                    await auth.signOut();
+                } catch (error) {
+                    console.error('Logout error:', error);
+                }
+            });
+
+            // Load feedback
+            loadFeedback();
+        }
+
+        document.addEventListener('DOMContentLoaded', initPage);
+    </script>
+</body>
+</html>

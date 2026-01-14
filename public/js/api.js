@@ -406,6 +406,28 @@ const utils = {
     return `${year}/${month}/${day} ${hours}:${minutes}`
   },
 
+  // 格式化相對時間
+  formatRelativeTime(dateString) {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffMs = now - date
+    const diffSec = Math.floor(diffMs / 1000)
+    const diffMin = Math.floor(diffSec / 60)
+    const diffHour = Math.floor(diffMin / 60)
+    const diffDay = Math.floor(diffHour / 24)
+    const diffWeek = Math.floor(diffDay / 7)
+    const diffMonth = Math.floor(diffDay / 30)
+    const diffYear = Math.floor(diffDay / 365)
+
+    if (diffSec < 60) return '剛剛'
+    if (diffMin < 60) return `${diffMin} 分鐘前`
+    if (diffHour < 24) return `${diffHour} 小時前`
+    if (diffDay < 7) return `${diffDay} 天前`
+    if (diffWeek < 4) return `${diffWeek} 週前`
+    if (diffMonth < 12) return `${diffMonth} 個月前`
+    return `${diffYear} 年前`
+  },
+
   // 下載 QR Code
   downloadQRCode(base64Data, filename = 'qrcode.png') {
     const link = document.createElement('a')

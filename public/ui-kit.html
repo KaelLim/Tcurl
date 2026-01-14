@@ -1,0 +1,1220 @@
+<!DOCTYPE html>
+<html class="dark" lang="zh-TW">
+<head>
+    <meta charset="utf-8"/>
+    <link rel="icon" type="image/svg+xml" href="https://info.tzuchi.org/favicon.svg"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>UI Kit - TCurl Components</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect"/>
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+    <script type="module" src="/js/components/index.js"></script>
+    <style>
+        :root {
+            --tc-primary: #1337ec;
+            --tc-background-dark: #101322;
+            --tc-background-card: #111218;
+            --tc-background-elevated: #1c1d27;
+            --tc-border: #3b3f54;
+            --tc-text-primary: #ffffff;
+            --tc-text-secondary: rgba(255, 255, 255, 0.9);
+            --tc-text-muted: rgba(255, 255, 255, 0.7);
+            --tc-text-hint: #9da1b9;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background-color: var(--tc-background-dark);
+            color: var(--tc-text-primary);
+            min-height: 100vh;
+        }
+
+        .layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .main {
+            flex: 1;
+            padding: 32px;
+            overflow-y: auto;
+        }
+
+        .page-title {
+            font-size: 2.5rem;
+            font-weight: 900;
+            margin-bottom: 8px;
+        }
+
+        .page-subtitle {
+            color: var(--tc-text-hint);
+            margin-bottom: 48px;
+        }
+
+        .section {
+            margin-bottom: 64px;
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--tc-text-primary);
+        }
+
+        .section-desc {
+            color: var(--tc-text-muted);
+            margin-bottom: 24px;
+            font-size: 0.875rem;
+        }
+
+        .component-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: flex-start;
+        }
+
+        .component-box {
+            background-color: var(--tc-background-card);
+            border: 1px solid var(--tc-border);
+            border-radius: 12px;
+            padding: 24px;
+            min-width: 200px;
+        }
+
+        .component-box h4 {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--tc-text-hint);
+            margin-bottom: 16px;
+        }
+
+        .component-box .demo {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .component-box.vertical .demo {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .code-block {
+            background-color: var(--tc-background-elevated);
+            border: 1px solid var(--tc-border);
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 16px;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.75rem;
+            color: var(--tc-text-muted);
+            overflow-x: auto;
+            white-space: pre;
+        }
+
+        .divider {
+            height: 1px;
+            background-color: var(--tc-border);
+            margin: 48px 0;
+        }
+
+        .color-palette {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 12px;
+        }
+
+        .color-swatch {
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .color-swatch .color {
+            height: 60px;
+        }
+
+        .color-swatch .info {
+            background-color: var(--tc-background-elevated);
+            padding: 8px;
+            font-size: 0.75rem;
+        }
+
+        .color-swatch .name {
+            color: var(--tc-text-primary);
+            font-weight: 500;
+        }
+
+        .color-swatch .value {
+            color: var(--tc-text-hint);
+        }
+
+        /* Interactive demo */
+        .modal-demo-container {
+            position: relative;
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <!-- Sidebar Component Demo -->
+        <tc-sidebar
+            active="home"
+            user-name="Developer"
+            user-email="dev@tzuchi.org"
+            show-user
+        >
+            <tc-button slot="footer" variant="primary" icon="add" full>Create New</tc-button>
+        </tc-sidebar>
+
+        <main class="main">
+            <h1 class="page-title">TCurl UI Kit</h1>
+            <p class="page-subtitle">Web Components for TCurl - Developer Reference</p>
+
+            <!-- Colors -->
+            <section class="section">
+                <h2 class="section-title">Colors</h2>
+                <p class="section-desc">Design system color palette</p>
+                <div class="color-palette">
+                    <div class="color-swatch">
+                        <div class="color" style="background-color: #1337ec;"></div>
+                        <div class="info">
+                            <div class="name">Primary</div>
+                            <div class="value">#1337ec</div>
+                        </div>
+                    </div>
+                    <div class="color-swatch">
+                        <div class="color" style="background-color: #101322;"></div>
+                        <div class="info">
+                            <div class="name">Background</div>
+                            <div class="value">#101322</div>
+                        </div>
+                    </div>
+                    <div class="color-swatch">
+                        <div class="color" style="background-color: #111218;"></div>
+                        <div class="info">
+                            <div class="name">Card</div>
+                            <div class="value">#111218</div>
+                        </div>
+                    </div>
+                    <div class="color-swatch">
+                        <div class="color" style="background-color: #1c1d27;"></div>
+                        <div class="info">
+                            <div class="name">Elevated</div>
+                            <div class="value">#1c1d27</div>
+                        </div>
+                    </div>
+                    <div class="color-swatch">
+                        <div class="color" style="background-color: #3b3f54;"></div>
+                        <div class="info">
+                            <div class="name">Border</div>
+                            <div class="value">#3b3f54</div>
+                        </div>
+                    </div>
+                    <div class="color-swatch">
+                        <div class="color" style="background-color: #22c55e;"></div>
+                        <div class="info">
+                            <div class="name">Success</div>
+                            <div class="value">#22c55e</div>
+                        </div>
+                    </div>
+                    <div class="color-swatch">
+                        <div class="color" style="background-color: #eab308;"></div>
+                        <div class="info">
+                            <div class="name">Warning</div>
+                            <div class="value">#eab308</div>
+                        </div>
+                    </div>
+                    <div class="color-swatch">
+                        <div class="color" style="background-color: #ef4444;"></div>
+                        <div class="info">
+                            <div class="name">Error</div>
+                            <div class="value">#ef4444</div>
+                        </div>
+                    </div>
+                    <div class="color-swatch">
+                        <div class="color" style="background-color: #3b82f6;"></div>
+                        <div class="info">
+                            <div class="name">Info</div>
+                            <div class="value">#3b82f6</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <div class="divider"></div>
+
+            <!-- Buttons -->
+            <section class="section">
+                <h2 class="section-title">tc-button</h2>
+                <p class="section-desc">Button component with variants, sizes, icons, and loading state</p>
+
+                <div class="component-grid">
+                    <div class="component-box">
+                        <h4>Variants</h4>
+                        <div class="demo">
+                            <tc-button variant="primary">Primary</tc-button>
+                            <tc-button variant="secondary">Secondary</tc-button>
+                            <tc-button variant="danger">Danger</tc-button>
+                            <tc-button variant="ghost">Ghost</tc-button>
+                        </div>
+                    </div>
+
+                    <div class="component-box">
+                        <h4>Sizes</h4>
+                        <div class="demo">
+                            <tc-button size="sm">Small</tc-button>
+                            <tc-button size="md">Medium</tc-button>
+                            <tc-button size="lg">Large</tc-button>
+                        </div>
+                    </div>
+
+                    <div class="component-box">
+                        <h4>With Icon</h4>
+                        <div class="demo">
+                            <tc-button variant="primary" icon="add">Add Item</tc-button>
+                            <tc-button variant="secondary" icon="edit">Edit</tc-button>
+                            <tc-button variant="danger" icon="delete">Delete</tc-button>
+                        </div>
+                    </div>
+
+                    <div class="component-box">
+                        <h4>States</h4>
+                        <div class="demo">
+                            <tc-button variant="primary" disabled>Disabled</tc-button>
+                            <tc-button variant="primary" loading>Loading</tc-button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="code-block">&lt;tc-button variant="primary" icon="add" size="md"&gt;Add Item&lt;/tc-button&gt;
+&lt;tc-button variant="danger" loading&gt;Deleting...&lt;/tc-button&gt;</div>
+            </section>
+
+            <div class="divider"></div>
+
+            <!-- Input -->
+            <section class="section">
+                <h2 class="section-title">tc-input</h2>
+                <p class="section-desc">Text input with label, icon, validation, and error states</p>
+
+                <div class="component-grid">
+                    <div class="component-box vertical" style="width: 300px;">
+                        <h4>Basic</h4>
+                        <div class="demo">
+                            <tc-input label="Email" type="email" placeholder="Enter your email"></tc-input>
+                        </div>
+                    </div>
+
+                    <div class="component-box vertical" style="width: 300px;">
+                        <h4>With Icon</h4>
+                        <div class="demo">
+                            <tc-input label="Password" type="password" icon="lock" placeholder="Enter password"></tc-input>
+                        </div>
+                    </div>
+
+                    <div class="component-box vertical" style="width: 300px;">
+                        <h4>Required</h4>
+                        <div class="demo">
+                            <tc-input label="Username" placeholder="Required field" required></tc-input>
+                        </div>
+                    </div>
+
+                    <div class="component-box vertical" style="width: 300px;">
+                        <h4>Error State</h4>
+                        <div class="demo">
+                            <tc-input label="Email" value="invalid-email" error="Please enter a valid email"></tc-input>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="code-block">&lt;tc-input label="Email" type="email" placeholder="Enter email" required&gt;&lt;/tc-input&gt;
+&lt;tc-input label="Password" type="password" icon="lock"&gt;&lt;/tc-input&gt;</div>
+            </section>
+
+            <div class="divider"></div>
+
+            <!-- Select -->
+            <section class="section">
+                <h2 class="section-title">tc-select</h2>
+                <p class="section-desc">Dropdown select with custom options</p>
+
+                <div class="component-grid">
+                    <div class="component-box vertical" style="width: 300px;">
+                        <h4>Basic</h4>
+                        <div class="demo">
+                            <tc-select label="Category" value="suggestion">
+                                <tc-option value="suggestion">Suggestion</tc-option>
+                                <tc-option value="bug">Bug Report</tc-option>
+                                <tc-option value="question">Question</tc-option>
+                                <tc-option value="other">Other</tc-option>
+                            </tc-select>
+                        </div>
+                    </div>
+
+                    <div class="component-box vertical" style="width: 300px;">
+                        <h4>With Placeholder</h4>
+                        <div class="demo">
+                            <tc-select label="Status" placeholder="Select a status">
+                                <tc-option value="open">Open</tc-option>
+                                <tc-option value="in_progress">In Progress</tc-option>
+                                <tc-option value="resolved">Resolved</tc-option>
+                                <tc-option value="closed">Closed</tc-option>
+                            </tc-select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="code-block">&lt;tc-select label="Category" value="suggestion"&gt;
+  &lt;tc-option value="suggestion"&gt;Suggestion&lt;/tc-option&gt;
+  &lt;tc-option value="bug"&gt;Bug Report&lt;/tc-option&gt;
+&lt;/tc-select&gt;</div>
+            </section>
+
+            <div class="divider"></div>
+
+            <!-- Badge -->
+            <section class="section">
+                <h2 class="section-title">tc-badge</h2>
+                <p class="section-desc">Status badges and labels with icons</p>
+
+                <div class="component-grid">
+                    <div class="component-box">
+                        <h4>Variants</h4>
+                        <div class="demo">
+                            <tc-badge variant="default">Default</tc-badge>
+                            <tc-badge variant="success">Success</tc-badge>
+                            <tc-badge variant="warning">Warning</tc-badge>
+                            <tc-badge variant="error">Error</tc-badge>
+                            <tc-badge variant="info">Info</tc-badge>
+                            <tc-badge variant="primary">Primary</tc-badge>
+                        </div>
+                    </div>
+
+                    <div class="component-box">
+                        <h4>With Icon</h4>
+                        <div class="demo">
+                            <tc-badge variant="success" icon="check_circle">Active</tc-badge>
+                            <tc-badge variant="warning" icon="schedule">Pending</tc-badge>
+                            <tc-badge variant="error" icon="error">Failed</tc-badge>
+                        </div>
+                    </div>
+
+                    <div class="component-box">
+                        <h4>Sizes</h4>
+                        <div class="demo">
+                            <tc-badge variant="primary" size="sm">Small</tc-badge>
+                            <tc-badge variant="primary" size="md">Medium</tc-badge>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="code-block">&lt;tc-badge variant="success" icon="check_circle"&gt;Active&lt;/tc-badge&gt;
+&lt;tc-badge variant="warning" size="sm"&gt;Pending&lt;/tc-badge&gt;</div>
+            </section>
+
+            <div class="divider"></div>
+
+            <!-- Card -->
+            <section class="section">
+                <h2 class="section-title">tc-card</h2>
+                <p class="section-desc">Card container with header, content, and footer slots</p>
+
+                <div class="component-grid">
+                    <div class="component-box" style="width: 350px;">
+                        <h4>Basic Card</h4>
+                        <div class="demo">
+                            <tc-card>
+                                <span slot="header">Card Title</span>
+                                <p>This is the card content. You can put any content here.</p>
+                            </tc-card>
+                        </div>
+                    </div>
+
+                    <div class="component-box" style="width: 350px;">
+                        <h4>With Footer</h4>
+                        <div class="demo">
+                            <tc-card>
+                                <span slot="header">Feedback Item</span>
+                                <p>Add dark mode toggle to settings page.</p>
+                                <div slot="footer">
+                                    <tc-badge variant="success" icon="check_circle">Resolved</tc-badge>
+                                </div>
+                            </tc-card>
+                        </div>
+                    </div>
+
+                    <div class="component-box" style="width: 350px;">
+                        <h4>Interactive</h4>
+                        <div class="demo">
+                            <tc-card variant="interactive" onclick="TCToast.info('Card clicked!')">
+                                <span slot="header">Clickable Card</span>
+                                <p>Click this card to see a toast notification.</p>
+                            </tc-card>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="code-block">&lt;tc-card variant="interactive"&gt;
+  &lt;span slot="header"&gt;Card Title&lt;/span&gt;
+  &lt;p&gt;Card content&lt;/p&gt;
+  &lt;div slot="footer"&gt;Footer content&lt;/div&gt;
+&lt;/tc-card&gt;</div>
+            </section>
+
+            <div class="divider"></div>
+
+            <!-- Page Header -->
+            <section class="section">
+                <h2 class="section-title">tc-page-header</h2>
+                <p class="section-desc">Page title with subtitle and action buttons</p>
+
+                <div class="component-box" style="width: 100%;">
+                    <h4>Example</h4>
+                    <div class="demo">
+                        <tc-page-header title="My Links" subtitle="Manage your short URLs">
+                            <tc-button slot="actions" variant="primary" icon="add">Create New</tc-button>
+                        </tc-page-header>
+                    </div>
+                </div>
+
+                <div class="code-block">&lt;tc-page-header title="My Links" subtitle="Manage your short URLs"&gt;
+  &lt;tc-button slot="actions" variant="primary" icon="add"&gt;Create New&lt;/tc-button&gt;
+&lt;/tc-page-header&gt;</div>
+            </section>
+
+            <div class="divider"></div>
+
+            <!-- Modal -->
+            <section class="section">
+                <h2 class="section-title">tc-modal</h2>
+                <p class="section-desc">Modal dialog with customizable content and footer</p>
+
+                <div class="component-grid">
+                    <div class="component-box">
+                        <h4>Open Modal</h4>
+                        <div class="demo">
+                            <tc-button variant="primary" onclick="document.getElementById('demo-modal').open()">Open Modal</tc-button>
+                            <tc-button variant="secondary" onclick="document.getElementById('demo-modal-lg').open()">Large Modal</tc-button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="code-block">&lt;tc-modal id="my-modal" title="Confirm Action" size="md"&gt;
+  &lt;p&gt;Are you sure you want to continue?&lt;/p&gt;
+  &lt;div slot="footer"&gt;
+    &lt;tc-button variant="secondary"&gt;Cancel&lt;/tc-button&gt;
+    &lt;tc-button variant="primary"&gt;Confirm&lt;/tc-button&gt;
+  &lt;/div&gt;
+&lt;/tc-modal&gt;
+
+// Open: document.getElementById('my-modal').open()
+// Close: document.getElementById('my-modal').close()</div>
+            </section>
+
+            <div class="divider"></div>
+
+            <!-- Toast -->
+            <section class="section">
+                <h2 class="section-title">tc-toast</h2>
+                <p class="section-desc">Toast notifications for feedback messages</p>
+
+                <div class="component-grid">
+                    <div class="component-box">
+                        <h4>Show Toast</h4>
+                        <div class="demo">
+                            <tc-button variant="secondary" onclick="TCToast.success('Operation successful!')">Success</tc-button>
+                            <tc-button variant="secondary" onclick="TCToast.error('Something went wrong!')">Error</tc-button>
+                            <tc-button variant="secondary" onclick="TCToast.warning('Please check your input')">Warning</tc-button>
+                            <tc-button variant="secondary" onclick="TCToast.info('New updates available')">Info</tc-button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="code-block">// Static methods
+TCToast.success('Saved successfully!');
+TCToast.error('Failed to save');
+TCToast.warning('Please check input');
+TCToast.info('New notification');
+
+// Custom duration (ms)
+TCToast.show('Custom message', 'success', 5000);</div>
+            </section>
+
+            <div class="divider"></div>
+
+            <!-- Loading -->
+            <section class="section">
+                <h2 class="section-title">tc-loading</h2>
+                <p class="section-desc">Loading spinner with text</p>
+
+                <div class="component-grid">
+                    <div class="component-box">
+                        <h4>Sizes</h4>
+                        <div class="demo">
+                            <tc-loading size="sm"></tc-loading>
+                            <tc-loading size="md"></tc-loading>
+                            <tc-loading size="lg"></tc-loading>
+                        </div>
+                    </div>
+
+                    <div class="component-box">
+                        <h4>With Text</h4>
+                        <div class="demo">
+                            <tc-loading size="md" text="Loading..."></tc-loading>
+                        </div>
+                    </div>
+
+                    <div class="component-box">
+                        <h4>Overlay</h4>
+                        <div class="demo">
+                            <tc-button variant="secondary" onclick="showOverlayLoading()">Show Overlay</tc-button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="code-block">&lt;tc-loading size="md" text="Loading..."&gt;&lt;/tc-loading&gt;
+&lt;tc-loading overlay text="Please wait..."&gt;&lt;/tc-loading&gt;</div>
+            </section>
+
+            <div class="divider"></div>
+
+            <!-- Textarea -->
+            <section class="section">
+                <h2 class="section-title">tc-textarea</h2>
+                <p class="section-desc">Multi-line text input with label, character count, and validation</p>
+
+                <div class="component-grid">
+                    <div class="component-box vertical" style="width: 400px;">
+                        <h4>Basic</h4>
+                        <div class="demo">
+                            <tc-textarea label="Description" placeholder="Enter your description..."></tc-textarea>
+                        </div>
+                    </div>
+
+                    <div class="component-box vertical" style="width: 400px;">
+                        <h4>With Character Count</h4>
+                        <div class="demo">
+                            <tc-textarea label="Message" placeholder="Type your message..." maxlength="200" show-count></tc-textarea>
+                        </div>
+                    </div>
+
+                    <div class="component-box vertical" style="width: 400px;">
+                        <h4>Custom Size</h4>
+                        <div class="demo">
+                            <tc-textarea label="Notes" rows="6" placeholder="Multiple lines of text..."></tc-textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="code-block">&lt;tc-textarea label="Description" placeholder="Enter text..." maxlength="200" show-count&gt;&lt;/tc-textarea&gt;
+&lt;tc-textarea label="Notes" rows="6"&gt;&lt;/tc-textarea&gt;</div>
+            </section>
+
+            <div class="divider"></div>
+
+            <!-- Avatar -->
+            <section class="section">
+                <h2 class="section-title">tc-avatar</h2>
+                <p class="section-desc">User avatar with image, initials, or icon fallback</p>
+
+                <div class="component-grid">
+                    <div class="component-box">
+                        <h4>Sizes</h4>
+                        <div class="demo">
+                            <tc-avatar size="xs" name="John Doe"></tc-avatar>
+                            <tc-avatar size="sm" name="John Doe"></tc-avatar>
+                            <tc-avatar size="md" name="John Doe"></tc-avatar>
+                            <tc-avatar size="lg" name="John Doe"></tc-avatar>
+                            <tc-avatar size="xl" name="John Doe"></tc-avatar>
+                        </div>
+                    </div>
+
+                    <div class="component-box">
+                        <h4>With Image</h4>
+                        <div class="demo">
+                            <tc-avatar size="lg" src="https://i.pravatar.cc/100?u=1" name="Alice"></tc-avatar>
+                            <tc-avatar size="lg" src="https://i.pravatar.cc/100?u=2" name="Bob"></tc-avatar>
+                        </div>
+                    </div>
+
+                    <div class="component-box">
+                        <h4>Initials</h4>
+                        <div class="demo">
+                            <tc-avatar size="lg" name="John Smith"></tc-avatar>
+                            <tc-avatar size="lg" name="Mary"></tc-avatar>
+                            <tc-avatar size="lg" name="慈濟基金會"></tc-avatar>
+                        </div>
+                    </div>
+
+                    <div class="component-box">
+                        <h4>Fallback Icon</h4>
+                        <div class="demo">
+                            <tc-avatar size="lg"></tc-avatar>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="code-block">&lt;tc-avatar size="lg" src="/images/user.jpg" name="John Doe"&gt;&lt;/tc-avatar&gt;
+&lt;tc-avatar size="md" name="John Smith"&gt;&lt;/tc-avatar&gt;</div>
+            </section>
+
+            <div class="divider"></div>
+
+            <!-- Table -->
+            <section class="section">
+                <h2 class="section-title">tc-table</h2>
+                <p class="section-desc">Data table with sortable columns and customizable cells</p>
+
+                <div class="component-box" style="width: 100%;">
+                    <h4>Basic Table</h4>
+                    <div class="demo">
+                        <tc-table>
+                            <tc-thead>
+                                <tc-tr>
+                                    <tc-th width="200px">Short URL</tc-th>
+                                    <tc-th>Original URL</tc-th>
+                                    <tc-th width="100px" align="center">Clicks</tc-th>
+                                    <tc-th width="120px" align="center">Status</tc-th>
+                                    <tc-th width="100px" align="center">Actions</tc-th>
+                                </tc-tr>
+                            </tc-thead>
+                            <tc-tbody>
+                                <tc-tr>
+                                    <tc-td>/s/tcurl</tc-td>
+                                    <tc-td>https://www.tzuchi.org.tw/</tc-td>
+                                    <tc-td align="center">1,234</tc-td>
+                                    <tc-td align="center"><tc-badge variant="success">Active</tc-badge></tc-td>
+                                    <tc-td align="center">
+                                        <tc-button variant="ghost" size="sm" icon="edit"></tc-button>
+                                    </tc-td>
+                                </tc-tr>
+                                <tc-tr>
+                                    <tc-td>/s/donate</tc-td>
+                                    <tc-td>https://donate.tzuchi.org/</tc-td>
+                                    <tc-td align="center">567</tc-td>
+                                    <tc-td align="center"><tc-badge variant="success">Active</tc-badge></tc-td>
+                                    <tc-td align="center">
+                                        <tc-button variant="ghost" size="sm" icon="edit"></tc-button>
+                                    </tc-td>
+                                </tc-tr>
+                                <tc-tr>
+                                    <tc-td>/s/promo</tc-td>
+                                    <tc-td>https://www.tzuchi.org/promo-event</tc-td>
+                                    <tc-td align="center">89</tc-td>
+                                    <tc-td align="center"><tc-badge variant="warning">Expired</tc-badge></tc-td>
+                                    <tc-td align="center">
+                                        <tc-button variant="ghost" size="sm" icon="edit"></tc-button>
+                                    </tc-td>
+                                </tc-tr>
+                            </tc-tbody>
+                        </tc-table>
+                    </div>
+                </div>
+
+                <div class="code-block">&lt;tc-table&gt;
+  &lt;tc-thead&gt;
+    &lt;tc-tr&gt;
+      &lt;tc-th width="200px"&gt;Name&lt;/tc-th&gt;
+      &lt;tc-th align="center"&gt;Status&lt;/tc-th&gt;
+    &lt;/tc-tr&gt;
+  &lt;/tc-thead&gt;
+  &lt;tc-tbody&gt;
+    &lt;tc-tr&gt;
+      &lt;tc-td&gt;Item 1&lt;/tc-td&gt;
+      &lt;tc-td align="center"&gt;&lt;tc-badge variant="success"&gt;Active&lt;/tc-badge&gt;&lt;/tc-td&gt;
+    &lt;/tc-tr&gt;
+  &lt;/tc-tbody&gt;
+&lt;/tc-table&gt;</div>
+            </section>
+
+            <div class="divider"></div>
+
+            <!-- Empty State -->
+            <section class="section">
+                <h2 class="section-title">tc-empty-state</h2>
+                <p class="section-desc">Placeholder for empty lists or no results</p>
+
+                <div class="component-grid">
+                    <div class="component-box" style="width: 400px;">
+                        <h4>Basic</h4>
+                        <div class="demo">
+                            <tc-empty-state
+                                icon="link_off"
+                                title="No links yet"
+                                description="Create your first short link to get started"
+                            ></tc-empty-state>
+                        </div>
+                    </div>
+
+                    <div class="component-box" style="width: 400px;">
+                        <h4>With Action</h4>
+                        <div class="demo">
+                            <tc-empty-state
+                                icon="search_off"
+                                title="No results found"
+                                description="Try adjusting your search or filters"
+                            >
+                                <tc-button variant="primary" icon="refresh">Reset Filters</tc-button>
+                            </tc-empty-state>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="code-block">&lt;tc-empty-state icon="inbox" title="No messages" description="You're all caught up!"&gt;
+  &lt;tc-button variant="primary"&gt;Refresh&lt;/tc-button&gt;
+&lt;/tc-empty-state&gt;</div>
+            </section>
+
+            <div class="divider"></div>
+
+            <!-- Stat Card -->
+            <section class="section">
+                <h2 class="section-title">tc-stat-card</h2>
+                <p class="section-desc">Statistics card with value, trend indicator, and icon</p>
+
+                <div class="component-grid">
+                    <div class="component-box" style="width: 250px;">
+                        <h4>Basic</h4>
+                        <div class="demo">
+                            <tc-stat-card
+                                title="Total Links"
+                                value="1,234"
+                                icon="link"
+                            ></tc-stat-card>
+                        </div>
+                    </div>
+
+                    <div class="component-box" style="width: 250px;">
+                        <h4>With Trend (Up)</h4>
+                        <div class="demo">
+                            <tc-stat-card
+                                title="Total Clicks"
+                                value="45,678"
+                                icon="mouse"
+                                trend="up"
+                                trend-value="+12.5%"
+                            ></tc-stat-card>
+                        </div>
+                    </div>
+
+                    <div class="component-box" style="width: 250px;">
+                        <h4>With Trend (Down)</h4>
+                        <div class="demo">
+                            <tc-stat-card
+                                title="Bounce Rate"
+                                value="23.4%"
+                                icon="trending_down"
+                                trend="down"
+                                trend-value="-5.2%"
+                            ></tc-stat-card>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="code-block">&lt;tc-stat-card
+  title="Total Clicks"
+  value="45,678"
+  icon="mouse"
+  trend="up"
+  trend-value="+12.5%"
+&gt;&lt;/tc-stat-card&gt;</div>
+            </section>
+
+            <div class="divider"></div>
+
+            <!-- Dropdown -->
+            <section class="section">
+                <h2 class="section-title">tc-dropdown</h2>
+                <p class="section-desc">Dropdown menu with items and dividers</p>
+
+                <div class="component-grid">
+                    <div class="component-box">
+                        <h4>Basic</h4>
+                        <div class="demo">
+                            <tc-dropdown>
+                                <tc-button slot="trigger" variant="secondary" icon="more_vert">Options</tc-button>
+                                <tc-dropdown-item icon="edit">Edit</tc-dropdown-item>
+                                <tc-dropdown-item icon="content_copy">Duplicate</tc-dropdown-item>
+                                <tc-dropdown-divider></tc-dropdown-divider>
+                                <tc-dropdown-item icon="delete" variant="danger">Delete</tc-dropdown-item>
+                            </tc-dropdown>
+                        </div>
+                    </div>
+
+                    <div class="component-box">
+                        <h4>Position</h4>
+                        <div class="demo">
+                            <tc-dropdown position="left">
+                                <tc-button slot="trigger" variant="ghost" icon="settings"></tc-button>
+                                <tc-dropdown-item icon="person">Profile</tc-dropdown-item>
+                                <tc-dropdown-item icon="settings">Settings</tc-dropdown-item>
+                                <tc-dropdown-divider></tc-dropdown-divider>
+                                <tc-dropdown-item icon="logout">Logout</tc-dropdown-item>
+                            </tc-dropdown>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="code-block">&lt;tc-dropdown position="right"&gt;
+  &lt;tc-button slot="trigger" variant="secondary"&gt;Menu&lt;/tc-button&gt;
+  &lt;tc-dropdown-item icon="edit"&gt;Edit&lt;/tc-dropdown-item&gt;
+  &lt;tc-dropdown-item icon="copy"&gt;Copy&lt;/tc-dropdown-item&gt;
+  &lt;tc-dropdown-divider&gt;&lt;/tc-dropdown-divider&gt;
+  &lt;tc-dropdown-item icon="delete" variant="danger"&gt;Delete&lt;/tc-dropdown-item&gt;
+&lt;/tc-dropdown&gt;</div>
+            </section>
+
+            <div class="divider"></div>
+
+            <!-- Tabs -->
+            <section class="section">
+                <h2 class="section-title">tc-tabs</h2>
+                <p class="section-desc">Tab navigation with panels</p>
+
+                <div class="component-box" style="width: 100%;">
+                    <h4>Basic Tabs</h4>
+                    <div class="demo">
+                        <tc-tabs active="overview">
+                            <tc-tab id="overview" icon="dashboard">Overview</tc-tab>
+                            <tc-tab id="analytics" icon="analytics">Analytics</tc-tab>
+                            <tc-tab id="settings" icon="settings">Settings</tc-tab>
+                            <tc-tab-panel tab="overview">
+                                <tc-card>
+                                    <span slot="header">Overview Content</span>
+                                    <p>This is the overview tab panel. Display summary information here.</p>
+                                </tc-card>
+                            </tc-tab-panel>
+                            <tc-tab-panel tab="analytics">
+                                <tc-card>
+                                    <span slot="header">Analytics Content</span>
+                                    <p>This is the analytics tab panel. Show charts and data here.</p>
+                                </tc-card>
+                            </tc-tab-panel>
+                            <tc-tab-panel tab="settings">
+                                <tc-card>
+                                    <span slot="header">Settings Content</span>
+                                    <p>This is the settings tab panel. Configure options here.</p>
+                                </tc-card>
+                            </tc-tab-panel>
+                        </tc-tabs>
+                    </div>
+                </div>
+
+                <div class="code-block">&lt;tc-tabs active="tab1"&gt;
+  &lt;tc-tab id="tab1" icon="home"&gt;Tab 1&lt;/tc-tab&gt;
+  &lt;tc-tab id="tab2" icon="settings"&gt;Tab 2&lt;/tc-tab&gt;
+  &lt;tc-tab-panel tab="tab1"&gt;Content 1&lt;/tc-tab-panel&gt;
+  &lt;tc-tab-panel tab="tab2"&gt;Content 2&lt;/tc-tab-panel&gt;
+&lt;/tc-tabs&gt;</div>
+            </section>
+
+            <div class="divider"></div>
+
+            <!-- Pagination -->
+            <section class="section">
+                <h2 class="section-title">tc-pagination</h2>
+                <p class="section-desc">Page navigation with numbered buttons</p>
+
+                <div class="component-grid">
+                    <div class="component-box" style="width: 400px;">
+                        <h4>Basic</h4>
+                        <div class="demo">
+                            <tc-pagination current="1" total="10"></tc-pagination>
+                        </div>
+                    </div>
+
+                    <div class="component-box" style="width: 400px;">
+                        <h4>Middle Page</h4>
+                        <div class="demo">
+                            <tc-pagination current="5" total="10"></tc-pagination>
+                        </div>
+                    </div>
+
+                    <div class="component-box" style="width: 500px;">
+                        <h4>Many Pages</h4>
+                        <div class="demo">
+                            <tc-pagination current="15" total="50" siblings="2"></tc-pagination>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="code-block">&lt;tc-pagination current="1" total="10" siblings="1"&gt;&lt;/tc-pagination&gt;
+
+// Listen for page changes
+pagination.addEventListener('tc-page-change', (e) =&gt; {
+  console.log('Page:', e.detail.page);
+});</div>
+            </section>
+
+            <div class="divider"></div>
+
+            <!-- Tooltip -->
+            <section class="section">
+                <h2 class="section-title">tc-tooltip</h2>
+                <p class="section-desc">Hover/focus tooltip for additional information</p>
+
+                <div class="component-grid">
+                    <div class="component-box">
+                        <h4>Positions</h4>
+                        <div class="demo" style="padding: 40px;">
+                            <tc-tooltip text="Tooltip on top" position="top">
+                                <tc-button variant="secondary">Top</tc-button>
+                            </tc-tooltip>
+                            <tc-tooltip text="Tooltip on bottom" position="bottom">
+                                <tc-button variant="secondary">Bottom</tc-button>
+                            </tc-tooltip>
+                            <tc-tooltip text="Tooltip on left" position="left">
+                                <tc-button variant="secondary">Left</tc-button>
+                            </tc-tooltip>
+                            <tc-tooltip text="Tooltip on right" position="right">
+                                <tc-button variant="secondary">Right</tc-button>
+                            </tc-tooltip>
+                        </div>
+                    </div>
+
+                    <div class="component-box">
+                        <h4>With Icons</h4>
+                        <div class="demo" style="padding: 40px;">
+                            <tc-tooltip text="Copy to clipboard" position="top">
+                                <tc-button variant="ghost" icon="content_copy"></tc-button>
+                            </tc-tooltip>
+                            <tc-tooltip text="View QR Code" position="top">
+                                <tc-button variant="ghost" icon="qr_code_2"></tc-button>
+                            </tc-tooltip>
+                            <tc-tooltip text="Share link" position="top">
+                                <tc-button variant="ghost" icon="share"></tc-button>
+                            </tc-tooltip>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="code-block">&lt;tc-tooltip text="Click to copy" position="top"&gt;
+  &lt;tc-button icon="content_copy"&gt;&lt;/tc-button&gt;
+&lt;/tc-tooltip&gt;</div>
+            </section>
+
+            <div class="divider"></div>
+
+            <!-- Skeleton -->
+            <section class="section">
+                <h2 class="section-title">tc-skeleton</h2>
+                <p class="section-desc">Loading placeholder with shimmer animation</p>
+
+                <div class="component-grid">
+                    <div class="component-box" style="width: 300px;">
+                        <h4>Text Lines</h4>
+                        <div class="demo">
+                            <tc-skeleton variant="text" lines="3"></tc-skeleton>
+                        </div>
+                    </div>
+
+                    <div class="component-box" style="width: 300px;">
+                        <h4>Shapes</h4>
+                        <div class="demo">
+                            <div style="display: flex; gap: 16px; align-items: center;">
+                                <tc-skeleton variant="circle" width="48px" height="48px"></tc-skeleton>
+                                <div style="flex: 1;">
+                                    <tc-skeleton variant="text" width="60%"></tc-skeleton>
+                                    <tc-skeleton variant="text" width="40%"></tc-skeleton>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="component-box" style="width: 300px;">
+                        <h4>Card Skeleton</h4>
+                        <div class="demo">
+                            <tc-skeleton variant="card" width="100%" height="120px"></tc-skeleton>
+                        </div>
+                    </div>
+
+                    <div class="component-box" style="width: 300px;">
+                        <h4>Rectangle</h4>
+                        <div class="demo">
+                            <tc-skeleton variant="rect" width="100%" height="200px"></tc-skeleton>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="code-block">&lt;tc-skeleton variant="text" lines="3"&gt;&lt;/tc-skeleton&gt;
+&lt;tc-skeleton variant="circle" width="48px" height="48px"&gt;&lt;/tc-skeleton&gt;
+&lt;tc-skeleton variant="card" width="100%" height="120px"&gt;&lt;/tc-skeleton&gt;</div>
+            </section>
+
+            <div class="divider"></div>
+
+            <!-- Chart -->
+            <section class="section">
+                <h2 class="section-title">tc-chart</h2>
+                <p class="section-desc">Chart.js wrapper for data visualization</p>
+
+                <div class="component-grid">
+                    <div class="component-box" style="width: 500px;">
+                        <h4>Line Chart</h4>
+                        <div class="demo">
+                            <tc-chart id="chart-line" type="line" height="250"></tc-chart>
+                        </div>
+                    </div>
+
+                    <div class="component-box" style="width: 500px;">
+                        <h4>Bar Chart</h4>
+                        <div class="demo">
+                            <tc-chart id="chart-bar" type="bar" height="250"></tc-chart>
+                        </div>
+                    </div>
+
+                    <div class="component-box" style="width: 300px;">
+                        <h4>Doughnut Chart</h4>
+                        <div class="demo">
+                            <tc-chart id="chart-doughnut" type="doughnut" height="250"></tc-chart>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="code-block">&lt;tc-chart id="my-chart" type="line" height="300"&gt;&lt;/tc-chart&gt;
+
+// Set data
+const chart = document.getElementById('my-chart');
+chart.setData(
+  ['Jan', 'Feb', 'Mar', 'Apr', 'May'],
+  [{ label: 'Clicks', data: [100, 200, 150, 300, 250] }]
+);</div>
+            </section>
+
+            <div class="divider"></div>
+
+            <!-- Sidebar -->
+            <section class="section">
+                <h2 class="section-title">tc-sidebar</h2>
+                <p class="section-desc">Navigation sidebar with menu items and user section</p>
+
+                <div class="component-box" style="width: 100%;">
+                    <h4>Sidebar (see left side of this page)</h4>
+                    <p style="color: var(--tc-text-muted); margin-top: 8px;">The sidebar component is displayed on the left side of this page. It includes navigation items, user profile section, and footer slot.</p>
+                </div>
+
+                <div class="code-block">&lt;tc-sidebar
+  active="home"
+  user-name="John Doe"
+  user-email="john@example.com"
+  show-user
+&gt;
+  &lt;tc-button slot="footer" variant="primary" icon="add" full&gt;Create New&lt;/tc-button&gt;
+&lt;/tc-sidebar&gt;
+
+// Attributes:
+// - active: ID of the active menu item (home, links, analytics, feedback)
+// - user-name: Display name in user section
+// - user-email: Email in user section
+// - show-user: Show user section (boolean)</div>
+            </section>
+
+            <div class="divider"></div>
+
+            <!-- Usage -->
+            <section class="section">
+                <h2 class="section-title">Usage</h2>
+                <p class="section-desc">How to use TCurl Web Components in your HTML</p>
+
+                <div class="code-block">&lt;!-- 1. Include fonts --&gt;
+&lt;link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet"&gt;
+&lt;link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"&gt;
+
+&lt;!-- 2. Import components --&gt;
+&lt;script type="module" src="/js/components/index.js"&gt;&lt;/script&gt;
+
+&lt;!-- 3. Use components --&gt;
+&lt;tc-button variant="primary" icon="add"&gt;Create&lt;/tc-button&gt;</div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Demo Modals -->
+    <tc-modal id="demo-modal" title="Confirm Action" size="md">
+        <p>Are you sure you want to perform this action? This cannot be undone.</p>
+        <div slot="footer">
+            <tc-button variant="secondary" onclick="document.getElementById('demo-modal').close()">Cancel</tc-button>
+            <tc-button variant="primary" onclick="document.getElementById('demo-modal').close(); TCToast.success('Action confirmed!')">Confirm</tc-button>
+        </div>
+    </tc-modal>
+
+    <tc-modal id="demo-modal-lg" title="Create New Link" size="lg">
+        <tc-input label="Original URL" type="url" placeholder="https://example.com/your-long-url" icon="link" required></tc-input>
+        <br><br>
+        <tc-input label="Custom Short Code (Optional)" placeholder="my-link" icon="edit"></tc-input>
+        <div slot="footer">
+            <tc-button variant="secondary" onclick="document.getElementById('demo-modal-lg').close()">Cancel</tc-button>
+            <tc-button variant="primary" onclick="document.getElementById('demo-modal-lg').close(); TCToast.success('Link created!')">Create Link</tc-button>
+        </div>
+    </tc-modal>
+
+    <script>
+        function showOverlayLoading() {
+            const loading = document.createElement('tc-loading');
+            loading.setAttribute('overlay', '');
+            loading.setAttribute('text', 'Loading...');
+            loading.setAttribute('size', 'lg');
+            document.body.appendChild(loading);
+
+            setTimeout(() => {
+                loading.remove();
+                TCToast.success('Loading complete!');
+            }, 2000);
+        }
+
+        // Initialize charts when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            // Wait for custom elements to be defined
+            setTimeout(async () => {
+                // Line Chart
+                const lineChart = document.getElementById('chart-line');
+                if (lineChart && lineChart.setData) {
+                    await lineChart.setData(
+                        ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                        [{
+                            label: 'Clicks',
+                            data: [120, 190, 300, 250, 280, 350]
+                        }]
+                    );
+                }
+
+                // Bar Chart
+                const barChart = document.getElementById('chart-bar');
+                if (barChart && barChart.setData) {
+                    await barChart.setData(
+                        ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                        [{
+                            label: 'Visitors',
+                            data: [65, 89, 120, 81, 56, 55, 40]
+                        }]
+                    );
+                }
+
+                // Doughnut Chart
+                const doughnutChart = document.getElementById('chart-doughnut');
+                if (doughnutChart && doughnutChart.setData) {
+                    await doughnutChart.setData(
+                        ['Direct', 'Social', 'QR Code', 'Email'],
+                        [{
+                            label: 'Traffic Sources',
+                            data: [300, 150, 100, 50]
+                        }]
+                    );
+                }
+            }, 500);
+        });
+    </script>
+</body>
+</html>

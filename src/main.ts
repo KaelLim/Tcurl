@@ -17,6 +17,7 @@ import '@std/dotenv/load';
 
 // 導入路由
 import { urlRoutes } from './routes/urls.ts';
+import { feedbackRoutes } from './routes/feedbacks.ts';
 
 // 導入服務
 import { initSupabase } from './services/supabase.ts';
@@ -178,6 +179,9 @@ app.get('/api', (c) => {
 
 // 註冊 URL 路由
 app.route('/', urlRoutes);
+
+// 註冊社群建議路由
+app.route('/', feedbackRoutes);
 
 // MIME type 對照表
 const MIME_TYPES: Record<string, string> = {

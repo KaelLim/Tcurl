@@ -978,130 +978,6 @@ urlRoutes.get('/api/stats/daily', async (c) => {
 // ============================================================
 
 /**
- * 登入
- */
-urlRoutes.post('/api/auth/login', async (c) => {
-  const body = await c.req.json();
-  const { email, password } = body;
-
-  if (!email || !password) {
-    return c.json(
-      {
-        error: 'Bad Request',
-        message: 'email 和 password 為必填',
-      },
-      400
-    );
-  }
-
-  try {
-    const supabase = getSupabase();
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
-      return c.json(
-        {
-          error: 'Unauthorized',
-          message: error.message,
-        },
-        401
-      );
-    }
-
-    return c.json({
-      access_token: data.session?.access_token,
-      refresh_token: data.session?.refresh_token,
-      expires_in: data.session?.expires_in,
-      token_type: 'Bearer',
-      user: {
-        id: data.user?.id,
-        email: data.user?.email,
-      },
-    });
-  } catch (error) {
-    console.error(error);
-    return c.json({ error: 'Login failed' }, 500);
-  }
-});
-
-/**
- * 註冊
- */
-urlRoutes.post('/api/auth/register', async (c) => {
-  const body = await c.req.json();
-  const { email, password, display_name } = body;
-
-  if (!email || !password) {
-    return c.json(
-      {
-        error: 'Bad Request',
-        message: 'email 和 password 為必填',
-      },
-      400
-    );
-  }
-
-  if (password.length < 6) {
-    return c.json(
-      {
-        error: 'Bad Request',
-        message: '密碼至少需要 6 個字元',
-      },
-      400
-    );
-  }
-
-  try {
-    const supabase = getSupabase();
-    const { data, error } = await supabase.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: {
-        display_name: display_name || email.split('@')[0],
-      },
-    });
-
-    if (error) {
-      if (error.message.includes('already been registered')) {
-        return c.json(
-          {
-            error: 'Conflict',
-            message: '此電子郵件已被註冊',
-          },
-          409
-        );
-      }
-      return c.json(
-        {
-          error: 'Bad Request',
-          message: error.message,
-        },
-        400
-      );
-    }
-
-    return c.json(
-      {
-        message: '註冊成功',
-        user: {
-          id: data.user?.id,
-          email: data.user?.email,
-          display_name: data.user?.user_metadata?.display_name,
-        },
-      },
-      201
-    );
-  } catch (error) {
-    console.error(error);
-    return c.json({ error: 'Registration failed' }, 500);
-  }
-});
-
-/**
  * 取得當前使用者資訊
  */
 urlRoutes.get('/api/auth/me', async (c) => {
@@ -1271,7 +1147,24 @@ urlRoutes.get('/analytics/:id', async (c) => {
   return c.html(content);
 });
 
+urlRoutes.get('/feedback', async (c) => {
+  const content = await Deno.readTextFile('./public/feedback.html');
+  return c.html(content);
+});
+
+urlRoutes.get('/feedback/:id', async (c) => {
+  // 支援 /feedback/uuid 格式
+  const content = await Deno.readTextFile('./public/feedback-detail.html');
+  return c.html(content);
+});
+
 urlRoutes.get('/docs', async (c) => {
   const content = await Deno.readTextFile('./public/docs.html');
+  return c.html(content);
+});
+
+// UI Kit - 開發者專用
+urlRoutes.get('/ui-kit', async (c) => {
+  const content = await Deno.readTextFile('./public/ui-kit.html');
   return c.html(content);
 });

@@ -127,32 +127,32 @@ function createUrlRow(url) {
   row.innerHTML = `
     <td class="p-4">
       <div class="flex items-center gap-2">
-        <span class="text-primary text-sm font-medium hover:underline" onclick="event.stopPropagation(); window.open('${shortUrl}', '_blank')">
+        <span class="text-blue-400 hover:text-blue-300 text-base font-medium hover:underline cursor-pointer" onclick="event.stopPropagation(); window.open('${shortUrl}', '_blank')">
           ${url.short_code}
         </span>
-        <button class="text-white/40 hover:text-white" onclick="event.stopPropagation(); copyShortUrl('${shortUrl}')" title="複製短網址 /s/">
-          <span class="material-symbols-outlined text-sm">content_copy</span>
+        <button class="text-white/70 hover:text-white" onclick="event.stopPropagation(); copyShortUrl('${shortUrl}')" title="複製短網址 /s/">
+          <span class="material-symbols-outlined text-base">content_copy</span>
         </button>
-        <button class="text-orange-400/60 hover:text-orange-400" onclick="event.stopPropagation(); copyShortUrl('${adUrl}')" title="複製廣告頁連結 /ad/">
-          <span class="material-symbols-outlined text-sm">ads_click</span>
+        <button class="text-orange-400/80 hover:text-orange-400" onclick="event.stopPropagation(); copyShortUrl('${adUrl}')" title="複製廣告頁連結 /ad/">
+          <span class="material-symbols-outlined text-base">ads_click</span>
         </button>
       </div>
     </td>
     <td class="p-4">
-      <span class="text-[#9da1b9] text-sm" title="${url.original_url}">
+      <span class="text-white/90 text-base" title="${url.original_url}">
         ${displayUrl}
       </span>
     </td>
     <td class="p-4">
       <div class="flex items-center gap-2">
-        <span class="text-white text-sm font-medium">${url.clicks || 0}</span>
+        <span class="text-white text-base font-medium">${url.clicks || 0}</span>
       </div>
     </td>
-    <td class="p-4 text-[#9da1b9] text-sm">
+    <td class="p-4 text-white/90 text-base">
       ${utils.formatDate(url.created_at)}
     </td>
     <td class="p-4">
-      <button class="text-white/60 hover:text-white p-2 rounded-lg hover:bg-white/10 transition-colors"
+      <button class="text-white/90 hover:text-blue-400 p-2 rounded-lg hover:bg-white/10 transition-colors"
               onclick="event.stopPropagation(); showQRCodeModal('${url.id}')"
               title="顯示 QR Code">
         <span class="material-symbols-outlined">qr_code_2</span>
@@ -397,12 +397,12 @@ function showQRCodeModal(urlId) {
 
   modal.innerHTML = `
     <div class="relative bg-[#1e1e1e] rounded-xl p-6 max-w-md w-full">
-      <button class="absolute top-4 right-4 text-white/60 hover:text-white" onclick="closeQRCodeModal()">
+      <button class="absolute top-4 right-4 text-white/90 hover:text-white" onclick="closeQRCodeModal()">
         <span class="material-symbols-outlined">close</span>
       </button>
 
       <h3 class="text-white text-xl font-bold mb-2">QR Code</h3>
-      <p class="text-white/60 text-sm mb-4">${urlData.short_code}</p>
+      <p class="text-white/90 text-base mb-4">${urlData.short_code}</p>
 
       <div class="bg-white p-4 rounded-lg flex items-center justify-center mb-4">
         <div id="qrCodeCanvas" style="width: 300px; height: 300px;"></div>
