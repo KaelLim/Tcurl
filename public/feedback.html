@@ -112,10 +112,25 @@
                         <p class="text-white text-4xl font-black leading-tight tracking-[-0.033em]">社群建議</p>
                         <p class="text-[#9da1b9] text-base font-normal leading-normal">分享您的建議、回報問題或提出疑問</p>
                     </div>
+                    <button id="newFeedbackBtnMain" onclick="openNewFeedbackModal()" class="flex items-center gap-2 px-5 py-3 bg-primary hover:bg-blue-600 text-white rounded-lg font-bold transition-colors">
+                        <span class="material-symbols-outlined">add</span>
+                        <span>發表建議</span>
+                    </button>
                 </div>
 
                 <!-- Filters -->
                 <div class="flex flex-wrap items-center gap-4 mb-6">
+                    <!-- Search -->
+                    <div class="flex-grow min-w-[200px] max-w-md">
+                        <div class="flex w-full items-stretch rounded-lg h-10">
+                            <div class="text-[#9da1b9] flex bg-[#1c1d27] items-center justify-center pl-3 rounded-l-lg">
+                                <span class="material-symbols-outlined text-xl">search</span>
+                            </div>
+                            <input id="searchInput" type="text"
+                                   class="flex w-full min-w-0 flex-1 bg-[#1c1d27] text-white focus:outline-none border-none h-full placeholder:text-[#9da1b9] px-3 rounded-r-lg text-sm"
+                                   placeholder="搜尋標題或內容...">
+                        </div>
+                    </div>
                     <div class="flex gap-3">
                         <select id="categoryFilter" class="h-10 rounded-lg bg-[#1c1d27] text-white px-4 text-sm border-none focus:ring-2 focus:ring-primary/50">
                             <option value="all">全部分類</option>
@@ -240,6 +255,33 @@
         };
 
         let allFeedbacks = [];
+        let searchTimeout = null;
+
+        // Search feedbacks (client-side filtering)
+        function searchFeedbacks() {
+            const query = document.getElementById('searchInput').value.toLowerCase().trim();
+
+            if (!query) {
+                renderFeedbacks(allFeedbacks);
+                return;
+            }
+
+            const filtered = allFeedbacks.filter(f => {
+                return f.title.toLowerCase().includes(query) ||
+                       f.content.toLowerCase().includes(query);
+            });
+
+            if (filtered.length === 0) {
+                document.getElementById('feedbacksList').innerHTML = `
+                    <div class="text-center py-12">
+                        <span class="material-symbols-outlined text-4xl text-white/30 mb-2">search_off</span>
+                        <p class="text-white/70">找不到符合「${escapeHtml(query)}」的結果</p>
+                    </div>
+                `;
+            } else {
+                renderFeedbacks(filtered);
+            }
+        }
 
         // Load feedbacks
         async function loadFeedbacks() {
@@ -273,7 +315,13 @@
                     return;
                 }
 
-                renderFeedbacks(allFeedbacks);
+                // Apply search filter if there's a query
+                const searchQuery = document.getElementById('searchInput').value.trim();
+                if (searchQuery) {
+                    searchFeedbacks();
+                } else {
+                    renderFeedbacks(allFeedbacks);
+                }
                 updateStats(allFeedbacks);
             } catch (error) {
                 console.error('Error loading feedbacks:', error);
@@ -400,6 +448,12 @@
         document.getElementById('categoryFilter').addEventListener('change', loadFeedbacks);
         document.getElementById('statusFilter').addEventListener('change', loadFeedbacks);
         document.getElementById('sortFilter').addEventListener('change', loadFeedbacks);
+
+        // Search input handler with debounce
+        document.getElementById('searchInput').addEventListener('input', () => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(searchFeedbacks, 300);
+        });
 
         // New feedback button
         document.getElementById('newFeedbackBtn').addEventListener('click', openNewFeedbackModal);
