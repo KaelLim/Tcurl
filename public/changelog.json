@@ -1,0 +1,36 @@
+[
+  {
+    "version": "1.1.0",
+    "date": "2026-03-13",
+    "title": "Web Components 重構與快取修復",
+    "changes": [
+      { "type": "feat", "text": "Web Components 重構：tc-sidebar、tc-page-header、tc-head-meta 組件化" },
+      { "type": "feat", "text": "全站 favicon 統一使用本地 /favicon.svg" },
+      { "type": "feat", "text": "版本號集中管理：deno.json 為唯一來源，前端 badge 自動同步" },
+      { "type": "feat", "text": "server-rendered 頁面共用 htmlHead() 模板" },
+      { "type": "fix", "text": "Nginx cache purge 改為直接刪除快取檔案（取代不可用的 purge 模組）" },
+      { "type": "fix", "text": "加入 Cache-Control header 防止上游代理快取過期資料" },
+      { "type": "update", "text": "登入頁移除 BETA 系統公告，改為平台特色介紹" },
+      { "type": "update", "text": "API 文檔頁使用各工具官方 icon" }
+    ]
+  },
+  {
+    "version": "1.0.0",
+    "date": "2026-03-10",
+    "title": "正式版本發佈",
+    "changes": [
+      { "type": "feat", "text": "短網址建立、編輯、刪除" },
+      { "type": "feat", "text": "QR Code 產生與自訂樣式" },
+      { "type": "feat", "text": "密碼保護與過期時間設定" },
+      { "type": "feat", "text": "點擊追蹤與分析儀表板（含每日趨勢圖）" },
+      { "type": "feat", "text": "廣告插頁功能" },
+      { "type": "feat", "text": "社群回饋系統" },
+      { "type": "feat", "text": "Keycloak OIDC 身份驗證（含 Google OAuth）" },
+      { "type": "feat", "text": "API 文檔：Swagger UI / RapiDoc / Scalar" },
+      { "type": "feat", "text": "Nginx 快取加速短網址重導向" },
+      { "type": "feat", "text": "ClickWatcher 透過 Nginx log 記錄快取命中的點擊" },
+      { "type": "refactor", "text": "移除 Redis，簡化為純 Nginx 快取架構" },
+      { "type": "refactor", "text": "從 Node.js + Fastify 遷移至 Deno 2.x + Hono" }
+    ]
+  }
+]

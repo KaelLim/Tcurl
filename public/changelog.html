@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html class="dark" lang="zh-TW">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>更新日誌 - TCurl</title>
+    <link rel="icon" href="/favicon.svg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1337ec",
+                        "background-dark": "#101322",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"]
+                    }
+                },
+            },
+        }
+    </script>
+    <style>
+        /* 左側版本目錄 timeline */
+        .version-nav a {
+            position: relative;
+            padding-left: 1.5rem;
+            display: block;
+            color: rgba(255,255,255,0.5);
+            transition: color 0.2s;
+        }
+        .version-nav a::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.2);
+            background: #101322;
+            transition: all 0.2s;
+        }
+        .version-nav a::after {
+            content: '';
+            position: absolute;
+            left: 4px;
+            top: calc(50% + 12px);
+            width: 2px;
+            height: calc(100% - 4px);
+            background: rgba(255,255,255,0.1);
+        }
+        .version-nav li:last-child a::after { display: none; }
+        .version-nav a:hover, .version-nav a.active {
+            color: white;
+        }
+        .version-nav a:hover::before, .version-nav a.active::before {
+            border-color: #1337ec;
+            background: #1337ec;
+        }
+
+        /* 變更類型標籤 */
+        .tag-feat { background: rgba(34,197,94,0.15); color: #4ade80; }
+        .tag-fix { background: rgba(239,68,68,0.15); color: #f87171; }
+        .tag-update { background: rgba(59,130,246,0.15); color: #60a5fa; }
+        .tag-refactor { background: rgba(168,85,247,0.15); color: #c084fc; }
+        .tag-chore { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); }
+
+        /* 版本區塊進入動畫 */
+        .version-block { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-background-dark font-display min-h-screen">
+    <div class="max-w-6xl mx-auto px-4 py-8 md:py-16">
+        <!-- Header -->
+        <div class="mb-12">
+            <div class="flex items-center gap-3 mb-2">
+                <a href="/" class="text-white/50 hover:text-white transition-colors">
+                    <span class="material-symbols-outlined" style="font-size:20px;">arrow_back</span>
+                </a>
+                <h1 class="text-white text-3xl font-bold">更新日誌</h1>
+            </div>
+            <p class="text-white/60 ml-8">TCurl 版本歷史與變更記錄</p>
+        </div>
+
+        <div class="flex gap-12">
+            <!-- 左側版本目錄 -->
+            <nav class="hidden md:block w-48 shrink-0 sticky top-8 self-start">
+                <h2 class="text-white/40 text-xs font-bold uppercase tracking-wider mb-4">版本</h2>
+                <ul class="version-nav space-y-4" id="version-nav"></ul>
+            </nav>
+
+            <!-- 右側內容 -->
+            <main class="flex-1 min-w-0" id="changelog-content">
+                <div class="flex items-center justify-center py-20">
+                    <div class="text-white/40">載入中...</div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        const TAG_LABELS = {
+            feat: '新功能',
+            fix: '修復',
+            update: '更新',
+            refactor: '重構',
+            chore: '維護',
+        }
+
+        function renderChangelog(data) {
+            const nav = document.getElementById('version-nav')
+            const content = document.getElementById('changelog-content')
+
+            // 版本目錄
+            nav.innerHTML = data.map((release, i) => `
+                <li>
+                    <a href="#v${release.version}" class="${i === 0 ? 'active' : ''}" data-version="${release.version}">
+                        <div class="text-sm font-bold">v${release.version}</div>
+                        <div class="text-xs opacity-60">${release.date}</div>
+                    </a>
+                </li>
+            `).join('')
+
+            // 版本內容
+            content.innerHTML = data.map(release => {
+                // 按 type 分組
+                const groups = {}
+                release.changes.forEach(c => {
+                    if (!groups[c.type]) groups[c.type] = []
+                    groups[c.type].push(c.text)
+                })
+
+                const groupsHtml = Object.entries(groups).map(([type, items]) => `
+                    <div class="mb-6">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="tag-${type} text-xs font-bold px-2 py-0.5 rounded">${TAG_LABELS[type] || type}</span>
+                        </div>
+                        <ul class="space-y-2 ml-1">
+                            ${items.map(text => `
+                                <li class="flex items-start gap-2 text-white/80 text-sm">
+                                    <span class="text-white/20 mt-1.5 shrink-0">●</span>
+                                    <span>${text}</span>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                `).join('')
+
+                return `
+                    <section id="v${release.version}" class="version-block mb-16 scroll-mt-8">
+                        <div class="flex items-baseline gap-3 mb-1">
+                            <h2 class="text-white text-2xl font-bold">v${release.version}</h2>
+                            <span class="text-white/40 text-sm">${release.date}</span>
+                        </div>
+                        <h3 class="text-white/70 text-lg mb-6">${release.title}</h3>
+                        <div class="bg-white/[0.03] border border-white/10 rounded-xl p-6 md:p-8">
+                            ${groupsHtml}
+                        </div>
+                    </section>
+                `
+            }).join('')
+
+            // 點擊導航高亮
+            nav.querySelectorAll('a').forEach(link => {
+                link.addEventListener('click', () => {
+                    nav.querySelectorAll('a').forEach(l => l.classList.remove('active'))
+                    link.classList.add('active')
+                })
+            })
+
+            // 滾動高亮
+            const observer = new IntersectionObserver(entries => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const version = entry.target.id.replace('v', '')
+                        nav.querySelectorAll('a').forEach(l => {
+                            l.classList.toggle('active', l.dataset.version === version)
+                        })
+                    }
+                })
+            }, { rootMargin: '-20% 0px -70% 0px' })
+
+            document.querySelectorAll('.version-block').forEach(el => observer.observe(el))
+        }
+
+        // 載入 changelog 資料
+        fetch('/changelog.json')
+            .then(r => r.json())
+            .then(renderChangelog)
+            .catch(() => {
+                document.getElementById('changelog-content').innerHTML =
+                    '<p class="text-white/40 text-center py-20">無法載入更新日誌</p>'
+            })
+    </script>
+</body>
+</html>

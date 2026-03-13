@@ -24,6 +24,7 @@ const NAV_ITEMS = [
   { id: 'links', icon: 'link', label: '我的連結', href: '/links' },
   { id: 'analytics', icon: 'bar_chart', label: '數據分析', href: '/analytics' },
   { id: 'feedback', icon: 'forum', label: '社群建議', href: '/feedback' },
+  { id: 'changelog', icon: 'history', label: '更新日誌', href: '/changelog' },
 ];
 
 export class TCSidebar extends TCElement {
