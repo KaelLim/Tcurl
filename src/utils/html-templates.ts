@@ -30,17 +30,21 @@ function escapeJs(str: string): string {
     .replace(/>/g, '\\x3e')
 }
 
-export function renderPasswordPage(shortCode: string, isQrScan: boolean = false): string {
-  // Note: qrParam would be used for form action if needed
-  const _qrParam = isQrScan ? '&qr=true' : '';
-  void _qrParam; // Suppress unused warning
-
-  return `<!DOCTYPE html>
-<html class="dark" lang="zh-TW">
-<head>
-    <meta charset="utf-8"/>
+/**
+ * 產生共用 <head> 內容
+ * 用於伺服端產出的頁面（password, expired, ad, not-found）
+ */
+function htmlHead(title: string, extraColors?: Record<string, string>): string {
+  const colors: Record<string, string> = {
+    'primary': '#1337ec',
+    'background-dark': '#101322',
+    ...extraColors,
+  };
+  const colorsJson = JSON.stringify(colors);
+  return `<meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>密碼保護 - TCurl</title>
+    <title>${escapeHtml(title)} - TCurl</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
@@ -49,17 +53,25 @@ export function renderPasswordPage(shortCode: string, isQrScan: boolean = false)
             darkMode: "class",
             theme: {
                 extend: {
-                    colors: {
-                        "primary": "#1337ec",
-                        "background-dark": "#101322",
-                    },
+                    colors: ${colorsJson},
                     fontFamily: {
                         "display": ["Space Grotesk", "sans-serif"]
                     }
                 },
             },
         }
-    </script>
+    </script>`;
+}
+
+export function renderPasswordPage(shortCode: string, isQrScan: boolean = false): string {
+  // Note: qrParam would be used for form action if needed
+  const _qrParam = isQrScan ? '&qr=true' : '';
+  void _qrParam; // Suppress unused warning
+
+  return `<!DOCTYPE html>
+<html class="dark" lang="zh-TW">
+<head>
+    ${htmlHead('密碼保護')}
 </head>
 <body class="bg-background-dark font-display min-h-screen flex items-center justify-center p-4">
     <div class="max-w-md w-full">
@@ -174,28 +186,7 @@ export function renderNotFoundPage(_shortCode: string): string {
   return `<!DOCTYPE html>
 <html class="dark" lang="zh-TW">
 <head>
-    <meta charset="utf-8"/>
-    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>短網址不存在 - TCurl</title>
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet"/>
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
-    <script>
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    colors: {
-                        "primary": "#1337ec",
-                        "background-dark": "#101322",
-                    },
-                    fontFamily: {
-                        "display": ["Space Grotesk", "sans-serif"]
-                    }
-                },
-            },
-        }
-    </script>
+    ${htmlHead('短網址不存在')}
 </head>
 <body class="bg-background-dark font-display min-h-screen flex items-center justify-center p-4">
     <div class="max-w-md w-full">
@@ -209,21 +200,8 @@ export function renderNotFoundPage(_shortCode: string): string {
             <h1 class="text-white text-2xl font-bold text-center mb-2">短網址不存在</h1>
             <p class="text-white/60 text-sm text-center mb-8">此短網址可能已被刪除或從未建立</p>
 
-            <div class="space-y-3">
-                <a
-                    href="/"
-                    class="flex items-center justify-center gap-2 w-full bg-primary hover:bg-blue-600 text-white rounded-lg h-12 px-5 font-bold transition-colors shadow-[0_0_20px_theme(colors.primary/0.4)]"
-                >
-                    <span class="material-symbols-outlined">add</span>
-                    <span>建立新的短網址</span>
-                </a>
-                <a
-                    href="/links"
-                    class="flex items-center justify-center gap-2 w-full bg-white/10 hover:bg-white/20 text-white rounded-lg h-12 px-5 font-bold transition-colors"
-                >
-                    <span class="material-symbols-outlined">list</span>
-                    <span>查看所有連結</span>
-                </a>
+            <div class="mt-6 text-center">
+                <a href="/" class="text-white/60 hover:text-white text-sm transition-colors">返回首頁</a>
             </div>
         </div>
     </div>
@@ -244,29 +222,7 @@ export function renderAdPage(shortCode: string, originalUrl: string): string {
   return `<!DOCTYPE html>
 <html class="dark" lang="zh-TW">
 <head>
-    <meta charset="utf-8"/>
-    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>前往連結 - TCurl 慈濟短網址</title>
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet"/>
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
-    <script>
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    colors: {
-                        "primary": "#1337ec",
-                        "background-dark": "#101322",
-                        "tzu-chi": "#b8860b",
-                    },
-                    fontFamily: {
-                        "display": ["Space Grotesk", "sans-serif"]
-                    }
-                },
-            },
-        }
-    </script>
+    ${htmlHead('前往連結', { 'tzu-chi': '#b8860b' })}
 </head>
 <body class="bg-background-dark font-display min-h-screen flex items-center justify-center p-4">
     <style>
@@ -425,28 +381,7 @@ export function renderExpiredPage(expiresAt: string): string {
   return `<!DOCTYPE html>
 <html class="dark" lang="zh-TW">
 <head>
-    <meta charset="utf-8"/>
-    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>連結已過期 - TCurl</title>
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet"/>
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
-    <script>
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    colors: {
-                        "primary": "#1337ec",
-                        "background-dark": "#101322",
-                    },
-                    fontFamily: {
-                        "display": ["Space Grotesk", "sans-serif"]
-                    }
-                },
-            },
-        }
-    </script>
+    ${htmlHead('連結已過期')}
 </head>
 <body class="bg-background-dark font-display min-h-screen flex items-center justify-center p-4">
     <div class="max-w-md w-full">
@@ -470,21 +405,8 @@ export function renderExpiredPage(expiresAt: string): string {
                 </div>
             </div>
 
-            <div class="space-y-3">
-                <a
-                    href="/"
-                    class="flex items-center justify-center gap-2 w-full bg-primary hover:bg-blue-600 text-white rounded-lg h-12 px-5 font-bold transition-colors shadow-[0_0_20px_theme(colors.primary/0.4)]"
-                >
-                    <span class="material-symbols-outlined">add</span>
-                    <span>建立新的短網址</span>
-                </a>
-                <a
-                    href="/links"
-                    class="flex items-center justify-center gap-2 w-full bg-white/10 hover:bg-white/20 text-white rounded-lg h-12 px-5 font-bold transition-colors"
-                >
-                    <span class="material-symbols-outlined">list</span>
-                    <span>查看所有連結</span>
-                </a>
+            <div class="mt-6 text-center">
+                <a href="/" class="text-white/60 hover:text-white text-sm transition-colors">返回首頁</a>
             </div>
         </div>
     </div>
