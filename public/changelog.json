@@ -34,7 +34,7 @@
       { "type": "feat", "text": "點擊數據追蹤與分析儀表板" },
       { "type": "feat", "text": "廣告插頁功能" },
       { "type": "feat", "text": "社群建議回饋系統" },
-      { "type": "feat", "text": "慈濟員工帳號登入（含 Google 登入）" },
+      { "type": "feat", "text": "慈濟員工帳號登入" },
       { "type": "feat", "text": "API 文檔：Swagger UI / RapiDoc / Scalar 三種檢視方式" }
     ]
   }
