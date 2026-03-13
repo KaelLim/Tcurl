@@ -1,5 +1,18 @@
 [
   {
+    "version": "1.1.1",
+    "date": "2026-03-13",
+    "title": "登入頁簡化與路由修復",
+    "changes": [
+      { "type": "feat", "text": "新增更新日誌頁面（/changelog），GitBook 風格設計" },
+      { "type": "feat", "text": "API 文檔頁使用各工具官方 icon（本地化）" },
+      { "type": "fix", "text": "登入頁簡化為專業登入介面，移除平台功能介紹" },
+      { "type": "fix", "text": "/docs 路由 500 錯誤修復" },
+      { "type": "fix", "text": "靜態檔案處理改進：Deno 端支援 .html 副檔名隱藏" },
+      { "type": "chore", "text": ".click-log-position 加入 .gitignore" }
+    ]
+  },
+  {
     "version": "1.1.0",
     "date": "2026-03-13",
     "title": "Web Components 重構與快取修復",
