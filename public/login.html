@@ -52,7 +52,7 @@
                 <div>
                     <div class="flex items-center gap-2">
                         <h1 class="text-white text-3xl font-bold">TCurl</h1>
-                        <span class="px-1.5 py-0.5 text-xs font-bold bg-blue-500 text-white rounded">v1.1.0</span>
+                        <span id="version-badge" class="px-1.5 py-0.5 text-xs font-bold bg-blue-500 text-white rounded"></span>
                     </div>
                     <p class="text-white/90 text-sm">慈濟短網址服務</p>
                 </div>
@@ -195,6 +195,11 @@
                 }
             })
         })
+    </script>
+    <script>
+        fetch('/api/version').then(r => r.json()).then(d => {
+            document.getElementById('version-badge').textContent = 'v' + d.version
+        }).catch(() => {})
     </script>
 </body>
 </html>

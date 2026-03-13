@@ -3,7 +3,7 @@
  * Deno + Hono 版本
  *
  * @module main
- * @version 2.0.0
+ * @version 1.1.0
  */
 
 import { Hono } from '@hono/hono';
@@ -149,6 +149,15 @@ if (rateLimitEnabled) {
 // 路由配置
 // ============================================================
 
+// 從 deno.json 讀取版本號
+const denoConfig = JSON.parse(Deno.readTextFileSync(new URL('../deno.json', import.meta.url)));
+const APP_VERSION = denoConfig.version || '0.0.0';
+
+// 版本 API（供前端 badge 自動讀取）
+app.get('/api/version', (c) => {
+  return c.json({ version: APP_VERSION });
+});
+
 // 健康檢查
 app.get('/health', (c) => {
   return c.json({
@@ -163,7 +172,7 @@ app.get('/health', (c) => {
 app.get('/api', (c) => {
   return c.json({
     name: 'TCurl - 慈濟短網址 API',
-    version: '2.0.0',
+    version: APP_VERSION,
     runtime: 'Deno + Hono',
     endpoints: {
       create: 'POST /api/urls',

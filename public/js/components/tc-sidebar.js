@@ -36,6 +36,15 @@ export class TCSidebar extends TCElement {
   connectedCallback() {
     this.render();
     this.#setupMobileToggle();
+    this.#fetchVersion();
+  }
+
+  async #fetchVersion() {
+    try {
+      const res = await fetch('/api/version');
+      const { version } = await res.json();
+      this.$$('.version-badge').forEach(el => el.textContent = `v${version}`);
+    } catch { /* ignore */ }
   }
 
   attributeChangedCallback() {
@@ -349,7 +358,7 @@ export class TCSidebar extends TCElement {
             <div class="mobile-logo">
               <img src="/favicon.svg" alt="TCurl Logo">
               <div>
-                <h1>TCurl <span class="version-badge">v1.1.0</span></h1>
+                <h1>TCurl <span class="version-badge"></span></h1>
                 <p>慈濟短網址</p>
               </div>
             </div>
@@ -361,7 +370,7 @@ export class TCSidebar extends TCElement {
           <div class="desktop-logo">
             <img src="/favicon.svg" alt="TCurl Logo">
             <div>
-              <h1>TCurl <span class="version-badge">v1.1.0</span></h1>
+              <h1>TCurl <span class="version-badge"></span></h1>
               <p>慈濟短網址</p>
             </div>
           </div>
