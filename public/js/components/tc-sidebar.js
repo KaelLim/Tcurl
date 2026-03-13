@@ -349,7 +349,7 @@ export class TCSidebar extends TCElement {
             <div class="mobile-logo">
               <img src="/favicon.svg" alt="TCurl Logo">
               <div>
-                <h1>TCurl <span class="version-badge">v1.0.0</span></h1>
+                <h1>TCurl <span class="version-badge">v1.1.0</span></h1>
                 <p>慈濟短網址</p>
               </div>
             </div>
@@ -361,7 +361,7 @@ export class TCSidebar extends TCElement {
           <div class="desktop-logo">
             <img src="/favicon.svg" alt="TCurl Logo">
             <div>
-              <h1>TCurl <span class="version-badge">v1.0.0</span></h1>
+              <h1>TCurl <span class="version-badge">v1.1.0</span></h1>
               <p>慈濟短網址</p>
             </div>
           </div>
