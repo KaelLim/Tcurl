@@ -2,7 +2,7 @@
 <html class="dark" lang="zh-TW">
 <head>
     <meta charset="utf-8"/>
-    <link rel="icon" type="image/svg+xml" href="https://info.tzuchi.org/favicon.svg"/>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
     <title>TCurl - 慈濟短網址服務</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
@@ -61,94 +61,12 @@
     </style>
 </head>
 <body class="bg-background-light dark:bg-background-dark font-display">
-    <!-- Floating Hamburger Button (Mobile/Tablet only) - Outside sidebar -->
-    <button id="menuToggle" class="lg:hidden fixed top-4 left-4 z-50 text-white p-3 bg-[#111218] hover:bg-[#1a1d2e] rounded-lg transition-colors shadow-lg border border-white/10">
+    <button data-sidebar-toggle class="lg:hidden fixed top-4 left-4 z-50 text-white p-3 bg-[#111218] hover:bg-[#1a1d2e] rounded-lg transition-colors shadow-lg border border-white/10">
         <span class="material-symbols-outlined text-2xl">menu</span>
     </button>
 
     <div class="flex h-screen overflow-hidden">
-        <!-- SideNavBar -->
-        <aside id="sidebar" class="fixed lg:static inset-y-0 left-0 z-40 w-64 flex-shrink-0 bg-[#111218] p-4 flex flex-col justify-between border-r border-r-[#3b3f54] transform -translate-x-full lg:translate-x-0 transition-transform duration-300">
-            <div class="flex flex-col gap-4 lg:gap-8">
-                <!-- Close button in sidebar (Mobile/Tablet only) -->
-                <div class="lg:hidden flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                        <img src="https://info.tzuchi.org/favicon.svg" alt="TCurl Logo" style="width: 53px; height: 28px;">
-                        <div>
-                            <div class="flex items-center gap-1.5">
-                                <h1 class="text-white text-lg font-bold">TCurl</h1>
-                                <span class="px-1 py-0.5 text-[8px] font-bold bg-amber-500 text-black rounded">BETA</span>
-                            </div>
-                            <p class="text-white/90 text-xs">慈濟短網址</p>
-                        </div>
-                    </div>
-                    <button id="sidebarClose" class="text-white p-2 hover:bg-white/10 rounded-lg transition-colors">
-                        <span class="material-symbols-outlined text-2xl">close</span>
-                    </button>
-                </div>
-
-                <!-- Desktop logo -->
-                <div class="hidden lg:flex items-center gap-2 p-2">
-                    <img src="https://info.tzuchi.org/favicon.svg" alt="TCurl Logo" style="width: 76px; height: 40px;">
-                    <div>
-                        <div class="flex items-center gap-2">
-                            <h1 class="text-white text-xl font-bold">TCurl</h1>
-                            <span class="px-1.5 py-0.5 text-xs font-bold bg-amber-500 text-black rounded">BETA</span>
-                        </div>
-                        <p class="text-white/90 text-xs">慈濟短網址</p>
-                    </div>
-                </div>
-                <div class="flex flex-col gap-2">
-                    <a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-[#282b39] text-white" href="/">
-                        <span class="material-symbols-outlined text-white">home</span>
-                        <p class="text-sm font-medium leading-normal">首頁</p>
-                    </a>
-                    <a class="flex items-center gap-3 px-3 py-2 rounded-lg text-white hover:bg-[#282b39]" href="/links">
-                        <span class="material-symbols-outlined text-white">link</span>
-                        <p class="text-sm font-medium leading-normal">我的連結</p>
-                    </a>
-                    <a class="flex items-center gap-3 px-3 py-2 rounded-lg text-white hover:bg-[#282b39]" href="/analytics">
-                        <span class="material-symbols-outlined text-white">bar_chart</span>
-                        <p class="text-sm font-medium leading-normal">數據分析</p>
-                    </a>
-                    <a class="flex items-center gap-3 px-3 py-2 rounded-lg text-white hover:bg-[#282b39]" href="/feedback">
-                        <span class="material-symbols-outlined text-white">forum</span>
-                        <p class="text-sm font-medium leading-normal">社群建議</p>
-                    </a>
-                </div>
-                <!-- 使用者區塊 -->
-                <div id="userSection" class="hidden flex flex-col gap-2 pt-4 border-t border-white/10">
-                    <div class="flex items-center gap-3 px-3 py-2">
-                        <div id="userAvatar" class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center overflow-hidden">
-                            <span class="material-symbols-outlined text-primary text-lg">person</span>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <p class="text-white text-sm font-medium truncate" id="userDisplayName">使用者</p>
-                            <p class="text-white/80 text-xs truncate" id="userEmail">email@example.com</p>
-                        </div>
-                    </div>
-                    <button id="logoutBtn" class="flex items-center gap-3 px-3 py-2 rounded-lg text-white/90 hover:bg-red-500/20 hover:text-red-400 transition-colors">
-                        <span class="material-symbols-outlined">logout</span>
-                        <p class="text-sm font-medium leading-normal">登出</p>
-                    </button>
-                </div>
-
-                <!-- 登入按鈕（未登入時顯示）-->
-                <div id="loginSection" class="flex flex-col gap-2 pt-4 border-t border-white/10">
-                    <a href="/login.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-white hover:bg-primary/20 transition-colors">
-                        <span class="material-symbols-outlined">login</span>
-                        <p class="text-sm font-medium leading-normal">登入</p>
-                    </a>
-                    <a href="/register.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-white/90 hover:bg-white/10 transition-colors">
-                        <span class="material-symbols-outlined">person_add</span>
-                        <p class="text-sm font-medium leading-normal">註冊</p>
-                    </a>
-                </div>
-            </div>
-        </aside>
-
-        <!-- Mobile Overlay -->
-        <div id="overlay" class="lg:hidden fixed inset-0 bg-black/50 z-30 hidden"></div>
+        <tc-sidebar active="home"></tc-sidebar>
 
         <!-- Main Content -->
         <main class="flex-1 p-8 overflow-y-auto">
@@ -295,37 +213,22 @@
 
     <!-- Auth State Handler -->
     <script>
-        // 頁面需要登入
         async function initPage() {
-            // 檢查認證，未登入則導向登入頁
             const isAuthed = await requireAuth('/login.html')
             if (!isAuthed) return
 
-            // 顯示使用者資訊
-            const userSection = document.getElementById('userSection')
-            const loginSection = document.getElementById('loginSection')
-            const logoutBtn = document.getElementById('logoutBtn')
-
-            userSection.classList.remove('hidden')
-            loginSection.classList.add('hidden')
-
+            const sidebar = document.querySelector('tc-sidebar')
             const user = await auth.getUser()
             if (user) {
-                document.getElementById('userDisplayName').textContent = user.user_metadata?.full_name || user.user_metadata?.name || user.user_metadata?.display_name || user.email?.split('@')[0] || '使用者'
-                document.getElementById('userEmail').textContent = user.email || ''
-
-                // 顯示使用者頭像
-                const avatarUrl = user.user_metadata?.avatar_url || user.user_metadata?.picture
-                if (avatarUrl) {
-                    document.getElementById('userAvatar').innerHTML = `<img src="${avatarUrl}" alt="Avatar" class="w-full h-full object-cover">`
-                }
+                const name = user.user_metadata?.full_name || user.user_metadata?.name || user.user_metadata?.display_name || user.email?.split('@')[0] || '使用者'
+                const email = user.email || ''
+                const avatar = user.user_metadata?.avatar_url || user.user_metadata?.picture || null
+                sidebar.setUser({ name, email, avatar })
             }
 
-            // 登出按鈕
-            logoutBtn.addEventListener('click', async () => {
+            sidebar.addEventListener('tc-logout', async () => {
                 try {
                     await auth.signOut()
-                    // signOut 已處理重導向
                 } catch (error) {
                     console.error('Logout error:', error)
                     utils.showNotification('登出失敗', 'error')
@@ -333,43 +236,11 @@
             })
         }
 
-        // 頁面載入時檢查認證
         document.addEventListener('DOMContentLoaded', initPage)
     </script>
 
-    <!-- Mobile Menu Toggle Script -->
-    <script>
-        const menuToggle = document.getElementById('menuToggle')
-        const sidebarClose = document.getElementById('sidebarClose')
-        const sidebar = document.getElementById('sidebar')
-        const overlay = document.getElementById('overlay')
-
-        function openMenu() {
-            sidebar.classList.remove('-translate-x-full')
-            overlay.classList.remove('hidden')
-            menuToggle.classList.add('hidden')
-        }
-
-        function closeMenu() {
-            sidebar.classList.add('-translate-x-full')
-            overlay.classList.add('hidden')
-            menuToggle.classList.remove('hidden')
-        }
-
-        menuToggle.addEventListener('click', openMenu)
-        sidebarClose.addEventListener('click', closeMenu)
-        overlay.addEventListener('click', closeMenu)
-
-        // Close menu when clicking on nav links (mobile)
-        if (window.innerWidth < 1024) {
-            document.querySelectorAll('#sidebar a').forEach(link => {
-                link.addEventListener('click', () => {
-                    if (!sidebar.classList.contains('-translate-x-full')) {
-                        closeMenu()
-                    }
-                })
-            })
-        }
+    <script type="module">
+        import '/js/components/tc-sidebar.js';
     </script>
 </body>
 </html>

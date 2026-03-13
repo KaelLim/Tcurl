@@ -2,7 +2,7 @@
 <html class="dark" lang="zh-TW">
 <head>
     <meta charset="utf-8"/>
-    <link rel="icon" type="image/svg+xml" href="https://info.tzuchi.org/favicon.svg"/>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
     <title>社群建議 - TCurl</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
@@ -47,61 +47,11 @@
     </style>
 </head>
 <body class="bg-background-light dark:bg-background-dark font-display">
+    <button data-sidebar-toggle class="lg:hidden fixed top-4 left-4 z-50 text-white p-3 bg-[#111218] hover:bg-[#1a1d2e] rounded-lg transition-colors shadow-lg border border-white/10">
+        <span class="material-symbols-outlined text-2xl">menu</span>
+    </button>
     <div class="flex h-screen overflow-hidden">
-        <!-- SideNavBar -->
-        <aside class="w-64 flex-shrink-0 bg-[#111218] p-4 flex flex-col justify-between border-r border-r-[#3b3f54] h-full overflow-y-auto">
-            <div class="flex flex-col gap-8">
-                <div class="flex items-center gap-2 p-2">
-                    <img src="https://info.tzuchi.org/favicon.svg" alt="TCurl Logo" style="width: 76px; height: 40px;">
-                    <div>
-                        <div class="flex items-center gap-2">
-                            <h1 class="text-white text-xl font-bold">TCurl</h1>
-                            <span class="px-1.5 py-0.5 text-xs font-bold bg-amber-500 text-black rounded">BETA</span>
-                        </div>
-                        <p class="text-white/90 text-xs">慈濟短網址</p>
-                    </div>
-                </div>
-                <div class="flex flex-col gap-2">
-                    <a class="flex items-center gap-3 px-3 py-2 rounded-lg text-white hover:bg-[#282b39]" href="/">
-                        <span class="material-symbols-outlined text-white">home</span>
-                        <p class="text-sm font-medium leading-normal">首頁</p>
-                    </a>
-                    <a class="flex items-center gap-3 px-3 py-2 rounded-lg text-white hover:bg-[#282b39]" href="/links">
-                        <span class="material-symbols-outlined text-white">link</span>
-                        <p class="text-sm font-medium leading-normal">我的連結</p>
-                    </a>
-                    <a class="flex items-center gap-3 px-3 py-2 rounded-lg text-white hover:bg-[#282b39]" href="/analytics">
-                        <span class="material-symbols-outlined text-white">bar_chart</span>
-                        <p class="text-sm font-medium leading-normal">數據分析</p>
-                    </a>
-                    <a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-[#282b39] text-white" href="/feedback">
-                        <span class="material-symbols-outlined text-white">forum</span>
-                        <p class="text-sm font-medium leading-normal">社群建議</p>
-                    </a>
-                </div>
-                <!-- 使用者區塊 -->
-                <div id="userSection" class="hidden flex flex-col gap-2 pt-4 border-t border-white/10">
-                    <div class="flex items-center gap-3 px-3 py-2">
-                        <div id="userAvatar" class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center overflow-hidden">
-                            <span class="material-symbols-outlined text-primary text-lg">person</span>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <p class="text-white text-sm font-medium truncate" id="userDisplayName">使用者</p>
-                            <p class="text-white/80 text-xs truncate" id="userEmail">email@example.com</p>
-                        </div>
-                    </div>
-                    <button id="logoutBtn" class="flex items-center gap-3 px-3 py-2 rounded-lg text-white/90 hover:bg-red-500/20 hover:text-red-400 transition-colors">
-                        <span class="material-symbols-outlined">logout</span>
-                        <p class="text-sm font-medium leading-normal">登出</p>
-                    </button>
-                </div>
-            </div>
-            <div class="flex flex-col gap-4">
-                <button id="newFeedbackBtn" class="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90">
-                    <span class="truncate">發表建議</span>
-                </button>
-            </div>
-        </aside>
+        <tc-sidebar active="feedback"></tc-sidebar>
 
         <!-- Main Content -->
         <main class="flex-1 p-8 overflow-y-auto">
@@ -237,6 +187,9 @@
     </div>
 
     <!-- Scripts -->
+    <script type="module">
+        import '/js/components/tc-sidebar.js';
+    </script>
     <script src="/js/auth.js"></script>
     <script src="/js/api.js"></script>
     <script>
@@ -455,9 +408,6 @@
             searchTimeout = setTimeout(searchFeedbacks, 300);
         });
 
-        // New feedback button
-        document.getElementById('newFeedbackBtn').addEventListener('click', openNewFeedbackModal);
-
         // Close modal on escape
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') closeNewFeedbackModal();
@@ -480,28 +430,22 @@
                 return;
             }
 
-            // Show user section
-            document.getElementById('userSection').classList.remove('hidden');
-
-            // Get user info
-            const user = await auth.getUser();
+            const sidebar = document.querySelector('tc-sidebar')
+            const user = await auth.getUser()
             if (user) {
-                const meta = user.user_metadata || {};
-                const displayName = meta.chinese_firstname && meta.chinese_lastname
-                    ? `${meta.chinese_lastname}${meta.chinese_firstname}`
-                    : meta.display_name || meta.name || user.email?.split('@')[0];
-                document.getElementById('userDisplayName').textContent = displayName;
-                document.getElementById('userEmail').textContent = user.email;
+                const name = user.user_metadata?.full_name || user.user_metadata?.name || user.user_metadata?.display_name || user.email?.split('@')[0] || '使用者'
+                const email = user.email || ''
+                const avatar = user.user_metadata?.avatar_url || user.user_metadata?.picture || null
+                sidebar.setUser({ name, email, avatar })
             }
 
-            // Logout handler
-            document.getElementById('logoutBtn').addEventListener('click', async () => {
+            sidebar.addEventListener('tc-logout', async () => {
                 try {
-                    await auth.signOut();
+                    await auth.signOut()
                 } catch (error) {
-                    console.error('Logout error:', error);
+                    console.error('Logout error:', error)
                 }
-            });
+            })
 
             // Load feedbacks
             loadFeedbacks();

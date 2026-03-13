@@ -2,65 +2,62 @@
  * TCurl Page Header Component
  *
  * @element tc-page-header
- * @attr {string} title - 頁面標題
- * @attr {string} subtitle - 頁面副標題/描述
+ * @attr {string} title - Page title
+ * @attr {string} description - Page description/subtitle
  *
- * @slot actions - 右側操作按鈕區
+ * @slot actions - Right-aligned action buttons
  *
  * @example
- * <tc-page-header title="My Links" subtitle="Manage your short URLs">
- *   <tc-button slot="actions" variant="primary" icon="add">Create New</tc-button>
+ * <tc-page-header title="我的連結" description="管理您建立的所有短網址">
+ *   <button slot="actions">新增</button>
  * </tc-page-header>
  */
-
 import { TCElement } from './base.js';
 
 const styles = `
   :host {
     display: block;
-    margin-bottom: var(--tc-spacing-lg);
+    margin-bottom: var(--tc-spacing-xl);
   }
 
   .header {
     display: flex;
     flex-wrap: wrap;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     gap: var(--tc-spacing-md);
   }
 
-  .text {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .title {
+  .text h1 {
     font-size: var(--tc-font-size-4xl);
     font-weight: 900;
     color: var(--tc-text-primary);
     line-height: 1.2;
     letter-spacing: -0.033em;
-    margin: 0;
   }
 
-  .subtitle {
+  .text p {
     font-size: var(--tc-font-size-base);
-    font-weight: 400;
-    color: var(--tc-text-hint);
-    margin: 0;
+    color: var(--tc-text-secondary);
+    margin-top: var(--tc-spacing-xs);
   }
 
   .actions {
     display: flex;
-    align-items: center;
     gap: var(--tc-spacing-sm);
+    align-items: center;
+  }
+
+  @media (max-width: 640px) {
+    .text h1 {
+      font-size: var(--tc-font-size-3xl);
+    }
   }
 `;
 
 export class TCPageHeader extends TCElement {
   static get observedAttributes() {
-    return ['title', 'subtitle'];
+    return ['title', 'description'];
   }
 
   connectedCallback() {
@@ -68,27 +65,23 @@ export class TCPageHeader extends TCElement {
   }
 
   attributeChangedCallback() {
-    this.render();
+    if (this.isConnected) this.render();
   }
 
   render() {
     const title = this.getAttribute('title') || '';
-    const subtitle = this.getAttribute('subtitle');
-
-    const subtitleHtml = subtitle
-      ? `<p class="subtitle">${subtitle}</p>`
-      : '';
+    const description = this.getAttribute('description') || '';
 
     this.setContent(styles, `
-      <header class="header">
+      <div class="header">
         <div class="text">
-          <h1 class="title">${title}</h1>
-          ${subtitleHtml}
+          <h1>${title}</h1>
+          ${description ? `<p>${description}</p>` : ''}
         </div>
         <div class="actions">
           <slot name="actions"></slot>
         </div>
-      </header>
+      </div>
     `);
   }
 }
