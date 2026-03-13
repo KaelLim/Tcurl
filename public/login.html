@@ -2,7 +2,7 @@
 <html class="dark" lang="zh-TW">
 <head>
     <meta charset="utf-8"/>
-    <link rel="icon" type="image/svg+xml" href="https://info.tzuchi.org/favicon.svg"/>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
     <title>登入 - TCurl 慈濟短網址服務</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
@@ -48,11 +48,11 @@
         <!-- Logo & Title -->
         <div class="flex flex-col items-center gap-4 mb-8">
             <div class="flex items-center gap-3">
-                <img src="https://info.tzuchi.org/favicon.svg" alt="TCurl Logo" class="w-16 h-auto">
+                <img src="/favicon.svg" alt="TCurl Logo" class="w-16 h-auto">
                 <div>
                     <div class="flex items-center gap-2">
                         <h1 class="text-white text-3xl font-bold">TCurl</h1>
-                        <span class="px-1.5 py-0.5 text-xs font-bold bg-amber-500 text-black rounded">BETA</span>
+                        <span class="px-1.5 py-0.5 text-xs font-bold bg-blue-500 text-white rounded">v1.0.0</span>
                     </div>
                     <p class="text-white/90 text-sm">慈濟短網址服務</p>
                 </div>
@@ -62,55 +62,45 @@
         <!-- Main Content -->
         <div class="rounded-xl border border-white/10 bg-white/5 shadow-2xl shadow-black/20 overflow-hidden">
             <div class="grid md:grid-cols-2">
-                <!-- Left: System Info -->
-                <div class="p-6 sm:p-8 border-b md:border-b-0 md:border-r border-white/10">
+                <!-- Left: About -->
+                <div class="p-6 sm:p-8 border-b md:border-b-0 md:border-r border-white/10 flex flex-col justify-center">
                     <div class="flex items-center gap-2 mb-4">
                         <span class="material-symbols-outlined text-primary">info</span>
-                        <h2 class="text-white text-xl font-bold">系統公告</h2>
-                    </div>
-
-                    <!-- Notice Banner -->
-                    <div class="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 mb-6">
-                        <p class="text-amber-400 text-sm">
-                            目前為<strong>測試階段</strong>，請勿作為正式平台使用。
-                        </p>
+                        <h2 class="text-white text-xl font-bold">關於平台</h2>
                     </div>
 
                     <p class="text-white/80 text-sm mb-6 leading-relaxed">
-                        感謝您使用慈濟短網址平台。依據執行長建議及資安政策，系統將進行以下調整：
+                        慈濟短網址平台提供安全、便捷的短網址與 QR Code 產製服務，整合慈濟員工帳號認證，符合組織資安政策。
                     </p>
 
                     <div class="space-y-4">
-                        <!-- Item 1 - 已完成 -->
-                        <div class="flex gap-3">
-                            <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-green-500/20 flex items-center justify-center">
-                                <span class="material-symbols-outlined text-green-400 text-lg">check_circle</span>
-                            </div>
-                            <div>
-                                <h3 class="text-white text-sm font-medium">帳號系統 ✓</h3>
-                                <p class="text-white/80 text-xs mt-0.5">整合慈濟員工帳號，停用 Gmail 及一般帳密登入</p>
-                            </div>
-                        </div>
-
-                        <!-- Item 2 -->
                         <div class="flex gap-3">
                             <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
                                 <span class="material-symbols-outlined text-primary text-lg">link</span>
                             </div>
                             <div>
-                                <h3 class="text-white text-sm font-medium">網址優化</h3>
-                                <p class="text-white/80 text-xs mt-0.5">評估更簡短、易識別的短網址域名</p>
+                                <h3 class="text-white text-sm font-medium">短網址管理</h3>
+                                <p class="text-white/80 text-xs mt-0.5">快速建立、編輯及追蹤短網址使用狀況</p>
                             </div>
                         </div>
 
-                        <!-- Item 3 -->
                         <div class="flex gap-3">
                             <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
                                 <span class="material-symbols-outlined text-primary text-lg">qr_code_2</span>
                             </div>
                             <div>
-                                <h3 class="text-white text-sm font-medium">QR Code 識別</h3>
-                                <p class="text-white/80 text-xs mt-0.5">規劃導入慈濟標準 Logo 提升識別度</p>
+                                <h3 class="text-white text-sm font-medium">QR Code 產製</h3>
+                                <p class="text-white/80 text-xs mt-0.5">自訂樣式與 Logo，提升品牌識別度</p>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-3">
+                            <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
+                                <span class="material-symbols-outlined text-primary text-lg">analytics</span>
+                            </div>
+                            <div>
+                                <h3 class="text-white text-sm font-medium">數據分析</h3>
+                                <p class="text-white/80 text-xs mt-0.5">即時瀏覽點擊數據與趨勢報表</p>
                             </div>
                         </div>
                     </div>
