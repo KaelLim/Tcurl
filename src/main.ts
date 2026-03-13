@@ -233,28 +233,32 @@ app.get('/*', async (c) => {
       },
     });
   } catch {
-    // 如果是目錄，嘗試 index.html
     if (!path.includes('.')) {
+      // 嘗試 .html（隱藏副檔名：/login → /login.html）
+      try {
+        const file = await Deno.readFile(`./public${path}.html`);
+        return new Response(file, {
+          headers: { 'Content-Type': 'text/html; charset=utf-8' },
+        });
+      } catch { /* continue */ }
+
+      // 嘗試目錄 index.html（/docs → /docs/index.html）
       try {
         const indexPath = path.endsWith('/') ? `${path}index.html` : `${path}/index.html`;
         const file = await Deno.readFile(`./public${indexPath}`);
         return new Response(file, {
-          headers: {
-            'Content-Type': 'text/html; charset=utf-8',
-          },
+          headers: { 'Content-Type': 'text/html; charset=utf-8' },
+        });
+      } catch { /* continue */ }
+
+      // SPA fallback
+      try {
+        const content = await Deno.readFile('./public/index.html');
+        return new Response(content, {
+          headers: { 'Content-Type': 'text/html; charset=utf-8' },
         });
       } catch {
-        // Fallback to index.html for SPA routes
-        try {
-          const content = await Deno.readFile('./public/index.html');
-          return new Response(content, {
-            headers: {
-              'Content-Type': 'text/html; charset=utf-8',
-            },
-          });
-        } catch {
-          return c.text('Not Found', 404);
-        }
+        return c.text('Not Found', 404);
       }
     }
     return c.text('Not Found', 404);

@@ -1160,7 +1160,7 @@ urlRoutes.get('/feedback/:id', async (c) => {
 });
 
 urlRoutes.get('/docs', async (c) => {
-  const content = await Deno.readTextFile('./public/docs.html');
+  const content = await Deno.readTextFile('./public/docs/index.html');
   return c.html(content);
 });
 

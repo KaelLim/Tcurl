@@ -52,4 +52,6 @@ backups/*.sql
 # 壓力測試報告
 reports/
 .clinic/
+
+# 執行時狀態檔
 .click-log-position

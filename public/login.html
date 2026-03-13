@@ -44,114 +44,51 @@
     </style>
 </head>
 <body class="bg-background-light dark:bg-background-dark font-display min-h-screen flex items-center justify-center p-4">
-    <div class="w-full max-w-5xl">
+    <div class="w-full max-w-sm">
         <!-- Logo & Title -->
         <div class="flex flex-col items-center gap-4 mb-8">
-            <div class="flex items-center gap-3">
-                <img src="/favicon.svg" alt="TCurl Logo" class="w-16 h-auto">
-                <div>
-                    <div class="flex items-center gap-2">
-                        <h1 class="text-white text-3xl font-bold">TCurl</h1>
-                        <span id="version-badge" class="px-1.5 py-0.5 text-xs font-bold bg-blue-500 text-white rounded"></span>
-                    </div>
-                    <p class="text-white/90 text-sm">慈濟短網址服務</p>
+            <img src="/favicon.svg" alt="TCurl Logo" class="w-16 h-auto">
+            <div class="text-center">
+                <div class="flex items-center justify-center gap-2">
+                    <h1 class="text-white text-3xl font-bold">TCurl</h1>
+                    <span id="version-badge" class="px-1.5 py-0.5 text-xs font-bold bg-blue-500 text-white rounded"></span>
                 </div>
+                <p class="text-white/60 text-sm mt-1">慈濟短網址服務</p>
             </div>
         </div>
 
-        <!-- Main Content -->
-        <div class="rounded-xl border border-white/10 bg-white/5 shadow-2xl shadow-black/20 overflow-hidden">
-            <div class="grid md:grid-cols-2">
-                <!-- Left: About -->
-                <div class="p-6 sm:p-8 border-b md:border-b-0 md:border-r border-white/10 flex flex-col justify-center">
-                    <div class="flex items-center gap-2 mb-4">
-                        <span class="material-symbols-outlined text-primary">info</span>
-                        <h2 class="text-white text-xl font-bold">關於平台</h2>
-                    </div>
+        <!-- Login Card -->
+        <div class="rounded-xl border border-white/10 bg-white/5 shadow-2xl shadow-black/20 p-6 sm:p-8">
+            <!-- Error Message -->
+            <div id="errorMessage" class="hidden mb-4 p-3 rounded-lg bg-red-500/20 border border-red-500/50 text-red-400 text-sm">
+            </div>
 
-                    <p class="text-white/80 text-sm mb-6 leading-relaxed">
-                        慈濟短網址平台提供安全、便捷的短網址與 QR Code 產製服務，整合慈濟員工帳號認證，符合組織資安政策。
-                    </p>
+            <p class="text-white/70 text-sm mb-6 text-center">
+                請使用慈濟員工帳號進行登入
+            </p>
 
-                    <div class="space-y-4">
-                        <div class="flex gap-3">
-                            <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
-                                <span class="material-symbols-outlined text-primary text-lg">link</span>
-                            </div>
-                            <div>
-                                <h3 class="text-white text-sm font-medium">短網址管理</h3>
-                                <p class="text-white/80 text-xs mt-0.5">快速建立、編輯及追蹤短網址使用狀況</p>
-                            </div>
-                        </div>
+            <!-- Keycloak Login Button -->
+            <button
+                type="button"
+                id="keycloakLoginBtn"
+                class="flex w-full cursor-pointer items-center justify-center gap-3 rounded-lg h-14 px-5 bg-primary hover:bg-blue-600 transition-colors text-white text-lg font-medium shadow-[0_0_20px_theme(colors.primary/0.4)]"
+            >
+                <span class="material-symbols-outlined text-2xl">badge</span>
+                <span id="keycloakBtnText">慈濟員工登入</span>
+                <span id="keycloakBtnLoading" class="hidden">
+                    <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </span>
+            </button>
 
-                        <div class="flex gap-3">
-                            <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
-                                <span class="material-symbols-outlined text-primary text-lg">qr_code_2</span>
-                            </div>
-                            <div>
-                                <h3 class="text-white text-sm font-medium">QR Code 產製</h3>
-                                <p class="text-white/80 text-xs mt-0.5">自訂樣式與 Logo，提升品牌識別度</p>
-                            </div>
-                        </div>
-
-                        <div class="flex gap-3">
-                            <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
-                                <span class="material-symbols-outlined text-primary text-lg">analytics</span>
-                            </div>
-                            <div>
-                                <h3 class="text-white text-sm font-medium">數據分析</h3>
-                                <p class="text-white/80 text-xs mt-0.5">即時瀏覽點擊數據與趨勢報表</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Right: Login -->
-                <div class="p-6 sm:p-8 flex flex-col justify-center">
-                    <div class="flex items-center gap-2 mb-6">
-                        <span class="material-symbols-outlined text-primary">login</span>
-                        <h2 class="text-white text-xl font-bold">帳號登入</h2>
-                    </div>
-
-                    <!-- Error Message -->
-                    <div id="errorMessage" class="hidden mb-4 p-3 rounded-lg bg-red-500/20 border border-red-500/50 text-red-400 text-sm">
-                    </div>
-
-                    <p class="text-white/90 text-sm mb-6">
-                        請使用慈濟員工帳號進行登入，系統將透過內部認證服務驗證您的身份。
-                    </p>
-
-                    <!-- Keycloak Login Button -->
-                    <button
-                        type="button"
-                        id="keycloakLoginBtn"
-                        class="flex w-full cursor-pointer items-center justify-center gap-3 rounded-lg h-14 px-5 bg-primary hover:bg-blue-600 transition-colors text-white text-lg font-medium shadow-[0_0_20px_theme(colors.primary/0.4)]"
-                    >
-                        <span class="material-symbols-outlined text-2xl">badge</span>
-                        <span id="keycloakBtnText">慈濟員工登入</span>
-                        <span id="keycloakBtnLoading" class="hidden">
-                            <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                        </span>
-                    </button>
-
-                    <div class="flex items-center gap-2 mt-4 text-white/80 text-xs">
-                        <span class="material-symbols-outlined text-sm">shield</span>
-                        <span>透過慈濟內部認證系統安全登入</span>
-                    </div>
-                </div>
+            <div class="flex items-center justify-center gap-2 mt-4 text-white/50 text-xs">
+                <span class="material-symbols-outlined text-sm">shield</span>
+                <span>透過慈濟內部認證系統安全登入</span>
             </div>
         </div>
 
-        <!-- Back to Home -->
-        <div class="mt-6 text-center">
-            <a href="/" class="text-white/80 hover:text-white/90 text-sm transition-colors inline-flex items-center gap-1">
-                <span class="material-symbols-outlined text-lg">arrow_back</span>
-                返回首頁
-            </a>
-        </div>
     </div>
 
     <!-- Auth Script -->
