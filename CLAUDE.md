@@ -71,6 +71,7 @@ Hono (src/main.ts)
 |------|---------|
 | `src/main.ts` | Hono app entry, middleware (CSP, CORS, logging), static serving |
 | `src/routes/urls.ts` | All URL CRUD, QR code, stats, password protection, redirect logic |
+| `src/routes/feedbacks.ts` | Community feedback/suggestion routes |
 | `src/services/supabase.ts` | Supabase clients (service + user factory) |
 | `src/services/click-log-watcher.ts` | Monitors Nginx logs and records cache HIT clicks |
 | `src/utils/html-templates.ts` | Password prompt, expired, ad interstitial pages |
@@ -85,6 +86,13 @@ Hono (src/main.ts)
 **Views**:
 - `url_total_stats` - aggregated total clicks per URL
 - `url_daily_stats` - daily breakdown
+
+## Code Conventions
+
+- **Formatting**: 2-space indent, single quotes, 100-char line width (configured in `deno.json`)
+- **Imports**: Use `.ts` extension in import paths (e.g., `import { urlRoutes } from './routes/urls.ts'`)
+- **Lint scope**: Only `src/main.ts`, `src/routes/`, `src/services/`, `src/utils/` are linted; `public/js/` and `src/types/` are excluded
+- **Tests**: Place test files as `*_test.ts` in `src/` or in the `tests/` directory
 
 ## Known Gotchas
 
@@ -108,6 +116,7 @@ When adding new external resources, update CSP in `src/main.ts`:
 - `imgSrc` - for images
 - `styleSrc` - for CSS
 - `scriptSrc` - for JS
+- `connectSrc` - for fetch/XHR targets
 
 ### 5. Nginx Caching
 Only `/s/*` routes are cached by Nginx. API, static files, and other routes bypass cache.
