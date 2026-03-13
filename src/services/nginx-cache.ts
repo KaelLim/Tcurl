@@ -1,49 +1,76 @@
 /**
  * Nginx 快取清除服務 - Deno 版本
  *
- * 用於在更新或刪除短網址時清除 Nginx proxy_cache
- * 快取鍵格式：shorturl/s/{code}（固定前綴，不依賴 Host header）
+ * 直接刪除 Nginx proxy_cache 快取檔案來清除快取。
+ * 快取鍵格式：shorturl/s/{code}
+ * 快取路徑：/var/cache/nginx/shorturl（levels=1:2）
  *
  * @module services/nginx-cache
  */
 
-const NGINX_PURGE_BASE_URL = 'http://127.0.0.1:8080/purge/s';
+import { crypto } from '@std/crypto';
+import { encodeHex } from '@std/encoding/hex';
+
+const CACHE_DIR = '/var/cache/nginx/shorturl';
+
+/**
+ * 計算快取檔案路徑
+ *
+ * Nginx proxy_cache levels=1:2 的檔案路徑規則：
+ * MD5(cache_key) → 取最後 1 字元為第一層目錄，倒數 2-3 字元為第二層目錄
+ * 例如：MD5 = "2e0303a643735c8c9b766448b73dd09d"
+ *       路徑 = "d/09/2e0303a643735c8c9b766448b73dd09d"
+ */
+async function getCacheFilePath(shortCode: string): Promise<string> {
+  const cacheKey = `shorturl/s/${shortCode}`;
+  const data = new TextEncoder().encode(cacheKey);
+  const hashBuffer = await crypto.subtle.digest('MD5', data);
+  const md5 = encodeHex(new Uint8Array(hashBuffer));
+
+  // levels=1:2 → 最後 1 字元 / 倒數 2-3 字元 / 完整 hash
+  const level1 = md5.slice(-1);
+  const level2 = md5.slice(-3, -1);
+
+  return `${CACHE_DIR}/${level1}/${level2}/${md5}`;
+}
 
 /**
  * 清除指定短網址的 Nginx 快取
+ *
+ * 直接刪除快取檔案，下次請求時 Nginx 會自動從後端取得最新回應。
  *
  * @param shortCode 短網址代碼
  * @returns 是否成功清除
  */
 export async function purgeNginxCache(shortCode: string): Promise<boolean> {
   try {
-    const purgeUrl = `${NGINX_PURGE_BASE_URL}/${shortCode}`;
-    // 快取鍵使用固定前綴 "shorturl"，不需要特殊 Host header
-    const response = await fetch(purgeUrl, {
-      method: 'GET',
-    });
+    const filePath = await getCacheFilePath(shortCode);
 
-    if (response.ok) {
-      console.log(`Nginx cache purged for short code: ${shortCode}`);
+    try {
+      await Deno.remove(filePath);
+      console.log(`Nginx cache purged: ${filePath} (short code: ${shortCode})`);
       return true;
+    } catch (err) {
+      if (err instanceof Deno.errors.NotFound) {
+        console.debug(`No Nginx cache file for short code: ${shortCode}`);
+        return true; // 沒有快取也算成功
+      }
+      // 權限不足時嘗試用 sudo
+      if (err instanceof Deno.errors.PermissionDenied) {
+        const cmd = new Deno.Command('sudo', {
+          args: ['rm', '-f', filePath],
+        });
+        const result = await cmd.output();
+        if (result.success) {
+          console.log(`Nginx cache purged (sudo): ${filePath} (short code: ${shortCode})`);
+          return true;
+        }
+        console.error(`Failed to purge Nginx cache (sudo) for ${shortCode}`);
+        return false;
+      }
+      throw err;
     }
-
-    // 404 表示快取不存在，也算成功（無需清除）
-    if (response.status === 404) {
-      console.debug(`No Nginx cache found for short code: ${shortCode}`);
-      return true;
-    }
-
-    // 403 表示被拒絕（非本機請求）
-    if (response.status === 403) {
-      console.warn(`Nginx cache purge denied for ${shortCode}: not from localhost`);
-      return false;
-    }
-
-    console.warn(`Failed to purge Nginx cache for ${shortCode}: HTTP ${response.status}`);
-    return false;
   } catch (error) {
-    // 網路錯誤不應該阻止主要操作
     console.error(`Error purging Nginx cache for short code: ${shortCode}`, error);
     return false;
   }

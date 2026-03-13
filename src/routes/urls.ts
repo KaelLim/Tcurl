@@ -641,6 +641,7 @@ urlRoutes.get('/s/:shortCode', async (c) => {
       });
 
     console.log(`Redirect: ${shortCode} -> ${data.original_url}`);
+    c.header('Cache-Control', 'no-cache');
     return c.redirect(data.original_url, 302);
   } catch (err) {
     console.error('Redirect error:', err);
