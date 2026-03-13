@@ -2,48 +2,13 @@
 <html class="dark" lang="zh-TW">
 <head>
     <meta charset="utf-8"/>
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
     <title>編輯連結 - TCurl 慈濟短網址服務</title>
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <link href="https://fonts.googleapis.com" rel="preconnect"/>
-    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet"/>
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+    <script src="/js/components/tc-head-meta.js"></script>
+    <tc-head-meta></tc-head-meta>
     <!-- QR Code Styling Library -->
     <script type="text/javascript" src="https://unpkg.com/qr-code-styling@1.5.0/lib/qr-code-styling.js" integrity="sha384-CHvehSuS0IW8Qj9IlAETJXbHf/SEi62VXMgODXi9p3CC3NUIuThj1Y0uAFnl30VB" crossorigin="anonymous"></script>
-    <script>
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    colors: {
-                        "primary": "#1337ec",
-                        "background-light": "#f6f6f8",
-                        "background-dark": "#101322",
-                    },
-                    fontFamily: {
-                        "display": ["Space Grotesk", "sans-serif"]
-                    },
-                    borderRadius: {
-                        "DEFAULT": "0.25rem",
-                        "lg": "0.5rem",
-                        "xl": "0.75rem",
-                        "full": "9999px"
-                    },
-                },
-            },
-        }
-    </script>
     <style>
-        .material-symbols-outlined {
-            font-variation-settings:
-            'FILL' 0,
-            'wght' 400,
-            'GRAD' 0,
-            'opsz' 24
-        }
-
         /* 強制 datetime-local 輸入框使用深色主題 */
         input[type="datetime-local"] {
             color-scheme: dark;
@@ -72,17 +37,14 @@
         <!-- Main Content -->
         <main class="flex-1 p-8 overflow-y-auto">
             <div class="max-w-6xl mx-auto">
-                <!-- Page Heading -->
-                <div class="flex flex-wrap justify-between gap-4 mb-8">
-                    <div>
-                        <div class="flex items-center gap-2 text-white/90 text-sm mb-2">
-                            <a href="/links" class="hover:text-white transition-colors">我的連結</a>
-                            <span>/</span>
-                            <span class="text-white">編輯</span>
-                        </div>
-                        <h1 class="text-white text-4xl font-black leading-tight tracking-[-0.033em]">編輯連結</h1>
-                    </div>
-                    <div class="flex gap-3">
+                <!-- Breadcrumb -->
+                <div class="flex items-center gap-2 text-white/90 text-sm mb-2">
+                    <a href="/links" class="hover:text-white transition-colors">我的連結</a>
+                    <span>/</span>
+                    <span class="text-white">編輯</span>
+                </div>
+                <tc-page-header title="編輯連結">
+                    <div slot="actions" class="flex gap-3">
                         <button id="cancelBtn" class="flex h-12 items-center justify-center gap-2 px-6 rounded-lg border border-white/20 bg-transparent hover:bg-white/5 text-white transition-colors">
                             <span class="material-symbols-outlined text-xl">close</span>
                             <span>取消</span>
@@ -92,7 +54,7 @@
                             <span>儲存變更</span>
                         </button>
                     </div>
-                </div>
+                </tc-page-header>
 
                 <!-- Main Content Grid -->
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -328,6 +290,7 @@
 
     <script type="module">
         import '/js/components/tc-sidebar.js';
+        import '/js/components/tc-page-header.js';
     </script>
 </body>
 </html>
