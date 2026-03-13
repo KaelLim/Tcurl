@@ -2,29 +2,25 @@
   {
     "version": "1.1.1",
     "date": "2026-03-13",
-    "title": "登入頁簡化與路由修復",
+    "title": "介面優化與快取修復",
     "changes": [
-      { "type": "feat", "text": "新增更新日誌頁面（/changelog），GitBook 風格設計" },
-      { "type": "feat", "text": "API 文檔頁使用各工具官方 icon（本地化）" },
-      { "type": "fix", "text": "登入頁簡化為專業登入介面，移除平台功能介紹" },
-      { "type": "fix", "text": "/docs 路由 500 錯誤修復" },
-      { "type": "fix", "text": "靜態檔案處理改進：Deno 端支援 .html 副檔名隱藏" },
-      { "type": "chore", "text": ".click-log-position 加入 .gitignore" }
+      { "type": "feat", "text": "新增更新日誌頁面，方便查看歷次版本變更" },
+      { "type": "update", "text": "登入頁面簡化，提供更清爽的登入體驗" },
+      { "type": "update", "text": "API 文檔頁加入各工具官方圖示" },
+      { "type": "update", "text": "頁面元件化，提升整體一致性與載入效能" },
+      { "type": "fix", "text": "修復短網址設定變更後快取未即時更新的問題" }
     ]
   },
   {
     "version": "1.1.0",
     "date": "2026-03-13",
-    "title": "Web Components 重構與快取修復",
+    "title": "介面統一與版本管理",
     "changes": [
-      { "type": "feat", "text": "Web Components 重構：tc-sidebar、tc-page-header、tc-head-meta 組件化" },
-      { "type": "feat", "text": "全站 favicon 統一使用本地 /favicon.svg" },
-      { "type": "feat", "text": "版本號集中管理：deno.json 為唯一來源，前端 badge 自動同步" },
-      { "type": "feat", "text": "server-rendered 頁面共用 htmlHead() 模板" },
-      { "type": "fix", "text": "Nginx cache purge 改為直接刪除快取檔案（取代不可用的 purge 模組）" },
-      { "type": "fix", "text": "加入 Cache-Control header 防止上游代理快取過期資料" },
-      { "type": "update", "text": "登入頁移除 BETA 系統公告，改為平台特色介紹" },
-      { "type": "update", "text": "API 文檔頁使用各工具官方 icon" }
+      { "type": "feat", "text": "側邊欄、頁首等共用元件統一管理，各頁面風格更一致" },
+      { "type": "feat", "text": "版本號自動同步顯示，不再需要手動更新" },
+      { "type": "update", "text": "全站圖示統一使用本地檔案，加快載入速度" },
+      { "type": "update", "text": "BETA 標籤升級為正式版本標示" },
+      { "type": "fix", "text": "修復上游代理快取導致設定變更延遲生效的問題" }
     ]
   },
   {
@@ -32,18 +28,14 @@
     "date": "2026-03-10",
     "title": "正式版本發佈",
     "changes": [
-      { "type": "feat", "text": "短網址建立、編輯、刪除" },
-      { "type": "feat", "text": "QR Code 產生與自訂樣式" },
+      { "type": "feat", "text": "短網址建立、編輯、刪除與管理" },
+      { "type": "feat", "text": "QR Code 產生，支援自訂樣式與 Logo" },
       { "type": "feat", "text": "密碼保護與過期時間設定" },
-      { "type": "feat", "text": "點擊追蹤與分析儀表板（含每日趨勢圖）" },
+      { "type": "feat", "text": "點擊數據追蹤與分析儀表板" },
       { "type": "feat", "text": "廣告插頁功能" },
-      { "type": "feat", "text": "社群回饋系統" },
-      { "type": "feat", "text": "Keycloak OIDC 身份驗證（含 Google OAuth）" },
-      { "type": "feat", "text": "API 文檔：Swagger UI / RapiDoc / Scalar" },
-      { "type": "feat", "text": "Nginx 快取加速短網址重導向" },
-      { "type": "feat", "text": "ClickWatcher 透過 Nginx log 記錄快取命中的點擊" },
-      { "type": "refactor", "text": "移除 Redis，簡化為純 Nginx 快取架構" },
-      { "type": "refactor", "text": "從 Node.js + Fastify 遷移至 Deno 2.x + Hono" }
+      { "type": "feat", "text": "社群建議回饋系統" },
+      { "type": "feat", "text": "慈濟員工帳號登入（含 Google 登入）" },
+      { "type": "feat", "text": "API 文檔：Swagger UI / RapiDoc / Scalar 三種檢視方式" }
     ]
   }
 ]
