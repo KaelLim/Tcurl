@@ -121,9 +121,6 @@ export function renderPasswordPage(shortCode: string, isQrScan: boolean = false)
                 </button>
             </form>
 
-            <div class="mt-6 text-center">
-                <a href="/" class="text-white/60 hover:text-white text-sm transition-colors">返回首頁</a>
-            </div>
         </div>
     </div>
 
@@ -197,12 +194,99 @@ export function renderNotFoundPage(_shortCode: string): string {
                 </div>
             </div>
 
-            <h1 class="text-white text-2xl font-bold text-center mb-2">短網址不存在</h1>
-            <p class="text-white/60 text-sm text-center mb-8">此短網址可能已被刪除或從未建立</p>
+            <h1 class="text-white text-2xl font-bold text-center mb-2">此短網址不存在或已失效</h1>
+            <p class="text-white/60 text-sm text-center">此連結可能已被移除，或網址輸入有誤</p>
+        </div>
+    </div>
+</body>
+</html>`
+}
 
-            <div class="mt-6 text-center">
-                <a href="/" class="text-white/60 hover:text-white text-sm transition-colors">返回首頁</a>
+export function renderRateLimitPage(retryAfter: number): string {
+  return `<!DOCTYPE html>
+<html class="dark" lang="zh-TW">
+<head>
+    ${htmlHead('請求過於頻繁')}
+</head>
+<body class="bg-background-dark font-display min-h-screen flex items-center justify-center p-4">
+    <div class="max-w-md w-full">
+        <div class="bg-white/5 border border-white/10 rounded-xl p-8 shadow-2xl shadow-black/20">
+            <div class="flex justify-center mb-6">
+                <div class="w-16 h-16 bg-amber-500/20 rounded-full flex items-center justify-center">
+                    <span class="material-symbols-outlined text-amber-500 text-4xl">speed</span>
+                </div>
             </div>
+
+            <h1 class="text-white text-2xl font-bold text-center mb-2">請求過於頻繁</h1>
+            <p class="text-white/60 text-sm text-center mb-6">您的請求次數已超過限制，請稍後再試</p>
+
+            <div class="bg-white/5 border border-white/10 rounded-lg p-4 mb-6">
+                <div class="flex items-center justify-center gap-3">
+                    <span class="material-symbols-outlined text-amber-500 text-2xl">timer</span>
+                    <span id="countdown" class="text-white text-3xl font-bold tabular-nums">${retryAfter}</span>
+                    <span class="text-white/60 text-sm">秒後可重試</span>
+                </div>
+            </div>
+
+            <a
+                id="retryBtn"
+                href="javascript:location.reload()"
+                class="pointer-events-none opacity-50 w-full bg-amber-500/40 text-white/60 rounded-lg h-12 px-5 font-bold transition-all flex items-center justify-center gap-2"
+            >
+                <span class="material-symbols-outlined">refresh</span>
+                <span id="retryText">請稍候...</span>
+            </a>
+        </div>
+    </div>
+
+    <script>
+        let seconds = ${retryAfter}
+        const countdownEl = document.getElementById('countdown')
+        const retryBtn = document.getElementById('retryBtn')
+        const retryText = document.getElementById('retryText')
+
+        const timer = setInterval(() => {
+            seconds--
+            countdownEl.textContent = seconds
+
+            if (seconds <= 0) {
+                clearInterval(timer)
+                countdownEl.textContent = '0'
+                retryBtn.classList.remove('pointer-events-none', 'opacity-50', 'bg-amber-500/40', 'text-white/60')
+                retryBtn.classList.add('bg-amber-500', 'hover:bg-amber-600', 'text-white', 'cursor-pointer', 'shadow-[0_0_20px_theme(colors.amber.500/0.4)]')
+                retryText.textContent = '重新嘗試'
+            }
+        }, 1000)
+    </script>
+</body>
+</html>`
+}
+
+export function renderServerErrorPage(): string {
+  return `<!DOCTYPE html>
+<html class="dark" lang="zh-TW">
+<head>
+    ${htmlHead('系統發生錯誤')}
+</head>
+<body class="bg-background-dark font-display min-h-screen flex items-center justify-center p-4">
+    <div class="max-w-md w-full">
+        <div class="bg-white/5 border border-white/10 rounded-xl p-8 shadow-2xl shadow-black/20">
+            <div class="flex justify-center mb-6">
+                <div class="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center">
+                    <span class="material-symbols-outlined text-red-500 text-4xl">error</span>
+                </div>
+            </div>
+
+            <h1 class="text-white text-2xl font-bold text-center mb-2">系統發生錯誤</h1>
+            <p class="text-white/60 text-sm text-center mb-6">伺服器處理時發生異常，請稍後再試</p>
+
+            <a
+                href="javascript:location.reload()"
+                class="w-full bg-primary hover:bg-blue-600 text-white rounded-lg h-12 px-5 font-bold transition-colors shadow-[0_0_20px_theme(colors.primary/0.4)] flex items-center justify-center gap-2"
+            >
+                <span class="material-symbols-outlined">refresh</span>
+                <span>重試</span>
+            </a>
         </div>
     </div>
 </body>
@@ -405,9 +489,6 @@ export function renderExpiredPage(expiresAt: string): string {
                 </div>
             </div>
 
-            <div class="mt-6 text-center">
-                <a href="/" class="text-white/60 hover:text-white text-sm transition-colors">返回首頁</a>
-            </div>
         </div>
     </div>
 

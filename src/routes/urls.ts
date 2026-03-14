@@ -16,7 +16,7 @@ import { purgeNginxCache } from '../services/nginx-cache.ts';
 // 導入工具函數
 import { generateShortCode, isValidShortCode } from '../utils/shortcode.ts';
 import { validateUrl } from '../utils/url-validator.ts';
-import { renderPasswordPage, renderExpiredPage, renderAdPage } from '../utils/html-templates.ts';
+import { renderPasswordPage, renderExpiredPage, renderAdPage, renderNotFoundPage, renderServerErrorPage } from '../utils/html-templates.ts';
 
 // 建立路由實例
 export const urlRoutes = new Hono();
@@ -611,7 +611,7 @@ urlRoutes.get('/s/:shortCode', async (c) => {
       .single();
 
     if (error || !data) {
-      return c.json({ error: 'Short URL not found' }, 404);
+      return c.html(renderNotFoundPage(shortCode), 404);
     }
 
     // 檢查過期時間
@@ -645,7 +645,7 @@ urlRoutes.get('/s/:shortCode', async (c) => {
     return c.redirect(data.original_url, 302);
   } catch (err) {
     console.error('Redirect error:', err);
-    return c.json({ error: 'Internal server error' }, 500);
+    return c.html(renderServerErrorPage(), 500);
   }
 });
 
@@ -667,18 +667,8 @@ urlRoutes.get('/ad/:shortCode', async (c) => {
       .eq('short_code', shortCode)
       .single();
 
-    if (error || !data) {
-      return c.html(
-        `<html><body><h1>短網址不存在</h1><p>此短網址可能已被刪除或從未建立</p><a href="/">返回首頁</a></body></html>`,
-        404
-      );
-    }
-
-    if (!data.is_active) {
-      return c.html(
-        `<html><body><h1>短網址已停用</h1><p>此短網址已被停用</p><a href="/">返回首頁</a></body></html>`,
-        410
-      );
+    if (error || !data || !data.is_active) {
+      return c.html(renderNotFoundPage(shortCode), 404);
     }
 
     if (data.expires_at && new Date(data.expires_at) < new Date()) {
@@ -688,7 +678,7 @@ urlRoutes.get('/ad/:shortCode', async (c) => {
     return c.html(renderAdPage(shortCode, data.original_url));
   } catch (err) {
     console.error(err);
-    return c.json({ error: 'Internal server error' }, 500);
+    return c.html(renderServerErrorPage(), 500);
   }
 });
 

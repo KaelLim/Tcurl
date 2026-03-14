@@ -18,6 +18,7 @@ import '@std/dotenv/load';
 // 導入路由
 import { urlRoutes } from './routes/urls.ts';
 import { feedbackRoutes } from './routes/feedbacks.ts';
+import { renderRateLimitPage } from './utils/html-templates.ts';
 
 // 導入服務
 import { initSupabase } from './services/supabase.ts';
@@ -127,14 +128,18 @@ if (rateLimitEnabled) {
       rateLimitStore.set(ip, { count: 1, resetAt: now + rateLimitWindow });
     } else if (record.count >= rateLimitMax) {
       const retryAfter = Math.ceil((record.resetAt - now) / 1000);
-      return c.json(
-        {
-          statusCode: 429,
-          error: 'Too Many Requests',
-          message: `請求過於頻繁，請在 ${retryAfter} 秒後重試`,
-        },
-        429
-      );
+      // API 路徑回傳 JSON，其餘回傳 HTML 頁面
+      if (c.req.path.startsWith('/api/')) {
+        return c.json(
+          {
+            statusCode: 429,
+            error: 'Too Many Requests',
+            message: `請求過於頻繁，請在 ${retryAfter} 秒後重試`,
+          },
+          429
+        );
+      }
+      return c.html(renderRateLimitPage(retryAfter), 429);
     } else {
       record.count++;
     }
