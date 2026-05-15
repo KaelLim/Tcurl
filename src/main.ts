@@ -16,7 +16,11 @@ import { logger } from '@hono/logger';
 import '@std/dotenv/load';
 
 // 導入路由
-import { urlRoutes } from './routes/urls.ts';
+import { urlCrudRoutes } from './routes/url-crud.ts';
+import { urlRedirectRoutes } from './routes/url-redirect.ts';
+import { urlStatsRoutes } from './routes/url-stats.ts';
+import { urlPageRoutes } from './routes/url-pages.ts';
+import { authRoutes } from './routes/auth.ts';
 import { feedbackRoutes } from './routes/feedbacks.ts';
 import { renderRateLimitPage } from './utils/html-templates.ts';
 
@@ -192,7 +196,12 @@ app.get('/api', (c) => {
 });
 
 // 註冊 URL 路由
-app.route('/', urlRoutes);
+// URL 路由（注意順序：stats/summary 必須在 :id 前面）
+app.route('/', urlStatsRoutes);
+app.route('/', urlCrudRoutes);
+app.route('/', urlRedirectRoutes);
+app.route('/', authRoutes);
+app.route('/', urlPageRoutes);
 
 // 註冊社群建議路由
 app.route('/', feedbackRoutes);
