@@ -311,4 +311,23 @@ startClickLogWatcher().catch((err) => {
   console.error('❌ Click log watcher failed:', err);
 });
 
-Deno.serve({ port, hostname: host }, app.fetch);
+const server = Deno.serve({ port, hostname: host }, app.fetch);
+
+// ============================================================
+// Graceful Shutdown
+// ============================================================
+
+const shutdown = async () => {
+  console.log('\n🛑 收到終止信號，正在優雅關閉...');
+  try {
+    await server.shutdown();
+    console.log('✅ 伺服器已停止接受新連線');
+  } catch (err) {
+    console.error('❌ 關閉時發生錯誤:', err);
+  }
+  console.log('👋 服務已完全關閉');
+  Deno.exit(0);
+};
+
+Deno.addSignalListener('SIGTERM', shutdown);
+Deno.addSignalListener('SIGINT', shutdown);
