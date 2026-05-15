@@ -53,6 +53,20 @@ urlRedirectRoutes.get('/s/:shortCode', async (c) => {
       return c.html(renderPasswordPage(shortCode, isQrScan));
     }
 
+    // 查詢管道（如果有 g 參數）
+    const groupKey = c.req.query('g');
+    // deno-lint-ignore no-explicit-any
+    let channel: any = null;
+    if (groupKey) {
+      const { data: ch } = await supabase
+        .from('url_channels')
+        .select('*')
+        .eq('url_id', data.id)
+        .eq('group_key', groupKey)
+        .single();
+      channel = ch; // 查不到就是 null，當作一般點擊
+    }
+
     // 記錄點擊（異步，不阻塞回應，但記錄錯誤）
     supabase
       .from('url_clicks')
@@ -60,20 +74,38 @@ urlRedirectRoutes.get('/s/:shortCode', async (c) => {
         url_id: data.id,
         user_agent: c.req.header('user-agent') || null,
         event_type: isQrScan ? 'qr_scan' : 'link_click',
+        channel_id: channel?.id || null,
       })
       .then(({ error }) => {
         if (error) {
           console.error(`[ClickRecord] Failed to record click for ${shortCode}:`, error.message);
         } else {
+          const chInfo = channel ? ` [channel: ${channel.name}]` : '';
           console.log(
-            `[ClickRecord] Recorded click for ${shortCode} (${isQrScan ? 'qr_scan' : 'link_click'})`
+            `[ClickRecord] Recorded click for ${shortCode} (${isQrScan ? 'qr_scan' : 'link_click'})${chInfo}`
           );
         }
       });
 
-    console.log(`Redirect: ${shortCode} -> ${data.original_url}`);
+    // 組合目標 URL（附加 UTM 參數）
+    let targetUrl = data.original_url;
+    if (channel) {
+      try {
+        const url = new URL(targetUrl);
+        if (channel.utm_source) url.searchParams.set('utm_source', channel.utm_source);
+        if (channel.utm_medium) url.searchParams.set('utm_medium', channel.utm_medium);
+        if (channel.utm_campaign) url.searchParams.set('utm_campaign', channel.utm_campaign);
+        if (channel.utm_content) url.searchParams.set('utm_content', channel.utm_content);
+        if (channel.utm_term) url.searchParams.set('utm_term', channel.utm_term);
+        targetUrl = url.toString();
+      } catch {
+        // URL 解析失敗，使用原始 URL
+      }
+    }
+
+    console.log(`Redirect: ${shortCode} -> ${targetUrl}`);
     c.header('Cache-Control', 'no-cache');
-    return c.redirect(data.original_url, 302);
+    return c.redirect(targetUrl, 302);
   } catch (err) {
     console.error('Redirect error:', err);
     return c.html(renderServerErrorPage(), 500);
