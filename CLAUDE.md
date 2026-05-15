@@ -61,7 +61,7 @@ Hono (src/main.ts)
     ↓
 ├── Static files: /public/*
 ├── Short URL redirect: /s/:code → Supabase → record click
-├── API routes: /api/* → src/routes/urls.ts
+├── API routes: /api/* → src/routes/url-crud.ts, url-stats.ts, auth.ts
 └── Auth: Supabase JWT validation
 ```
 
@@ -70,7 +70,12 @@ Hono (src/main.ts)
 | File | Purpose |
 |------|---------|
 | `src/main.ts` | Hono app entry, middleware (CSP, CORS, logging), static serving |
-| `src/routes/urls.ts` | All URL CRUD, QR code, stats, password protection, redirect logic |
+| `src/routes/url-crud.ts` | URL CRUD, QR code, password verification |
+| `src/routes/url-redirect.ts` | Short URL redirect, ad pages, internal tracking |
+| `src/routes/url-stats.ts` | Statistics queries via RPC (get_url_stats, get_urls_with_stats, etc.) |
+| `src/routes/url-pages.ts` | HTML page routes (/links, /edit, /analytics, /feedback, /docs) |
+| `src/routes/auth.ts` | User auth (/api/auth/me, /api/auth/profile) |
+| `src/routes/_helpers.ts` | Shared route utilities (getUserClientFromRequest, sendUnauthorized) |
 | `src/routes/feedbacks.ts` | Community feedback/suggestion routes |
 | `src/services/supabase.ts` | Supabase clients (service + user factory) |
 | `src/services/click-log-watcher.ts` | Monitors Nginx logs and records cache HIT clicks |
