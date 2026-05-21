@@ -55,8 +55,7 @@ urlRedirectRoutes.get('/s/:shortCode', async (c) => {
 
     // 查詢管道（如果有 g 參數）
     const groupKey = c.req.query('g');
-    // deno-lint-ignore no-explicit-any
-    let channel: any = null;
+    let channel: { id: string; utm_source?: string; utm_medium?: string; utm_campaign?: string; utm_content?: string; utm_term?: string; name?: string } | null = null;
     if (groupKey) {
       const { data: ch } = await supabase
         .from('url_channels')
@@ -206,43 +205,3 @@ urlRedirectRoutes.post('/api/ad/:shortCode/click', async (c) => {
   }
 });
 
-// ============================================================
-// 內部追蹤 API
-// ============================================================
-
-/**
- * 內部點擊追蹤（供 Nginx post_action 使用）
- */
-urlRedirectRoutes.get('/api/internal/track/s/:shortCode', async (c) => {
-  const shortCode = c.req.param('shortCode');
-  const qr = c.req.query('qr');
-  const isQrScan = qr === '1' || qr === 'true';
-
-  try {
-    // 從資料庫查詢 URL ID
-    const supabase = getSupabase();
-    const { data } = await supabase
-      .from('urls')
-      .select('id')
-      .eq('short_code', shortCode)
-      .eq('is_active', true)
-      .single();
-
-    if (!data) {
-      return new Response(null, { status: 204 });
-    }
-
-    await supabase.from('url_clicks').insert({
-      url_id: data.id,
-      user_agent: c.req.header('user-agent') || null,
-      ip_address: c.req.header('x-real-ip') || 'unknown',
-      event_type: isQrScan ? 'qr_scan' : 'link_click',
-    });
-
-    console.log(`Click tracked via Nginx post_action: ${shortCode}, isQrScan: ${isQrScan}`);
-    return new Response(null, { status: 204 });
-  } catch (error) {
-    console.error('Failed to track click via post_action:', error);
-    return new Response(null, { status: 204 });
-  }
-});

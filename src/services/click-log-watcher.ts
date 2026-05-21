@@ -42,17 +42,22 @@ function parseLogLine(line: string): LogEntry | null {
 }
 
 /**
- * 從 request URI 提取短代碼
- * 例如: /s/xtmzlj?qr=1 -> { shortCode: 'xtmzlj', isQr: true }
+ * 從 request URI 提取短代碼、QR 旗標及管道 group_key
+ * 例如: /s/xtmzlj?g=abc123&qr=1 -> { shortCode: 'xtmzlj', isQr: true, groupKey: 'abc123' }
  */
-function extractShortCode(uri: string): { shortCode: string; isQr: boolean } | null {
+function extractShortCode(
+  uri: string,
+): { shortCode: string; isQr: boolean; groupKey: string | null } | null {
   const match = uri.match(/^\/s\/([a-zA-Z0-9_-]+)/);
   if (!match) return null;
 
   const shortCode = match[1];
   const isQr = uri.includes('qr=1') || uri.includes('qr=true');
 
-  return { shortCode, isQr };
+  const gMatch = uri.match(/[?&]g=([a-zA-Z0-9]+)/);
+  const groupKey = gMatch ? gMatch[1] : null;
+
+  return { shortCode, isQr, groupKey };
 }
 
 /**
@@ -82,13 +87,38 @@ async function getUrlId(shortCode: string): Promise<string | null> {
 }
 
 /**
+ * 透過 group_key 查詢管道 ID（帶快取）
+ */
+const channelIdCache = new Map<string, string | null>();
+
+async function getChannelId(urlId: string, groupKey: string): Promise<string | null> {
+  const cacheKey = `${urlId}:${groupKey}`;
+  if (channelIdCache.has(cacheKey)) {
+    return channelIdCache.get(cacheKey)!;
+  }
+
+  const supabase = getSupabase();
+  const { data } = await supabase
+    .from('url_channels')
+    .select('id')
+    .eq('url_id', urlId)
+    .eq('group_key', groupKey)
+    .single();
+
+  const channelId = data?.id || null;
+  channelIdCache.set(cacheKey, channelId);
+  return channelId;
+}
+
+/**
  * 記錄點擊到資料庫
  */
 async function recordClick(
   urlId: string,
   userAgent: string,
   eventType: string,
-  clickedAt: string
+  clickedAt: string,
+  channelId: string | null = null,
 ): Promise<void> {
   const supabase = getSupabase();
 
@@ -97,6 +127,7 @@ async function recordClick(
     user_agent: userAgent || null,
     event_type: eventType,
     clicked_at: clickedAt,
+    channel_id: channelId,
   });
 
   if (error) {
@@ -125,11 +156,18 @@ async function processLogLine(line: string): Promise<void> {
   const urlId = await getUrlId(result.shortCode);
   if (!urlId) return;
 
+  // 獲取管道 ID（如果有 g 參數）
+  let channelId: string | null = null;
+  if (result.groupKey) {
+    channelId = await getChannelId(urlId, result.groupKey);
+  }
+
   // 記錄點擊
   const eventType = result.isQr ? 'qr_scan' : 'link_click';
-  await recordClick(urlId, entry.userAgent, eventType, entry.timestamp);
+  await recordClick(urlId, entry.userAgent, eventType, entry.timestamp, channelId);
 
-  console.log(`[ClickWatcher] 記錄 ${entry.cacheStatus}: ${result.shortCode} (${eventType})`);
+  const chInfo = channelId ? ` [channel: ${result.groupKey}]` : '';
+  console.log(`[ClickWatcher] 記錄 ${entry.cacheStatus}: ${result.shortCode} (${eventType})${chInfo}`);
 }
 
 /**

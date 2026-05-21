@@ -70,8 +70,7 @@ urlCrudRoutes.post('/api/urls', async (c) => {
   // 插入資料庫（使用重試機制處理競爭條件）
   const maxAttempts = 10;
   let attempts = 0;
-  // deno-lint-ignore no-explicit-any
-  let data: any = null;
+  let data: Record<string, unknown> | null = null;
 
   while (attempts < maxAttempts) {
     const currentShortCode =
@@ -155,9 +154,7 @@ urlCrudRoutes.put('/api/urls/:id', async (c) => {
   const body = await c.req.json();
   const { password, password_protected, ...otherUpdates } = body;
 
-  // 準備更新資料
-  // deno-lint-ignore no-explicit-any
-  const updates: any = { ...otherUpdates };
+  const updates: Record<string, string | boolean | null | undefined> = { ...otherUpdates };
 
   // 處理密碼保護
   if (password_protected !== undefined) {
@@ -174,7 +171,7 @@ urlCrudRoutes.put('/api/urls/:id', async (c) => {
   }
 
   // 如果更新 original_url，需要驗證
-  if (updates.original_url) {
+  if (updates.original_url && typeof updates.original_url === 'string') {
     const urlValidation = validateUrl(updates.original_url);
     if (!urlValidation.valid) {
       return c.json(
@@ -233,8 +230,7 @@ urlCrudRoutes.patch('/api/urls/:id/qr-code', async (c) => {
   }
 
   // 準備更新資料
-  // deno-lint-ignore no-explicit-any
-  const updates: any = {
+  const updates: Record<string, unknown> = {
     qr_code_options: qr_code_options,
     qr_code_generated: true,
   };

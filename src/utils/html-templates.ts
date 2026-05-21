@@ -64,10 +64,6 @@ function htmlHead(title: string, extraColors?: Record<string, string>): string {
 }
 
 export function renderPasswordPage(shortCode: string, isQrScan: boolean = false): string {
-  // Note: qrParam would be used for form action if needed
-  const _qrParam = isQrScan ? '&qr=true' : '';
-  void _qrParam; // Suppress unused warning
-
   return `<!DOCTYPE html>
 <html class="dark" lang="zh-TW">
 <head>

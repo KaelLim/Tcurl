@@ -6,7 +6,7 @@
 
 import { Hono } from '@hono/hono';
 
-import { getSupabase, extractToken } from '../services/supabase.ts';
+import { getSupabase, extractToken, createUserClient } from '../services/supabase.ts';
 import { sendUnauthorized } from './_helpers.ts';
 
 export const authRoutes = new Hono();
@@ -81,14 +81,14 @@ authRoutes.put('/api/auth/profile', async (c) => {
 
     const body = await c.req.json();
     const { display_name, avatar_url, metadata } = body;
-    // deno-lint-ignore no-explicit-any
-    const updates: any = {};
+    const updates: Record<string, unknown> = {};
 
     if (display_name !== undefined) updates.display_name = display_name;
     if (avatar_url !== undefined) updates.avatar_url = avatar_url;
     if (metadata !== undefined) updates.metadata = metadata;
 
-    const { data: profile, error: updateError } = await supabase
+    const userClient = createUserClient(token);
+    const { data: profile, error: updateError } = await userClient
       .from('user_profiles')
       .update(updates)
       .eq('id', user.id)

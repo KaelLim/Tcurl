@@ -72,91 +72,18 @@ const api = {
     }
   },
 
-  // 取得所有短網址（分頁）
+  // 取得所有短網址（分頁）— 透過後端 RPC 查詢
   async getUrls(page = 1, limit = 10) {
-    const client = this.getClient()
-    if (!client) throw new Error('請先登入')
+    const token = await window.auth?.getAccessToken()
+    if (!token) throw new Error('請先登入')
 
-    const offset = (page - 1) * limit
-
-    // 取得總數
-    const { count, error: countError } = await client
-      .from('urls')
-      .select('*', { count: 'exact', head: true })
-      .eq('is_active', true)
-
-    if (countError) throw new Error('取得資料失敗')
-
-    // 取得分頁資料
-    const { data: urlsData, error: urlsError } = await client
-      .from('urls')
-      .select('*')
-      .eq('is_active', true)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1)
-
-    if (urlsError) throw new Error('取得資料失敗')
-
-    // 取得點擊統計
-    const urlIds = urlsData?.map(u => u.id) || []
-    let statsMap = new Map()
-
-    if (urlIds.length > 0) {
-      const { data: clicksData } = await client
-        .from('url_clicks')
-        .select('url_id, event_type, clicked_at')
-        .in('url_id', urlIds)
-
-      for (const urlId of urlIds) {
-        const clicks = clicksData?.filter(c => c.url_id === urlId) || []
-        const linkClicks = clicks.filter(c => c.event_type === 'link_click').length
-        const qrScans = clicks.filter(c => c.event_type === 'qr_scan').length
-        const adViews = clicks.filter(c => c.event_type === 'ad_view').length
-        const adClicks = clicks.filter(c => c.event_type === 'ad_click').length
-        // 總點擊數：排除 ad_view（曝光不算點擊）
-        const totalClicks = linkClicks + qrScans + adClicks
-        const lastClick = clicks.length > 0
-          ? clicks.sort((a, b) => new Date(b.clicked_at) - new Date(a.clicked_at))[0].clicked_at
-          : null
-
-        statsMap.set(urlId, {
-          total: totalClicks,
-          link: linkClicks,
-          qr: qrScans,
-          ad_views: adViews,
-          ad_clicks: adClicks,
-          last: lastClick
-        })
-      }
-    }
-
-    // 合併資料
-    const mergedData = urlsData?.map(url => {
-      const stats = statsMap.get(url.id) || { total: 0, link: 0, qr: 0, ad_views: 0, ad_clicks: 0, last: null }
-      return {
-        ...url,
-        clicks: stats.total,
-        link_clicks: stats.link,
-        qr_scans: stats.qr,
-        ad_views: stats.ad_views,
-        ad_clicks: stats.ad_clicks,
-        last_clicked_at: stats.last
-      }
+    const res = await fetch(`${BASE_URL}/api/urls?page=${page}&limit=${limit}`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+      cache: 'no-store'
     })
 
-    const totalPages = Math.ceil((count || 0) / limit)
-
-    return {
-      data: mergedData,
-      pagination: {
-        page,
-        limit,
-        total: count || 0,
-        totalPages,
-        hasNext: page < totalPages,
-        hasPrev: page > 1
-      }
-    }
+    if (!res.ok) throw new Error('取得資料失敗')
+    return res.json()
   },
 
   // 取得單個短網址詳情
@@ -217,6 +144,58 @@ const api = {
     return { success: true }
   },
 
+  // ======== 管道 API ========
+
+  async getChannels(urlId) {
+    const token = await window.auth?.getAccessToken()
+    if (!token) throw new Error('請先登入')
+    const res = await fetch(`${BASE_URL}/api/urls/${urlId}/channels`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    if (!res.ok) throw new Error('取得管道失敗')
+    return res.json()
+  },
+
+  async createChannel(urlId, data) {
+    const token = await window.auth?.getAccessToken()
+    if (!token) throw new Error('請先登入')
+    const res = await fetch(`${BASE_URL}/api/urls/${urlId}/channels`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify(data)
+    })
+    const result = await res.json()
+    if (!res.ok) throw new Error(result.error || '建立管道失敗')
+    return result
+  },
+
+  async updateChannel(urlId, channelId, data) {
+    const token = await window.auth?.getAccessToken()
+    if (!token) throw new Error('請先登入')
+    const res = await fetch(`${BASE_URL}/api/urls/${urlId}/channels/${channelId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify(data)
+    })
+    const result = await res.json()
+    if (!res.ok) throw new Error(result.error || '更新管道失敗')
+    return result
+  },
+
+  async deleteChannel(urlId, channelId) {
+    const token = await window.auth?.getAccessToken()
+    if (!token) throw new Error('請先登入')
+    const res = await fetch(`${BASE_URL}/api/urls/${urlId}/channels/${channelId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    if (!res.ok) {
+      const result = await res.json()
+      throw new Error(result.error || '刪除管道失敗')
+    }
+    return res.json()
+  },
+
   // 更新 QR Code 配置
   async updateQRCode(id, qrCodeOptions, qrCodeDataUrl = null) {
     const client = this.getClient()
@@ -264,106 +243,33 @@ const api = {
     return data
   },
 
-  // 取得統計數據
+  // 取得統計數據 — 透過後端 RPC 查詢
   async getUrlStats(id, days = 30) {
-    const client = this.getClient()
-    if (!client) throw new Error('請先登入')
+    const token = await window.auth?.getAccessToken()
+    if (!token) throw new Error('請先登入')
 
-    // 確認 URL 存在且屬於該使用者
-    const { data: urlData, error: urlError } = await client
-      .from('urls')
-      .select('id')
-      .eq('id', id)
-      .single()
+    const res = await fetch(`${BASE_URL}/api/urls/${id}/stats?days=${days}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
 
-    if (urlError || !urlData) {
-      throw new Error('找不到此短網址')
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.error || '取得統計失敗')
     }
-
-    // 取得點擊統計
-    const { data: clicksData, error: clicksError } = await client
-      .from('url_clicks')
-      .select('event_type, clicked_at')
-      .eq('url_id', id)
-
-    if (clicksError) {
-      throw new Error('取得統計失敗')
-    }
-
-    const clicks = clicksData || []
-    const linkClicks = clicks.filter(c => c.event_type === 'link_click').length
-    const qrScans = clicks.filter(c => c.event_type === 'qr_scan').length
-    const lastClickedAt = clicks.length > 0
-      ? clicks.sort((a, b) => new Date(b.clicked_at) - new Date(a.clicked_at))[0].clicked_at
-      : null
-
-    // 計算每日統計
-    const dailyMap = new Map()
-    for (const click of clicks) {
-      const date = new Date(click.clicked_at).toISOString().split('T')[0]
-      const existing = dailyMap.get(date) || { total: 0, link: 0, qr: 0 }
-      existing.total++
-      if (click.event_type === 'link_click') existing.link++
-      if (click.event_type === 'qr_scan') existing.qr++
-      dailyMap.set(date, existing)
-    }
-
-    const dailyStats = Array.from(dailyMap.entries())
-      .map(([date, stats]) => ({
-        date,
-        total_clicks: stats.total,
-        link_clicks: stats.link,
-        qr_scans: stats.qr
-      }))
-      .sort((a, b) => b.date.localeCompare(a.date))
-      .slice(0, days)
-
-    return {
-      total: {
-        total_clicks: clicks.length,
-        link_clicks: linkClicks,
-        qr_scans: qrScans,
-        last_clicked_at: lastClickedAt
-      },
-      daily: dailyStats
-    }
+    return res.json()
   },
 
-  // 取得統計摘要
+  // 取得統計摘要 — 透過後端 RPC 查詢
   async getStatsSummary() {
-    const client = this.getClient()
-    if (!client) throw new Error('請先登入')
+    const token = await window.auth?.getAccessToken()
+    if (!token) throw new Error('請先登入')
 
-    // 取得使用者的 URLs
-    const { data: urlsData, error } = await client
-      .from('urls')
-      .select('id, is_active')
+    const res = await fetch(`${BASE_URL}/api/urls/stats/summary`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
 
-    if (error) {
-      throw new Error('取得統計失敗')
-    }
-
-    const totalLinks = urlsData?.length || 0
-    const activeLinks = urlsData?.filter(u => u.is_active).length || 0
-
-    // 取得總點擊數
-    const urlIds = urlsData?.map(u => u.id) || []
-    let totalClicks = 0
-
-    if (urlIds.length > 0) {
-      const { count } = await client
-        .from('url_clicks')
-        .select('*', { count: 'exact', head: true })
-        .in('url_id', urlIds)
-
-      totalClicks = count || 0
-    }
-
-    return {
-      totalLinks,
-      activeLinks,
-      totalClicks
-    }
+    if (!res.ok) throw new Error('取得統計失敗')
+    return res.json()
   }
 }
 

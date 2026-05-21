@@ -57,30 +57,14 @@ async function loadUrls(page = 1) {
   }
 }
 
-// 排序 URLs
+// 排序 URLs（透過後端 API 重新載入）
 function sortUrls() {
-  const sortBy = sortSelect.value
-
-  switch (sortBy) {
-    case 'created_desc':
-      filteredUrls.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-      break
-    case 'created_asc':
-      filteredUrls.sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
-      break
-    case 'clicks_desc':
-      filteredUrls.sort((a, b) => (b.clicks || 0) - (a.clicks || 0))
-      break
-    case 'clicks_asc':
-      filteredUrls.sort((a, b) => (a.clicks || 0) - (b.clicks || 0))
-      break
-  }
+  loadUrls(pagination.page)
 }
 
-// 搜尋過濾（暫時禁用，使用後端分頁）
+// 搜尋過濾（透過後端 API 重新載入）
 function filterUrls() {
-  // TODO: 實作後端搜尋
-  console.log('Search functionality will be implemented with backend support')
+  loadUrls(1)
 }
 
 // 渲染 URLs 表格

@@ -6,62 +6,12 @@
  * @module routes/feedbacks
  */
 
-import { Hono, type Context } from '@hono/hono';
-import { createUserClient, extractToken, getSupabase } from '../services/supabase.ts';
+import { Hono } from '@hono/hono';
+import { getSupabase } from '../services/supabase.ts';
+import { getUserClientFromRequest, sendUnauthorized } from './_helpers.ts';
 
 // 建立路由實例
 export const feedbackRoutes = new Hono();
-
-// ============================================================
-// 輔助函數
-// ============================================================
-
-/**
- * 從請求中取得使用者 Supabase Client
- */
-function getUserClientFromRequest(c: Context): ReturnType<typeof createUserClient> | null {
-  const token = extractToken(c.req.header('Authorization'));
-  if (!token) {
-    return null;
-  }
-  return createUserClient(token);
-}
-
-/**
- * 回傳未授權錯誤
- */
-function sendUnauthorized(c: Context): Response {
-  return c.json(
-    {
-      error: 'Unauthorized',
-      message: '請先登入',
-    },
-    401
-  );
-}
-
-/**
- * 取得使用者資訊（用於顯示名稱）
- */
-async function getUserInfo(userId: string) {
-  const supabase = getSupabase();
-  const { data } = await supabase
-    .from('auth.users')
-    .select('id, email, raw_user_meta_data')
-    .eq('id', userId)
-    .single();
-
-  if (!data) return null;
-
-  const metadata = data.raw_user_meta_data || {};
-  return {
-    id: data.id,
-    email: data.email,
-    display_name: metadata.chinese_firstname && metadata.chinese_lastname
-      ? `${metadata.chinese_lastname}${metadata.chinese_firstname}`
-      : metadata.display_name || metadata.name || data.email?.split('@')[0] || '匿名用戶'
-  };
-}
 
 // ============================================================
 // API 路由 - 建議列表

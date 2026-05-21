@@ -94,38 +94,3 @@ export function extractToken(authHeader: string | undefined): string | null {
   return authHeader.substring(7); // Remove 'Bearer ' prefix
 }
 
-/**
- * 驗證 Token 並取得使用者資訊
- *
- * @param accessToken - JWT Token
- * @returns User info or null
- */
-export async function verifyAndGetUser(
-  accessToken: string
-): Promise<{ id: string; email?: string } | null> {
-  try {
-    const supabase = getSupabase();
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser(accessToken);
-
-    if (error || !user) {
-      return null;
-    }
-
-    return {
-      id: user.id,
-      email: user.email,
-    };
-  } catch {
-    return null;
-  }
-}
-
-// 為了向後相容，也導出 supabase 作為 getter
-export const supabase = {
-  get client(): SupabaseClient {
-    return getSupabase();
-  },
-};

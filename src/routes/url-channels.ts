@@ -8,7 +8,7 @@
 
 import { Hono } from '@hono/hono';
 
-import { getSupabase, extractToken } from '../services/supabase.ts';
+import { getSupabase } from '../services/supabase.ts';
 import { getUserClientFromRequest, sendUnauthorized } from './_helpers.ts';
 
 export const urlChannelRoutes = new Hono();
@@ -64,7 +64,22 @@ urlChannelRoutes.get('/api/urls/:id/channels', async (c) => {
     return c.json({ error: 'Failed to fetch channels' }, 500);
   }
 
-  return c.json(data || []);
+  if (!data || data.length === 0) {
+    return c.json([]);
+  }
+
+  const { data: clickRows } = await supabase
+    .from('url_clicks')
+    .select('channel_id')
+    .eq('url_id', urlId)
+    .not('channel_id', 'is', null);
+
+  const counts: Record<string, number> = {};
+  for (const row of clickRows || []) {
+    counts[row.channel_id] = (counts[row.channel_id] || 0) + 1;
+  }
+
+  return c.json(data.map((ch) => ({ ...ch, click_count: counts[ch.id] || 0 })));
 });
 
 /**
@@ -175,8 +190,7 @@ urlChannelRoutes.put('/api/urls/:id/channels/:channelId', async (c) => {
     return c.json({ error: '管道名稱不可為空' }, 400);
   }
 
-  // deno-lint-ignore no-explicit-any
-  const updates: any = {};
+  const updates: Record<string, unknown> = {};
   if (name !== undefined) updates.name = name.trim();
   if (utm_source !== undefined) updates.utm_source = utm_source || null;
   if (utm_medium !== undefined) updates.utm_medium = utm_medium || null;

@@ -1,8 +1,15 @@
+// 將 hex 顏色和透明度轉換為 rgba
+function hexToRgba(hex, opacity) {
+  if (!hex || !hex.startsWith('#')) return 'rgba(255, 255, 255, 1)'
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  return `rgba(${r}, ${g}, ${b}, ${opacity / 100})`
+}
+
 // 編輯頁面邏輯
 let currentUrlId = null
 let currentUrlData = null
-let availableThemes = []
-let selectedThemeId = null
 
 // DOM 元素
 const originalUrlInput = document.getElementById('originalUrl')
@@ -72,8 +79,9 @@ async function loadUrlData() {
     // 填充表單
     populateForm()
 
-    // 載入統計資料
+    // 先載入統計，再載入管道（管道統計需要總點擊數）
     await loadStats()
+    await loadChannels()
 
     loadingOverlay.classList.add('hidden')
   } catch (error) {
@@ -144,13 +152,6 @@ function populateForm() {
       const savedConfig = currentUrlData.qr_code_options  // jsonb 直接返回物件，不需要 parse
 
       // Convert hex color and opacity to RGBA
-      const hexToRgba = (hex, opacity) => {
-        const r = parseInt(hex.slice(1, 3), 16)
-        const g = parseInt(hex.slice(3, 5), 16)
-        const b = parseInt(hex.slice(5, 7), 16)
-        return `rgba(${r}, ${g}, ${b}, ${opacity / 100})`
-      }
-
       const customConfig = {
         width: 300,
         height: 300,
@@ -363,13 +364,14 @@ deleteBtn.addEventListener('click', async () => {
   }
 })
 
-// 下載 QR Code
+// 下載 QR Code（客戶端生成下載）
 downloadQrBtn.addEventListener('click', () => {
-  if (currentUrlData?.qr_code_path) {
-    const link = document.createElement('a')
-    link.href = currentUrlData.qr_code_path
-    link.download = `qrcode-${currentUrlData.short_code}.png`
-    link.click()
+  if (currentQRCode && currentUrlData) {
+    const filename = `qrcode_${currentUrlData.short_code}`
+    currentQRCode.download({ name: filename, extension: "png" })
+    utils.showNotification('QR Code 已下載！', 'success')
+  } else {
+    utils.showNotification('請先生成 QR Code', 'error')
   }
 })
 
@@ -475,383 +477,6 @@ customizeQrBtn.addEventListener('click', () => {
   openClientCustomizeModal()
 })
 
-// 打開客製化面板
-function openCustomizeModal() {
-  const modal = document.createElement('div')
-  modal.id = 'customizeModal'
-  modal.className = 'fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4'
-
-  const selectedTheme = availableThemes.find(t => t.id === selectedThemeId) || availableThemes[0]
-
-  // 從新的 API 結構取得預設值
-  const dotsColor = selectedTheme.options.dotsOptions?.color || '#000000'
-  const bgColor = selectedTheme.options.backgroundOptions?.color || '#ffffff'
-  const themeWidth = selectedTheme.options.width || 500
-  const dotsType = selectedTheme.options.dotsOptions?.type || 'square'
-  const cornersSquareType = selectedTheme.options.cornersSquareOptions?.type || 'square'
-  const cornersDotType = selectedTheme.options.cornersDotOptions?.type || 'dot'
-  const errorLevel = selectedTheme.options.qrOptions?.errorCorrectionLevel || 'H'
-
-  modal.innerHTML = `
-    <div class="relative bg-[#1e1e1e] rounded-xl p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-      <button class="absolute top-4 right-4 text-white/60 hover:text-white z-10" onclick="closeCustomizeModal()">
-        <span class="material-symbols-outlined">close</span>
-      </button>
-
-      <h3 class="text-white text-2xl font-bold mb-6">QR Code 進階客製化</h3>
-
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- 左側：即時預覽 -->
-        <div class="flex flex-col gap-4">
-          <div class="bg-white/5 border border-white/10 rounded-lg p-4">
-            <div class="flex items-center justify-between mb-3">
-              <p class="text-white text-sm font-medium">即時預覽</p>
-              <button id="togglePreviewBgBtn" class="flex items-center gap-1 px-2 py-1 rounded text-xs text-white/60 hover:text-white hover:bg-white/10 transition-colors" title="切換預覽背景">
-                <span class="material-symbols-outlined text-base">contrast</span>
-                <span>切換背景</span>
-              </button>
-            </div>
-            <div id="qrPreviewContainer" class="bg-white p-4 rounded-lg flex items-center justify-center min-h-[280px] transition-colors duration-300">
-              <div id="qrPreviewLoading" class="flex flex-col items-center gap-2">
-                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-                <span class="text-sm text-gray-600">載入中...</span>
-              </div>
-              <img id="qrPreviewImage" class="hidden w-64 h-64 object-contain" alt="QR Preview">
-            </div>
-          </div>
-          <div class="flex gap-2">
-            <button id="applyCustomBtn" class="flex-1 bg-primary hover:bg-blue-600 text-white rounded-lg py-3 font-bold transition-colors">
-              套用並生成
-            </button>
-            <button onclick="closeCustomizeModal()" class="flex-1 bg-white/10 hover:bg-white/20 text-white rounded-lg py-3 font-bold transition-colors">
-              取消
-            </button>
-          </div>
-        </div>
-
-        <!-- 右側：客製化選項 -->
-        <div class="flex flex-col gap-4 overflow-y-auto max-h-[calc(90vh-120px)]">
-          <!-- 基礎主題選擇 -->
-          <div class="bg-white/5 border border-white/10 rounded-lg p-4">
-            <p class="text-white text-sm font-medium mb-3">基礎主題</p>
-            <select id="customThemeSelect" class="w-full rounded-lg text-white bg-background-dark border border-white/20 h-10 px-3 text-sm">
-              ${availableThemes.map(theme =>
-                `<option value="${theme.id}" ${theme.id === selectedThemeId ? 'selected' : ''}>${theme.name} - ${theme.description}</option>`
-              ).join('')}
-            </select>
-          </div>
-
-          <!-- 顏色設定 -->
-          <div class="bg-white/5 border border-white/10 rounded-lg p-4">
-            <p class="text-white text-sm font-medium mb-3">顏色設定</p>
-            <div class="space-y-4">
-              <!-- 前景色 -->
-              <div>
-                <label class="text-white/80 text-xs mb-1 block">前景色 (Dots)</label>
-                <input type="color" id="dotsColorInput" value="${dotsColor}" class="w-full h-10 rounded border border-white/20 bg-background-dark cursor-pointer">
-              </div>
-
-              <!-- 背景色 -->
-              <div>
-                <label class="text-white/80 text-xs mb-1 block">背景色</label>
-                <input type="color" id="bgColorInput" value="${bgColor}" class="w-full h-10 rounded border border-white/20 bg-background-dark cursor-pointer mb-2">
-
-                <!-- 背景透明度 -->
-                <div class="flex items-center gap-3">
-                  <label class="text-white/80 text-xs whitespace-nowrap">透明度:</label>
-                  <input type="range" id="bgOpacityInput" min="0" max="100" value="100" class="flex-1">
-                  <span id="bgOpacityValue" class="text-white text-xs font-mono w-12 text-right">100%</span>
-                </div>
-                <p class="text-white/40 text-[10px] mt-1">提示：0% = 完全透明，100% = 完全不透明</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Dots 樣式 -->
-          <div class="bg-white/5 border border-white/10 rounded-lg p-4">
-            <p class="text-white text-sm font-medium mb-3">Dots 樣式（主體方塊）</p>
-            <select id="dotsTypeInput" class="w-full rounded-lg text-white bg-background-dark border border-white/20 h-10 px-3 text-sm">
-              <option value="square" ${dotsType === 'square' ? 'selected' : ''}>方形 (Square)</option>
-              <option value="rounded" ${dotsType === 'rounded' ? 'selected' : ''}>圓角 (Rounded)</option>
-              <option value="extra-rounded" ${dotsType === 'extra-rounded' ? 'selected' : ''}>超圓角 (Extra Rounded)</option>
-              <option value="dots" ${dotsType === 'dots' ? 'selected' : ''}>圓點 (Dots)</option>
-              <option value="classy" ${dotsType === 'classy' ? 'selected' : ''}>經典 (Classy)</option>
-              <option value="classy-rounded" ${dotsType === 'classy-rounded' ? 'selected' : ''}>圓角經典 (Classy Rounded)</option>
-            </select>
-          </div>
-
-          <!-- Corners Square 樣式 -->
-          <div class="bg-white/5 border border-white/10 rounded-lg p-4">
-            <p class="text-white text-sm font-medium mb-3">Corners Square（回字圖外框）</p>
-            <select id="cornersSquareTypeInput" class="w-full rounded-lg text-white bg-background-dark border border-white/20 h-10 px-3 text-sm">
-              <option value="square" ${cornersSquareType === 'square' ? 'selected' : ''}>方形</option>
-              <option value="rounded" ${cornersSquareType === 'rounded' ? 'selected' : ''}>圓角</option>
-              <option value="extra-rounded" ${cornersSquareType === 'extra-rounded' ? 'selected' : ''}>超圓角</option>
-              <option value="dot" ${cornersSquareType === 'dot' ? 'selected' : ''}>圓點</option>
-              <option value="classy" ${cornersSquareType === 'classy' ? 'selected' : ''}>經典</option>
-              <option value="classy-rounded" ${cornersSquareType === 'classy-rounded' ? 'selected' : ''}>圓角經典</option>
-            </select>
-          </div>
-
-          <!-- Corners Dot 樣式 -->
-          <div class="bg-white/5 border border-white/10 rounded-lg p-4">
-            <p class="text-white text-sm font-medium mb-3">Corners Dot（回字圖內部）</p>
-            <select id="cornersDotTypeInput" class="w-full rounded-lg text-white bg-background-dark border border-white/20 h-10 px-3 text-sm">
-              <option value="square" ${cornersDotType === 'square' ? 'selected' : ''}>方形</option>
-              <option value="rounded" ${cornersDotType === 'rounded' ? 'selected' : ''}>圓角</option>
-              <option value="extra-rounded" ${cornersDotType === 'extra-rounded' ? 'selected' : ''}>超圓角</option>
-              <option value="dot" ${cornersDotType === 'dot' ? 'selected' : ''}>圓點</option>
-              <option value="classy" ${cornersDotType === 'classy' ? 'selected' : ''}>經典</option>
-              <option value="classy-rounded" ${cornersDotType === 'classy-rounded' ? 'selected' : ''}>圓角經典</option>
-            </select>
-          </div>
-
-          <!-- 尺寸設定 -->
-          <div class="bg-white/5 border border-white/10 rounded-lg p-4">
-            <p class="text-white text-sm font-medium mb-3">尺寸設定</p>
-            <div class="flex items-center gap-3">
-              <label class="text-white/80 text-xs">大小:</label>
-              <input type="range" id="sizeInput" min="300" max="1000" step="50" value="${themeWidth}" class="flex-1">
-              <span id="sizeValue" class="text-white text-sm font-mono w-16 text-right">${themeWidth}px</span>
-            </div>
-          </div>
-
-          <!-- 容錯率設定 -->
-          <div class="bg-white/5 border border-white/10 rounded-lg p-4">
-            <p class="text-white text-sm font-medium mb-3">容錯率</p>
-            <select id="qualityInput" class="w-full rounded-lg text-white bg-background-dark border border-white/20 h-10 px-3 text-sm">
-              <option value="L" ${errorLevel === 'L' ? 'selected' : ''}>低 (L) - 7%</option>
-              <option value="M" ${errorLevel === 'M' ? 'selected' : ''}>中 (M) - 15%</option>
-              <option value="Q" ${errorLevel === 'Q' ? 'selected' : ''}>高 (Q) - 25%</option>
-              <option value="H" ${errorLevel === 'H' ? 'selected' : ''}>最高 (H) - 30%</option>
-            </select>
-          </div>
-        </div>
-      </div>
-    </div>
-  `
-
-  document.body.appendChild(modal)
-
-  // 綁定事件
-  setupCustomizeModalEvents()
-
-  // 初始預覽
-  updateQRPreview()
-}
-
-// 關閉客製化面板
-function closeCustomizeModal() {
-  const modal = document.getElementById('customizeModal')
-  if (modal) modal.remove()
-}
-
-// 設定客製化面板事件
-function setupCustomizeModalEvents() {
-  const themeSelect = document.getElementById('customThemeSelect')
-  const dotsColorInput = document.getElementById('dotsColorInput')
-  const bgColorInput = document.getElementById('bgColorInput')
-  const bgOpacityInput = document.getElementById('bgOpacityInput')
-  const dotsTypeInput = document.getElementById('dotsTypeInput')
-  const cornersSquareTypeInput = document.getElementById('cornersSquareTypeInput')
-  const cornersDotTypeInput = document.getElementById('cornersDotTypeInput')
-  const sizeInput = document.getElementById('sizeInput')
-  const qualityInput = document.getElementById('qualityInput')
-  const applyBtn = document.getElementById('applyCustomBtn')
-  const togglePreviewBgBtn = document.getElementById('togglePreviewBgBtn')
-  const qrPreviewContainer = document.getElementById('qrPreviewContainer')
-
-  // 切換預覽背景
-  let isDarkBg = false
-  togglePreviewBgBtn.addEventListener('click', () => {
-    isDarkBg = !isDarkBg
-    if (isDarkBg) {
-      qrPreviewContainer.classList.remove('bg-white')
-      qrPreviewContainer.classList.add('bg-[#1e1e1e]')
-    } else {
-      qrPreviewContainer.classList.remove('bg-[#1e1e1e]')
-      qrPreviewContainer.classList.add('bg-white')
-    }
-  })
-
-  // 主題變更
-  themeSelect.addEventListener('change', (e) => {
-    const theme = availableThemes.find(t => t.id === e.target.value)
-    if (theme) {
-      dotsColorInput.value = theme.options.dotsOptions?.color || '#000000'
-      bgColorInput.value = theme.options.backgroundOptions?.color || '#ffffff'
-      bgOpacityInput.value = 100
-      document.getElementById('bgOpacityValue').textContent = '100%'
-      dotsTypeInput.value = theme.options.dotsOptions?.type || 'square'
-      cornersSquareTypeInput.value = theme.options.cornersSquareOptions?.type || 'square'
-      cornersDotTypeInput.value = theme.options.cornersDotOptions?.type || 'dot'
-      sizeInput.value = theme.options.width || 500
-      qualityInput.value = theme.options.qrOptions?.errorCorrectionLevel || 'H'
-      document.getElementById('sizeValue').textContent = (theme.options.width || 500) + 'px'
-      updateQRPreview()
-    }
-  })
-
-  // 即時預覽更新
-  dotsColorInput.addEventListener('input', updateQRPreview)
-  bgColorInput.addEventListener('input', updateQRPreview)
-  bgOpacityInput.addEventListener('input', (e) => {
-    document.getElementById('bgOpacityValue').textContent = e.target.value + '%'
-    updateQRPreview()
-  })
-  dotsTypeInput.addEventListener('change', updateQRPreview)
-  cornersSquareTypeInput.addEventListener('change', updateQRPreview)
-  cornersDotTypeInput.addEventListener('change', updateQRPreview)
-  sizeInput.addEventListener('input', (e) => {
-    document.getElementById('sizeValue').textContent = e.target.value + 'px'
-    updateQRPreview()
-  })
-  qualityInput.addEventListener('change', updateQRPreview)
-
-  // 套用按鈕
-  applyBtn.addEventListener('click', applyCustomQRCode)
-}
-
-// 將 hex 顏色和透明度轉換為 rgba
-function hexToRgba(hex, opacity) {
-  const r = parseInt(hex.slice(1, 3), 16)
-  const g = parseInt(hex.slice(3, 5), 16)
-  const b = parseInt(hex.slice(5, 7), 16)
-  const a = opacity / 100
-  return `rgba(${r}, ${g}, ${b}, ${a})`
-}
-
-// 更新 QR Code 預覽
-let previewTimeout = null
-async function updateQRPreview() {
-  // 防抖
-  if (previewTimeout) clearTimeout(previewTimeout)
-
-  previewTimeout = setTimeout(async () => {
-    const loading = document.getElementById('qrPreviewLoading')
-    const preview = document.getElementById('qrPreviewImage')
-
-    if (!loading || !preview) return
-
-    loading.classList.remove('hidden')
-    preview.classList.add('hidden')
-
-    try {
-      const bgColorHex = document.getElementById('bgColorInput').value
-      const bgOpacity = parseInt(document.getElementById('bgOpacityInput').value)
-      const bgColor = hexToRgba(bgColorHex, bgOpacity)
-
-      const customOptions = {
-        width: parseInt(document.getElementById('sizeInput').value),
-        height: parseInt(document.getElementById('sizeInput').value),
-        dotsOptions: {
-          color: document.getElementById('dotsColorInput').value,
-          type: document.getElementById('dotsTypeInput').value
-        },
-        backgroundOptions: {
-          color: bgColor
-        },
-        cornersSquareOptions: {
-          color: document.getElementById('dotsColorInput').value,
-          type: document.getElementById('cornersSquareTypeInput').value
-        },
-        cornersDotOptions: {
-          color: document.getElementById('dotsColorInput').value,
-          type: document.getElementById('cornersDotTypeInput').value
-        },
-        qrOptions: {
-          errorCorrectionLevel: document.getElementById('qualityInput').value
-        }
-      }
-
-      // 使用當前短網址
-      const shortUrl = `${window.location.origin}/s/${currentUrlData.short_code}`
-
-      const response = await fetch('/api/urls/qrcode/preview', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: shortUrl, customOptions })
-      })
-
-      if (!response.ok) throw new Error('Preview failed')
-
-      const data = await response.json()
-      preview.src = data.qr_code
-      preview.classList.remove('hidden')
-      loading.classList.add('hidden')
-    } catch (error) {
-      console.error('Error updating preview:', error)
-      loading.classList.add('hidden')
-    }
-  }, 500)
-}
-
-// 套用客製化設定
-async function applyCustomQRCode() {
-  const applyBtn = document.getElementById('applyCustomBtn')
-  applyBtn.disabled = true
-  applyBtn.textContent = '生成中...'
-
-  try {
-    const bgColorHex = document.getElementById('bgColorInput').value
-    const bgOpacity = parseInt(document.getElementById('bgOpacityInput').value)
-    const bgColor = hexToRgba(bgColorHex, bgOpacity)
-
-    const customOptions = {
-      width: parseInt(document.getElementById('sizeInput').value),
-      height: parseInt(document.getElementById('sizeInput').value),
-      dotsOptions: {
-        color: document.getElementById('dotsColorInput').value,
-        type: document.getElementById('dotsTypeInput').value
-      },
-      backgroundOptions: {
-        color: bgColor
-      },
-      cornersSquareOptions: {
-        color: document.getElementById('dotsColorInput').value,
-        type: document.getElementById('cornersSquareTypeInput').value
-      },
-      cornersDotOptions: {
-        color: document.getElementById('dotsColorInput').value,
-        type: document.getElementById('cornersDotTypeInput').value
-      },
-      qrOptions: {
-        errorCorrectionLevel: document.getElementById('qualityInput').value
-      }
-    }
-
-    const themeId = document.getElementById('customThemeSelect').value
-
-    const response = await fetch(`/api/urls/${currentUrlData.id}/qrcode`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ themeId, customOptions })
-    })
-
-    if (!response.ok) throw new Error('Failed to generate QR code')
-
-    const data = await response.json()
-
-    // 更新 currentUrlData
-    currentUrlData.qr_code_generated = true
-    currentUrlData.qr_code_path = data.qr_code_path
-
-    // 更新主畫面的 QR Code
-    qrCodeImage.src = window.location.origin + data.qr_code_path + '?t=' + Date.now()
-    noQrCode.classList.add('hidden')
-    qrCodeContainer.classList.remove('hidden')
-
-    closeCustomizeModal()
-    utils.showNotification('QR Code 生成成功！', 'success')
-  } catch (error) {
-    console.error('Error applying custom QR code:', error)
-    utils.showNotification('生成失敗', 'error')
-  } finally {
-    applyBtn.disabled = false
-    applyBtn.textContent = '套用並生成'
-  }
-}
-
 // ======== 客戶端 QR Code 生成 ========
 
 // QR Code 配置
@@ -912,12 +537,6 @@ function openClientCustomizeModal() {
   // 如果沒有 currentQRConfig，嘗試從 currentUrlData.qr_code_options 重建
   else if (currentUrlData?.qr_code_options) {
     const saved = currentUrlData.qr_code_options
-    const hexToRgba = (hex, opacity) => {
-      const r = parseInt(hex.slice(1, 3), 16)
-      const g = parseInt(hex.slice(3, 5), 16)
-      const b = parseInt(hex.slice(5, 7), 16)
-      return `rgba(${r}, ${g}, ${b}, ${opacity / 100})`
-    }
 
     currentConfig = {
       width: 300,
@@ -1154,16 +773,6 @@ function updateQRPreview() {
     const cornersDotType = document.getElementById('qrCornersDotType')?.value || 'square'
     const showLogo = document.getElementById('qrShowLogo')?.checked || false
 
-    // Convert hex color and opacity to RGBA
-    const hexToRgba = (hex, opacity) => {
-      if (!hex || !hex.startsWith('#')) return 'rgba(255, 255, 255, 1)'
-      const r = parseInt(hex.slice(1, 3), 16)
-      const g = parseInt(hex.slice(3, 5), 16)
-      const b = parseInt(hex.slice(5, 7), 16)
-      const alpha = Math.max(0, Math.min(1, opacity / 100))
-      return `rgba(${r}, ${g}, ${b}, ${alpha})`
-    }
-
     const config = {
       width: 300,
       height: 300,
@@ -1234,14 +843,6 @@ async function applyCustomQR() {
     const cornersSquareType = document.getElementById('qrCornersSquareType').value
     const cornersDotType = document.getElementById('qrCornersDotType').value
     const showLogo = document.getElementById('qrShowLogo').checked
-
-    // Convert hex color and opacity to RGBA
-    const hexToRgba = (hex, opacity) => {
-      const r = parseInt(hex.slice(1, 3), 16)
-      const g = parseInt(hex.slice(3, 5), 16)
-      const b = parseInt(hex.slice(5, 7), 16)
-      return `rgba(${r}, ${g}, ${b}, ${opacity / 100})`
-    }
 
     const qrConfig = {
       dotsColor,
@@ -1322,16 +923,339 @@ async function applyCustomQR() {
   }
 }
 
-// 修改下載按鈕功能為客戶端下載
-downloadQrBtn.addEventListener('click', () => {
-  if (currentQRCode && currentUrlData) {
-    const filename = `qrcode_${currentUrlData.short_code}`
-    currentQRCode.download({ name: filename, extension: "png" })
-    utils.showNotification('QR Code 已下載！', 'success')
-  } else {
-    utils.showNotification('請先生成 QR Code', 'error')
+// ======== 管道追蹤功能 ========
+
+let currentChannels = []
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+async function loadChannels() {
+  const listEl = document.getElementById('channelsList')
+  const loadingEl = document.getElementById('channelsLoading')
+  const emptyEl = document.getElementById('noChannels')
+  if (!currentUrlId || !listEl) return
+  try {
+    currentChannels = await api.getChannels(currentUrlId)
+    renderChannels()
+  } catch (error) {
+    console.error('載入管道失敗:', error)
+    if (loadingEl) loadingEl.classList.add('hidden')
+    if (emptyEl) emptyEl.classList.remove('hidden')
+  }
+}
+
+function renderChannels() {
+  const listEl = document.getElementById('channelsList')
+  const loadingEl = document.getElementById('channelsLoading')
+  const emptyEl = document.getElementById('noChannels')
+  const countEl = document.getElementById('channelCount')
+  const addBtn = document.getElementById('addChannelBtn')
+
+  if (loadingEl) loadingEl.classList.add('hidden')
+
+  if (currentChannels.length === 0) {
+    listEl.classList.add('hidden')
+    emptyEl.classList.remove('hidden')
+    countEl.classList.add('hidden')
+    if (addBtn) addBtn.disabled = false
+    return
+  }
+
+  emptyEl.classList.add('hidden')
+  listEl.classList.remove('hidden')
+  countEl.classList.remove('hidden')
+  countEl.textContent = `已建立 ${currentChannels.length} / 5 個管道`
+  if (addBtn) addBtn.disabled = currentChannels.length >= 5
+
+  listEl.innerHTML = currentChannels.map(ch => {
+    const utmParts = []
+    if (ch.utm_source) utmParts.push(`source=${ch.utm_source}`)
+    if (ch.utm_medium) utmParts.push(`medium=${ch.utm_medium}`)
+    if (ch.utm_campaign) utmParts.push(`campaign=${ch.utm_campaign}`)
+    if (ch.utm_content) utmParts.push(`content=${ch.utm_content}`)
+    if (ch.utm_term) utmParts.push(`term=${ch.utm_term}`)
+    const utmText = utmParts.length > 0 ? utmParts.join(' · ') : '未設定 UTM 參數'
+
+    return `
+      <div class="flex items-start gap-3 p-4 rounded-lg bg-white/5 border border-white/10 hover:border-white/20 transition-colors">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-white font-medium">${escapeHtml(ch.name)}</span>
+            <span class="text-white/40 text-xs bg-white/10 px-2 py-0.5 rounded font-mono">g=${ch.group_key}</span>
+            ${ch.click_count > 0 ? `<span class="text-primary text-xs font-medium">${ch.click_count} 次點擊</span>` : ''}
+          </div>
+          <p class="text-white/40 text-xs mt-1.5 truncate">${escapeHtml(utmText)}</p>
+        </div>
+        <div class="flex items-center gap-1 shrink-0">
+          <button data-action="copy" data-id="${ch.id}" class="p-2 text-white/60 hover:text-white transition-colors" title="複製管道連結">
+            <span class="material-symbols-outlined text-lg">content_copy</span>
+          </button>
+          <button data-action="qr" data-id="${ch.id}" class="p-2 text-white/60 hover:text-white transition-colors" title="管道 QR Code">
+            <span class="material-symbols-outlined text-lg">qr_code_2</span>
+          </button>
+          <button data-action="edit" data-id="${ch.id}" class="p-2 text-white/60 hover:text-white transition-colors" title="編輯管道">
+            <span class="material-symbols-outlined text-lg">edit</span>
+          </button>
+          <button data-action="delete" data-id="${ch.id}" class="p-2 text-red-400/60 hover:text-red-400 transition-colors" title="刪除管道">
+            <span class="material-symbols-outlined text-lg">delete</span>
+          </button>
+        </div>
+      </div>
+    `
+  }).join('')
+
+  renderChannelStats()
+}
+
+function renderChannelStats() {
+  const section = document.getElementById('channelStatsSection')
+  const content = document.getElementById('channelStatsContent')
+  if (!section || !content) return
+
+  if (currentChannels.length === 0) {
+    section.classList.add('hidden')
+    return
+  }
+
+  section.classList.remove('hidden')
+
+  const totalAll = parseInt(totalClicksEl.textContent.replace(/,/g, '')) || 0
+  const totalChannel = currentChannels.reduce((sum, ch) => sum + (ch.click_count || 0), 0)
+  const directClicks = Math.max(0, totalAll - totalChannel)
+
+  let html = ''
+
+  if (totalAll > 0) {
+    html += `
+      <div class="flex items-center gap-2">
+        <span class="text-white/60 text-xs w-20 truncate">直接訪問</span>
+        <div class="flex-1 h-2 bg-white/10 rounded-full overflow-hidden">
+          <div class="h-full bg-white/30 rounded-full transition-all" style="width: ${Math.round(directClicks / totalAll * 100)}%"></div>
+        </div>
+        <span class="text-white/60 text-xs w-12 text-right">${directClicks}</span>
+      </div>
+    `
+  }
+
+  for (const ch of currentChannels) {
+    const pct = totalAll > 0 ? Math.round((ch.click_count || 0) / totalAll * 100) : 0
+    html += `
+      <div class="flex items-center gap-2">
+        <span class="text-white text-xs w-20 truncate" title="${escapeHtml(ch.name)}">${escapeHtml(ch.name)}</span>
+        <div class="flex-1 h-2 bg-white/10 rounded-full overflow-hidden">
+          <div class="h-full bg-primary rounded-full transition-all" style="width: ${pct}%"></div>
+        </div>
+        <span class="text-white/60 text-xs w-12 text-right">${ch.click_count || 0}</span>
+      </div>
+    `
+  }
+
+  content.innerHTML = html
+}
+
+// Channel list event delegation
+document.getElementById('channelsList')?.addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-action]')
+  if (!btn) return
+  const action = btn.dataset.action
+  const id = btn.dataset.id
+  const ch = currentChannels.find(c => c.id === id)
+  if (!ch) return
+
+  if (action === 'copy') {
+    const link = `${window.location.origin}/s/${currentUrlData.short_code}?g=${ch.group_key}`
+    const ok = await utils.copyToClipboard(link)
+    if (ok) {
+      utils.showNotification('已複製管道連結', 'success')
+      const icon = btn.querySelector('.material-symbols-outlined')
+      if (icon) { icon.textContent = 'check'; setTimeout(() => icon.textContent = 'content_copy', 2000) }
+    }
+  } else if (action === 'qr') {
+    showChannelQR(ch)
+  } else if (action === 'edit') {
+    openChannelModal(ch.id)
+  } else if (action === 'delete') {
+    if (!confirm(`確定要刪除管道「${ch.name}」嗎？`)) return
+    try {
+      await api.deleteChannel(currentUrlId, ch.id)
+      utils.showNotification('管道已刪除', 'success')
+      await loadChannels()
+    } catch (err) {
+      utils.showNotification(err.message, 'error')
+    }
   }
 })
+
+// Add channel button
+document.getElementById('addChannelBtn')?.addEventListener('click', () => openChannelModal())
+
+function showChannelQR(ch) {
+  const qrUrl = `${window.location.origin}/s/${currentUrlData.short_code}?g=${ch.group_key}&qr=1`
+
+  let qrConfig = { ...QR_CONFIG, data: qrUrl }
+  if (currentUrlData?.qr_code_options) {
+    const saved = currentUrlData.qr_code_options
+    qrConfig = {
+      width: 300, height: 300, type: "svg", data: qrUrl,
+      dotsOptions: { color: saved.dotsColor || '#000000', type: saved.dotsType || 'rounded' },
+      backgroundOptions: { color: hexToRgba(saved.bgColor || '#ffffff', saved.bgOpacity || 100) },
+      cornersSquareOptions: { type: saved.cornersSquareType || 'square', color: saved.dotsColor || '#000000' },
+      cornersDotOptions: { type: saved.cornersDotType || 'square', color: saved.dotsColor || '#000000' },
+      qrOptions: { errorCorrectionLevel: 'H' }
+    }
+    if (saved.showLogo) {
+      qrConfig.image = "/images/tzuchi-logo.svg"
+      qrConfig.imageOptions = { margin: 10, imageSize: 0.3 }
+    }
+  }
+
+  const modal = document.createElement('div')
+  modal.className = 'fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4'
+  modal.innerHTML = `
+    <div class="relative bg-[#1e1e1e] rounded-xl p-6 max-w-md w-full">
+      <button class="absolute top-4 right-4 text-white/60 hover:text-white" onclick="this.closest('.fixed').remove()">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+      <h3 class="text-white text-xl font-bold mb-1">管道 QR Code</h3>
+      <p class="text-white/60 text-sm mb-4">${escapeHtml(ch.name)}</p>
+      <div class="bg-white p-4 rounded-lg mb-4 flex justify-center">
+        <div id="channelQRCanvas"></div>
+      </div>
+      <p class="text-white/40 text-xs text-center mb-4 font-mono break-all">${escapeHtml(qrUrl)}</p>
+      <div class="flex gap-2">
+        <button id="dlChannelQR" class="flex-1 bg-primary hover:bg-blue-600 text-white rounded-lg py-3 font-bold flex items-center justify-center gap-2 transition-colors">
+          <span class="material-symbols-outlined text-lg">download</span>
+          <span>下載</span>
+        </button>
+        <button class="flex-1 bg-white/10 hover:bg-white/20 text-white rounded-lg py-3 font-bold transition-colors" onclick="this.closest('.fixed').remove()">
+          關閉
+        </button>
+      </div>
+    </div>
+  `
+  document.body.appendChild(modal)
+
+  const qrInstance = new QRCodeStyling(qrConfig)
+  qrInstance.append(document.getElementById('channelQRCanvas'))
+
+  document.getElementById('dlChannelQR').addEventListener('click', () => {
+    qrInstance.download({ name: `qrcode_${currentUrlData.short_code}_${ch.group_key}`, extension: "png" })
+    utils.showNotification('QR Code 已下載', 'success')
+  })
+
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove() })
+}
+
+function openChannelModal(channelId) {
+  const channel = channelId ? currentChannels.find(c => c.id === channelId) : null
+  const isEdit = !!channel
+
+  const modal = document.createElement('div')
+  modal.id = 'channelModal'
+  modal.className = 'fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4'
+  modal.innerHTML = `
+    <div class="relative bg-[#1e1e1e] rounded-xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto">
+      <button class="absolute top-4 right-4 text-white/60 hover:text-white" onclick="document.getElementById('channelModal').remove()">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+      <h3 class="text-white text-xl font-bold mb-6">${isEdit ? '編輯管道' : '新增管道'}</h3>
+      <div class="space-y-4">
+        <label class="flex flex-col">
+          <p class="text-white text-sm font-medium pb-2">管道名稱 <span class="text-red-400">*</span></p>
+          <input id="chName" type="text" value="${isEdit ? escapeHtml(channel.name) : ''}"
+                 class="form-input w-full rounded-lg text-white bg-background-dark border border-white/20 h-12 px-4 focus:outline-0 focus:ring-2 focus:ring-primary/50"
+                 placeholder="例：Facebook 廣告、LINE 推播、Email EDM" />
+        </label>
+        <div class="border-t border-white/10 pt-4">
+          <p class="text-white text-sm font-medium mb-1">UTM 參數</p>
+          <p class="text-white/40 text-xs mb-3">選填，自動附加到目標網址供 GA4 分析</p>
+          <div class="space-y-3">
+            <label class="flex flex-col">
+              <p class="text-white/80 text-xs pb-1">utm_source</p>
+              <input id="chUtmSource" type="text" value="${isEdit ? escapeHtml(channel.utm_source || '') : ''}"
+                     class="form-input w-full rounded-lg text-white bg-background-dark border border-white/20 h-10 px-4 text-sm focus:outline-0 focus:ring-2 focus:ring-primary/50"
+                     placeholder="例：facebook, line, newsletter" />
+            </label>
+            <label class="flex flex-col">
+              <p class="text-white/80 text-xs pb-1">utm_medium</p>
+              <input id="chUtmMedium" type="text" value="${isEdit ? escapeHtml(channel.utm_medium || '') : ''}"
+                     class="form-input w-full rounded-lg text-white bg-background-dark border border-white/20 h-10 px-4 text-sm focus:outline-0 focus:ring-2 focus:ring-primary/50"
+                     placeholder="例：social, email, cpc" />
+            </label>
+            <label class="flex flex-col">
+              <p class="text-white/80 text-xs pb-1">utm_campaign</p>
+              <input id="chUtmCampaign" type="text" value="${isEdit ? escapeHtml(channel.utm_campaign || '') : ''}"
+                     class="form-input w-full rounded-lg text-white bg-background-dark border border-white/20 h-10 px-4 text-sm focus:outline-0 focus:ring-2 focus:ring-primary/50"
+                     placeholder="例：2026_spring_campaign" />
+            </label>
+            <div class="grid grid-cols-2 gap-3">
+              <label class="flex flex-col">
+                <p class="text-white/80 text-xs pb-1">utm_content</p>
+                <input id="chUtmContent" type="text" value="${isEdit ? escapeHtml(channel.utm_content || '') : ''}"
+                       class="form-input w-full rounded-lg text-white bg-background-dark border border-white/20 h-10 px-4 text-sm focus:outline-0 focus:ring-2 focus:ring-primary/50"
+                       placeholder="例：banner_top" />
+              </label>
+              <label class="flex flex-col">
+                <p class="text-white/80 text-xs pb-1">utm_term</p>
+                <input id="chUtmTerm" type="text" value="${isEdit ? escapeHtml(channel.utm_term || '') : ''}"
+                       class="form-input w-full rounded-lg text-white bg-background-dark border border-white/20 h-10 px-4 text-sm focus:outline-0 focus:ring-2 focus:ring-primary/50"
+                       placeholder="例：短網址" />
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="flex gap-2 mt-6">
+        <button id="saveChannelBtn" class="flex-1 bg-primary hover:bg-blue-600 text-white rounded-lg py-3 font-bold transition-colors">
+          ${isEdit ? '儲存變更' : '建立管道'}
+        </button>
+        <button class="flex-1 bg-white/10 hover:bg-white/20 text-white rounded-lg py-3 font-bold transition-colors"
+                onclick="document.getElementById('channelModal').remove()">取消</button>
+      </div>
+    </div>
+  `
+  document.body.appendChild(modal)
+  document.getElementById('chName').focus()
+
+  document.getElementById('saveChannelBtn').addEventListener('click', async () => {
+    const name = document.getElementById('chName').value.trim()
+    if (!name) {
+      utils.showNotification('請輸入管道名稱', 'error')
+      document.getElementById('chName').focus()
+      return
+    }
+    const data = {
+      name,
+      utm_source: document.getElementById('chUtmSource').value.trim() || null,
+      utm_medium: document.getElementById('chUtmMedium').value.trim() || null,
+      utm_campaign: document.getElementById('chUtmCampaign').value.trim() || null,
+      utm_content: document.getElementById('chUtmContent').value.trim() || null,
+      utm_term: document.getElementById('chUtmTerm').value.trim() || null
+    }
+    const btn = document.getElementById('saveChannelBtn')
+    btn.disabled = true
+    btn.textContent = '處理中...'
+    try {
+      if (isEdit) {
+        await api.updateChannel(currentUrlId, channelId, data)
+        utils.showNotification('管道已更新', 'success')
+      } else {
+        await api.createChannel(currentUrlId, data)
+        utils.showNotification('管道已建立', 'success')
+      }
+      document.getElementById('channelModal').remove()
+      await loadChannels()
+    } catch (err) {
+      utils.showNotification(err.message, 'error')
+      btn.disabled = false
+      btn.textContent = isEdit ? '儲存變更' : '建立管道'
+    }
+  })
+
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove() })
+}
 
 // 初始載入函數 - 由頁面在 auth 初始化後調用
 function initEdit() {

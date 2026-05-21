@@ -28,5 +28,7 @@ export interface URLClickRecord {
   url_id: string
   clicked_at: string
   user_agent?: string
-  is_qr_scan: boolean
+  ip_address?: string
+  event_type: string
+  channel_id?: string
 }

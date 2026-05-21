@@ -71,14 +71,16 @@ Hono (src/main.ts)
 |------|---------|
 | `src/main.ts` | Hono app entry, middleware (CSP, CORS, logging), static serving |
 | `src/routes/url-crud.ts` | URL CRUD, QR code, password verification |
-| `src/routes/url-redirect.ts` | Short URL redirect, ad pages, internal tracking |
+| `src/routes/url-redirect.ts` | Short URL redirect, ad pages |
 | `src/routes/url-stats.ts` | Statistics queries via RPC (get_url_stats, get_urls_with_stats, etc.) |
 | `src/routes/url-pages.ts` | HTML page routes (/links, /edit, /analytics, /feedback, /docs) |
 | `src/routes/auth.ts` | User auth (/api/auth/me, /api/auth/profile) |
 | `src/routes/_helpers.ts` | Shared route utilities (getUserClientFromRequest, sendUnauthorized) |
 | `src/routes/feedbacks.ts` | Community feedback/suggestion routes |
 | `src/services/supabase.ts` | Supabase clients (service + user factory) |
-| `src/services/click-log-watcher.ts` | Monitors Nginx logs and records cache HIT clicks |
+| `src/services/click-log-watcher.ts` | Monitors Nginx logs and records cache HIT clicks (incl. channel_id) |
+| `src/routes/url-channels.ts` | Channel CRUD (UTM tracking, multi QR code per URL) |
+| `src/utils/asset-version.ts` | Reads version from deno.json, injects `?v=` into HTML asset refs |
 | `src/utils/html-templates.ts` | Password prompt, expired, ad interstitial pages |
 | `public/js/auth.js` | Frontend Supabase auth (Keycloak OIDC) |
 
@@ -86,11 +88,14 @@ Hono (src/main.ts)
 
 **Main tables**:
 - `urls` - short URLs with `qr_code_options` (JSONB), `password_hash`, `expires_at`
-- `url_clicks` - click tracking with `click_type` ('link' or 'qr')
+- `url_clicks` - click tracking with `event_type` ('link_click', 'qr_scan', 'ad_view', 'ad_click') and optional `channel_id`
+- `url_channels` - UTM channel tracking per URL (`group_key`, `name`, `utm_source/medium/campaign/content/term`)
 
-**Views**:
-- `url_total_stats` - aggregated total clicks per URL
-- `url_daily_stats` - daily breakdown
+**RPC functions** (SECURITY DEFINER, used by `url-stats.ts`):
+- `get_url_stats(p_url_id, p_days)` - single URL stats with daily + channel breakdown
+- `get_urls_with_stats(p_user_id, p_page, p_limit)` - paginated URL list with aggregated stats
+- `get_stats_summary(p_user_id)` - totalLinks, activeLinks, totalClicks
+- `get_daily_stats(p_user_id, p_days)` - daily trend across all user URLs
 
 ## Code Conventions
 
@@ -124,16 +129,28 @@ When adding new external resources, update CSP in `src/main.ts`:
 - `connectSrc` - for fetch/XHR targets
 
 ### 5. Nginx Caching
-Only `/s/*` routes are cached by Nginx. API, static files, and other routes bypass cache.
+Only `/s/*` routes are cached by Nginx. API and HTML pages bypass Nginx cache. Static assets (JS/CSS) bypass Nginx proxy cache but allow browser caching.
+
+### 6. Frontend api.js: Backend API vs Direct Supabase
+`public/js/api.js` uses two patterns — don't mix them up:
+- **Backend API** (`fetch('/api/...')` with Bearer token): `getUrls`, `getUrlStats`, `getStatsSummary`, `updateUrl`, all channel methods — these use server-side RPC for performance
+- **Direct Supabase** (`this.getClient()`): `createUrl`, `getUrl`, `deleteUrl`, `updateQRCode` — these use the Supabase JS client with RLS
 
 ## Cache Strategy
 
-Caching is handled entirely by Nginx for `/s/*` routes:
-- **Nginx caches 302 redirects** for short URLs (configurable TTL)
-- **No application-level cache** (Redis removed for simplicity)
-- **Click tracking**: ClickWatcher monitors Nginx logs for HIT events
+### Short URL Redirect Cache (Nginx)
+- **Nginx caches 301/302 redirects** for `/s/*` routes (5 min TTL)
+- **Cache key**: `shorturl$request_uri` (includes query params like `?g=xxx&qr=1`)
+- **Click tracking**: ClickWatcher monitors Nginx logs for cache HIT events
+- **Cache Invalidation**: On URL update/delete, call `purgeNginxCache(shortCode)` to clear Nginx cache
 
-**Cache Invalidation**: On URL update/delete, call `purgeNginxCache(shortCode)` to clear Nginx cache.
+### Static Asset Cache (Browser)
+Version-based cache busting via `src/utils/asset-version.ts`:
+- **JS/CSS**: `Cache-Control: public, max-age=31536000, immutable` (1 year) — safe because URL includes `?v={version}`
+- **Images/fonts**: `Cache-Control: public, max-age=2592000` (30 days)
+- **HTML pages**: `Cache-Control: no-cache` — always fetches latest (so version strings stay current)
+- Version is read from `deno.json` `version` field at startup and injected into all HTML `<script src="/js/...">` references
+- **On deploy**: bump `deno.json` version → restart → browsers auto-fetch new assets
 
 ## Authentication
 

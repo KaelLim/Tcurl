@@ -142,8 +142,7 @@ export function logAuditEvent(entry: Omit<AuditLogEntry, 'timestamp'>): void {
  * 建立 Hono 中間件用的稽核日誌記錄器
  */
 export function createAuditMiddleware() {
-  // deno-lint-ignore no-explicit-any
-  return async (c: any, next: () => Promise<void>): Promise<void | Response> => {
+  return async (c: { req: { raw: { headers: Headers }; path: string; method: string; header: (name: string) => string | undefined }; res: { status: number } }, next: () => Promise<void>): Promise<void | Response> => {
     const startTime = Date.now();
 
     // 記錄請求開始

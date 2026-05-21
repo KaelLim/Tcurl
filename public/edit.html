@@ -185,6 +185,32 @@
                             </div>
                         </div>
 
+                        <!-- 管道追蹤卡片 -->
+                        <div class="rounded-xl border border-white/10 bg-white/5 p-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <div>
+                                    <h2 class="text-white text-xl font-bold">管道追蹤</h2>
+                                    <p class="text-white/60 text-sm mt-1">為不同來源建立追蹤連結，搭配 UTM 分析成效</p>
+                                </div>
+                                <button id="addChannelBtn" class="flex items-center gap-2 px-4 h-10 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <span class="material-symbols-outlined text-lg">add</span>
+                                    <span>新增管道</span>
+                                </button>
+                            </div>
+                            <p id="channelCount" class="text-white/40 text-xs mb-3 hidden"></p>
+                            <div id="channelsContainer">
+                                <div id="channelsLoading" class="text-center py-4 text-white/60">
+                                    <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2"></div>
+                                    載入中...
+                                </div>
+                                <div id="channelsList" class="hidden space-y-3"></div>
+                                <div id="noChannels" class="hidden text-center py-6">
+                                    <span class="material-symbols-outlined text-white/20 text-4xl">conversion_path</span>
+                                    <p class="text-white/60 text-sm mt-2">尚未建立管道</p>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- 危險區域 -->
                         <div class="rounded-xl border border-red-500/30 bg-red-500/5 p-6">
                             <h2 class="text-red-400 text-xl font-bold mb-2">危險區域</h2>
@@ -255,6 +281,10 @@
                                 <div>
                                     <p class="text-white/90 text-sm">最後訪問</p>
                                     <p id="lastClicked" class="text-white text-sm">-</p>
+                                </div>
+                                <div id="channelStatsSection" class="hidden border-t border-white/10 pt-4">
+                                    <p class="text-white/90 text-sm font-medium mb-3">管道點擊分佈</p>
+                                    <div id="channelStatsContent" class="space-y-2.5"></div>
                                 </div>
                             </div>
                         </div>

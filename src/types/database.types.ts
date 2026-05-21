@@ -13,26 +13,70 @@ export type Database = {
         Row: {
           clicked_at: string | null
           id: string
-          is_qr_scan: boolean | null
           event_type: string | null
+          channel_id: string | null
           url_id: string
           user_agent: string | null
+          ip_address: string | null
         }
         Insert: {
           clicked_at?: string | null
           id?: string
-          is_qr_scan?: boolean | null
           event_type?: string | null
+          channel_id?: string | null
           url_id: string
           user_agent?: string | null
+          ip_address?: string | null
         }
         Update: {
           clicked_at?: string | null
           id?: string
-          is_qr_scan?: boolean | null
           event_type?: string | null
+          channel_id?: string | null
           url_id?: string
           user_agent?: string | null
+          ip_address?: string | null
+        }
+      }
+      url_channels: {
+        Row: {
+          id: string
+          url_id: string
+          group_key: string
+          name: string
+          utm_source: string | null
+          utm_medium: string | null
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_term: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          url_id: string
+          group_key: string
+          name: string
+          utm_source?: string | null
+          utm_medium?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_term?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          url_id?: string
+          group_key?: string
+          name?: string
+          utm_source?: string | null
+          utm_medium?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_term?: string | null
+          created_at?: string | null
+          updated_at?: string | null
         }
       }
       urls: {

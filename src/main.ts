@@ -119,6 +119,14 @@ const rateLimitWindow = 60 * 1000; // 1 分鐘
 // 簡單的內存速率限制器
 const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
 
+// 定期清理過期記錄，防止 Map 無限增長
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, record] of rateLimitStore) {
+    if (record.resetAt < now) rateLimitStore.delete(ip);
+  }
+}, 5 * 60 * 1000);
+
 if (rateLimitEnabled) {
   app.use('*', async (c, next) => {
     const ip =
@@ -159,9 +167,7 @@ if (rateLimitEnabled) {
 // 路由配置
 // ============================================================
 
-// 從 deno.json 讀取版本號
-const denoConfig = JSON.parse(Deno.readTextFileSync(new URL('../deno.json', import.meta.url)));
-const APP_VERSION = denoConfig.version || '0.0.0';
+import { APP_VERSION, injectAssetVersion } from './utils/asset-version.ts';
 
 // 版本 API（供前端 badge 自動讀取）
 app.get('/api/version', (c) => {
@@ -232,6 +238,20 @@ function getMimeType(path: string): string {
   return MIME_TYPES[ext] || 'application/octet-stream';
 }
 
+// 快取策略：JS/CSS 帶版本號可長快取，圖片中等快取，HTML 不快取
+function getCacheControl(path: string): string {
+  if (path.match(/\.(js|css)$/)) return 'public, max-age=31536000, immutable';
+  if (path.match(/\.(png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf)$/)) return 'public, max-age=2592000';
+  return 'no-cache';
+}
+
+function serveHtmlResponse(content: Uint8Array | string): Response {
+  const html = typeof content === 'string' ? content : new TextDecoder().decode(content);
+  return new Response(injectAssetVersion(html), {
+    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' },
+  });
+}
+
 // 靜態文件服務（放在最後）- Deno 版本
 app.get('/*', async (c) => {
   const path = c.req.path;
@@ -242,10 +262,14 @@ app.get('/*', async (c) => {
     const file = await Deno.readFile(filePath);
     const mimeType = getMimeType(path);
 
+    if (mimeType.startsWith('text/html')) {
+      return serveHtmlResponse(file);
+    }
+
     return new Response(file, {
       headers: {
         'Content-Type': mimeType,
-        'Cache-Control': 'public, max-age=3600',
+        'Cache-Control': getCacheControl(path),
       },
     });
   } catch {
@@ -253,26 +277,20 @@ app.get('/*', async (c) => {
       // 嘗試 .html（隱藏副檔名：/login → /login.html）
       try {
         const file = await Deno.readFile(`./public${path}.html`);
-        return new Response(file, {
-          headers: { 'Content-Type': 'text/html; charset=utf-8' },
-        });
+        return serveHtmlResponse(file);
       } catch { /* continue */ }
 
       // 嘗試目錄 index.html（/docs → /docs/index.html）
       try {
         const indexPath = path.endsWith('/') ? `${path}index.html` : `${path}/index.html`;
         const file = await Deno.readFile(`./public${indexPath}`);
-        return new Response(file, {
-          headers: { 'Content-Type': 'text/html; charset=utf-8' },
-        });
+        return serveHtmlResponse(file);
       } catch { /* continue */ }
 
       // SPA fallback
       try {
         const content = await Deno.readFile('./public/index.html');
-        return new Response(content, {
-          headers: { 'Content-Type': 'text/html; charset=utf-8' },
-        });
+        return serveHtmlResponse(content);
       } catch {
         return c.text('Not Found', 404);
       }
