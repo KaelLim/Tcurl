@@ -23,6 +23,7 @@ import { urlPageRoutes } from './routes/url-pages.ts';
 import { authRoutes } from './routes/auth.ts';
 import { urlChannelRoutes } from './routes/url-channels.ts';
 import { feedbackRoutes } from './routes/feedbacks.ts';
+import { adminRoutes } from './routes/admin.ts';
 import { renderRateLimitPage } from './utils/html-templates.ts';
 
 // 導入服務
@@ -213,6 +214,9 @@ app.route('/', urlPageRoutes);
 
 // 註冊社群建議路由
 app.route('/', feedbackRoutes);
+
+// 註冊管理員路由
+app.route('/', adminRoutes);
 
 // MIME type 對照表
 const MIME_TYPES: Record<string, string> = {

@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html class="dark" lang="zh-TW">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>管理後台 - TCurl</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1337ec",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101322",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+    <script src="/js/components/tc-head-meta.js"></script>
+    <tc-head-meta></tc-head-meta>
+</head>
+<body class="font-display bg-background-light dark:bg-background-dark">
+    <button data-sidebar-toggle class="lg:hidden fixed top-4 left-4 z-50 text-white p-3 bg-[#111218] hover:bg-[#1a1d2e] rounded-lg transition-colors shadow-lg border border-white/10">
+        <span class="material-symbols-outlined text-2xl">menu</span>
+    </button>
+    <div class="flex h-screen overflow-hidden">
+        <tc-sidebar active="admin"></tc-sidebar>
+
+        <main class="flex flex-1 justify-center py-8 overflow-y-auto">
+            <div class="flex w-full max-w-7xl flex-col gap-6 px-4 sm:px-6 lg:px-8">
+                <tc-page-header title="管理後台" description="系統管理與監控"></tc-page-header>
+
+                <!-- Access Denied (hidden by default) -->
+                <div id="accessDenied" class="hidden flex flex-col items-center justify-center gap-4 py-20">
+                    <span class="material-symbols-outlined text-6xl text-red-400">block</span>
+                    <p class="text-white text-xl font-bold">無權限存取</p>
+                    <p class="text-white/60">您不是管理員，無法使用此頁面</p>
+                    <a href="/links" class="mt-4 px-6 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg font-bold transition-colors">返回我的連結</a>
+                </div>
+
+                <!-- Admin Content (hidden until verified) -->
+                <div id="adminContent" class="hidden flex flex-col gap-6">
+
+                    <!-- Tab Navigation -->
+                    <div class="flex gap-1 border-b border-white/10">
+                        <button class="tab-btn px-4 py-2.5 text-sm font-medium rounded-t-lg transition-colors text-white bg-white/10" data-tab="overview">
+                            <span class="material-symbols-outlined text-base align-middle mr-1">dashboard</span>總覽
+                        </button>
+                        <button class="tab-btn px-4 py-2.5 text-sm font-medium rounded-t-lg transition-colors text-white/60 hover:text-white hover:bg-white/5" data-tab="urls">
+                            <span class="material-symbols-outlined text-base align-middle mr-1">link</span>全部連結
+                        </button>
+                        <button class="tab-btn px-4 py-2.5 text-sm font-medium rounded-t-lg transition-colors text-white/60 hover:text-white hover:bg-white/5" data-tab="users">
+                            <span class="material-symbols-outlined text-base align-middle mr-1">group</span>使用者
+                        </button>
+                        <button class="tab-btn px-4 py-2.5 text-sm font-medium rounded-t-lg transition-colors text-white/60 hover:text-white hover:bg-white/5" data-tab="feedbacks">
+                            <span class="material-symbols-outlined text-base align-middle mr-1">forum</span>回饋
+                        </button>
+                    </div>
+
+                    <!-- Overview Tab -->
+                    <div id="tab-overview" class="tab-content flex flex-col gap-6">
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            <div class="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/5 p-5">
+                                <p class="text-white/60 text-sm">總連結數</p>
+                                <p id="statTotalUrls" class="text-white text-3xl font-bold">-</p>
+                                <p class="text-white/40 text-xs"><span id="statActiveUrls">-</span> 個啟用中</p>
+                            </div>
+                            <div class="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/5 p-5">
+                                <p class="text-white/60 text-sm">總點擊數</p>
+                                <p id="statTotalClicks" class="text-white text-3xl font-bold">-</p>
+                                <p class="text-white/40 text-xs">今日 <span id="statTodayClicks">-</span> 次</p>
+                            </div>
+                            <div class="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/5 p-5">
+                                <p class="text-white/60 text-sm">註冊使用者</p>
+                                <p id="statTotalUsers" class="text-white text-3xl font-bold">-</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- URLs Tab -->
+                    <div id="tab-urls" class="tab-content hidden flex flex-col gap-4">
+                        <div class="flex items-center gap-3">
+                            <div class="relative flex-1 max-w-md">
+                                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-white/40 text-xl">search</span>
+                                <input id="urlSearch" type="text" placeholder="搜尋短代碼或網址..."
+                                    class="w-full bg-white/5 border border-white/10 text-white text-sm rounded-lg pl-10 pr-4 py-2.5 placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                            </div>
+                            <span id="urlTotal" class="text-white/40 text-sm"></span>
+                        </div>
+                        <div class="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
+                            <div class="overflow-x-auto">
+                                <table class="w-full">
+                                    <thead>
+                                        <tr class="border-b border-white/10">
+                                            <th class="text-left text-white/60 text-xs font-medium p-3 uppercase tracking-wider">短代碼</th>
+                                            <th class="text-left text-white/60 text-xs font-medium p-3 uppercase tracking-wider">原始網址</th>
+                                            <th class="text-left text-white/60 text-xs font-medium p-3 uppercase tracking-wider">建立者</th>
+                                            <th class="text-left text-white/60 text-xs font-medium p-3 uppercase tracking-wider">點擊</th>
+                                            <th class="text-left text-white/60 text-xs font-medium p-3 uppercase tracking-wider">狀態</th>
+                                            <th class="text-left text-white/60 text-xs font-medium p-3 uppercase tracking-wider">建立時間</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="urlsTableBody">
+                                        <tr><td colspan="6" class="text-center p-8 text-white/40">載入中...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div id="urlsPagination" class="flex items-center justify-between text-sm"></div>
+                    </div>
+
+                    <!-- Users Tab -->
+                    <div id="tab-users" class="tab-content hidden flex flex-col gap-4">
+                        <div class="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
+                            <div class="overflow-x-auto">
+                                <table class="w-full">
+                                    <thead>
+                                        <tr class="border-b border-white/10">
+                                            <th class="text-left text-white/60 text-xs font-medium p-3 uppercase tracking-wider">使用者</th>
+                                            <th class="text-left text-white/60 text-xs font-medium p-3 uppercase tracking-wider">Email</th>
+                                            <th class="text-left text-white/60 text-xs font-medium p-3 uppercase tracking-wider">連結數</th>
+                                            <th class="text-left text-white/60 text-xs font-medium p-3 uppercase tracking-wider">最後登入</th>
+                                            <th class="text-left text-white/60 text-xs font-medium p-3 uppercase tracking-wider">註冊時間</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="usersTableBody">
+                                        <tr><td colspan="5" class="text-center p-8 text-white/40">載入中...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Feedbacks Tab -->
+                    <div id="tab-feedbacks" class="tab-content hidden flex flex-col gap-4">
+                        <div class="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
+                            <div class="overflow-x-auto">
+                                <table class="w-full">
+                                    <thead>
+                                        <tr class="border-b border-white/10">
+                                            <th class="text-left text-white/60 text-xs font-medium p-3 uppercase tracking-wider">標題</th>
+                                            <th class="text-left text-white/60 text-xs font-medium p-3 uppercase tracking-wider">分類</th>
+                                            <th class="text-left text-white/60 text-xs font-medium p-3 uppercase tracking-wider">提出者</th>
+                                            <th class="text-left text-white/60 text-xs font-medium p-3 uppercase tracking-wider">狀態</th>
+                                            <th class="text-left text-white/60 text-xs font-medium p-3 uppercase tracking-wider">投票</th>
+                                            <th class="text-left text-white/60 text-xs font-medium p-3 uppercase tracking-wider">留言</th>
+                                            <th class="text-left text-white/60 text-xs font-medium p-3 uppercase tracking-wider">建立時間</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="feedbacksTableBody">
+                                        <tr><td colspan="7" class="text-center p-8 text-white/40">載入中...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/js/auth.js"></script>
+    <script src="/js/api.js"></script>
+    <script src="/js/admin.js"></script>
+
+    <script>
+        async function initAuthState() {
+            const isAuthed = await requireAuth('/login.html')
+            if (!isAuthed) return
+
+            const sidebar = document.querySelector('tc-sidebar')
+            const user = await auth.getUser()
+            if (user) {
+                const name = user.user_metadata?.full_name || user.user_metadata?.name || user.user_metadata?.display_name || user.email?.split('@')[0] || '使用者'
+                const email = user.email || ''
+                const avatar = user.user_metadata?.avatar_url || user.user_metadata?.picture || null
+                sidebar.setUser({ name, email, avatar })
+            }
+
+            sidebar.addEventListener('tc-logout', async () => {
+                try { await auth.signOut() } catch (e) { console.error('Logout error:', e) }
+            })
+
+            if (window.initAdmin) window.initAdmin()
+        }
+
+        document.addEventListener('DOMContentLoaded', initAuthState)
+    </script>
+    <script type="module">
+        import '/js/components/tc-sidebar.js';
+        import '/js/components/tc-page-header.js';
+    </script>
+</body>
+</html>

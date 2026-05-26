@@ -30,3 +30,5 @@ urlPageRoutes.get('/feedback/:id', (c) => serveHtml(c, './public/feedback-detail
 urlPageRoutes.get('/docs', (c) => serveHtml(c, './public/docs/index.html'));
 
 urlPageRoutes.get('/ui-kit', (c) => serveHtml(c, './public/ui-kit.html'));
+
+urlPageRoutes.get('/admin', (c) => serveHtml(c, './public/admin.html'));

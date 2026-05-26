@@ -73,10 +73,11 @@ Hono (src/main.ts)
 | `src/routes/url-crud.ts` | URL CRUD, QR code, password verification |
 | `src/routes/url-redirect.ts` | Short URL redirect, ad pages |
 | `src/routes/url-stats.ts` | Statistics queries via RPC (get_url_stats, get_urls_with_stats, etc.) |
-| `src/routes/url-pages.ts` | HTML page routes (/links, /edit, /analytics, /feedback, /docs) |
+| `src/routes/url-pages.ts` | HTML page routes (/links, /edit, /analytics, /feedback, /docs, /admin) |
 | `src/routes/auth.ts` | User auth (/api/auth/me, /api/auth/profile) |
 | `src/routes/_helpers.ts` | Shared route utilities (getUserClientFromRequest, sendUnauthorized) |
 | `src/routes/feedbacks.ts` | Community feedback/suggestion routes |
+| `src/routes/admin.ts` | Admin dashboard API (stats, all URLs/users/feedbacks, ADMIN_EMAILS auth) |
 | `src/services/supabase.ts` | Supabase clients (service + user factory) |
 | `src/services/click-log-watcher.ts` | Monitors Nginx logs and records cache HIT clicks (incl. channel_id) |
 | `src/routes/url-channels.ts` | Channel CRUD (UTM tracking, multi QR code per URL) |
@@ -158,6 +159,7 @@ Version-based cache busting via `src/utils/asset-version.ts`:
 - **Frontend**: Supabase client in `public/js/auth.js`
 - **Keycloak OIDC**: Configured via Supabase GoTrue (`GOTRUE_EXTERNAL_KEYCLOAK_*` env vars)
 - **User metadata** from Keycloak: `user.user_metadata.email`, `user.user_metadata.chinese_firstname`, `user.user_metadata.chinese_lastname`
+- **Admin**: Identified by `ADMIN_EMAILS` env var (comma-separated); sidebar auto-detects via `/api/admin/check`
 
 ## Environment Variables
 
@@ -165,6 +167,7 @@ Key variables in `.env`:
 ```
 SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
 PORT, HOST, BASE_URL
+ADMIN_EMAILS  # comma-separated admin email addresses
 ```
 
 Supabase Keycloak OIDC is configured in `/docker/supabase/.env` with `GOTRUE_EXTERNAL_KEYCLOAK_*` variables.

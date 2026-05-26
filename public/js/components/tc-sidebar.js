@@ -55,6 +55,7 @@ export class TCSidebar extends TCElement {
   setUser({ name, email, avatar }) {
     this.#user = { name, email, avatar };
     this.#updateUserSection();
+    this.#checkAdminStatus();
   }
 
   clearUser() {
@@ -88,6 +89,34 @@ export class TCSidebar extends TCElement {
       userSection.classList.add('hidden');
       loginSection.classList.remove('hidden');
     }
+  }
+
+  async #checkAdminStatus() {
+    try {
+      const token = await window.auth?.getAccessToken?.();
+      if (!token) return;
+      const res = await fetch('/api/admin/check', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const { is_admin } = await res.json();
+      if (is_admin) this.#showAdminNav();
+    } catch { /* ignore */ }
+  }
+
+  #showAdminNav() {
+    const nav = this.$('.nav');
+    if (!nav || this.$('[data-id="admin"]')) return;
+    const active = this.getAttribute('active') || '';
+    const sep = document.createElement('div');
+    sep.style.cssText = 'height:1px;background:rgba(255,255,255,0.1);margin:4px 12px;';
+    nav.appendChild(sep);
+    const a = document.createElement('a');
+    a.href = '/admin';
+    a.className = `nav-item ${active === 'admin' ? 'active' : ''}`;
+    a.dataset.id = 'admin';
+    a.innerHTML = '<span class="material-symbols-outlined icon">admin_panel_settings</span><span>管理後台</span>';
+    nav.appendChild(a);
   }
 
   #setupMobileToggle() {
