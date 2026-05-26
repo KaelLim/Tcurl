@@ -28,7 +28,12 @@ async function initSupabase() {
     })
   }
 
-  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: {
+      flowType: 'pkce',
+      detectSessionInUrl: true,
+    },
+  })
   return supabaseClient
 }
 
