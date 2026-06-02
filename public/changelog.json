@@ -1,5 +1,20 @@
 [
   {
+    "version": "1.4.0",
+    "date": "2026-06-02",
+    "title": "安全性強化與依賴升級",
+    "changes": [
+      { "type": "security", "text": "OAuth 登入流程從 implicit 切換至 PKCE，防止 token 透過 URL 洩漏" },
+      { "type": "security", "text": "Nginx 安全補丁更新（CVE 修復）" },
+      { "type": "security", "text": "系統層級套件安全更新（systemd、apparmor、Docker 等共 55 項）" },
+      { "type": "update", "text": "Hono 框架 4.3 → 4.12，遷移至 JSR 官方發布源" },
+      { "type": "update", "text": "Supabase JS 2.81 → 2.106，提升 Auth 與資料庫查詢穩定性" },
+      { "type": "update", "text": "Deno 2.6 → 2.8，TypeScript 引擎升級至 6.0" },
+      { "type": "update", "text": "前端 CDN 統一版本（Chart.js 4.5.1、QR Code Styling 1.9.2）" },
+      { "type": "feat", "text": "新增管理員後台，sidebar 自動偵測管理員身分" }
+    ]
+  },
+  {
     "version": "1.3.0",
     "date": "2026-05-15",
     "title": "管道追蹤與 UTM 整合",
