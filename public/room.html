@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>密語房間 · TCurl</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+  <div class="max-w-2xl mx-auto px-4 py-10">
+    <!-- 進入密語 -->
+    <section id="enter-view" class="hidden">
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+        <h1 class="text-2xl font-semibold mb-2">密語房間</h1>
+        <p class="text-sm text-slate-500 mb-6">
+          輸入相同密語的人會進到同一個空間。密語即進場鑰匙，請勿使用過於簡單的字。
+        </p>
+        <form id="enter-form" class="flex gap-2">
+          <input id="passphrase-input" type="text" autocomplete="off"
+            class="flex-1 rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            placeholder="輸入密語，例如 tzuchi-0718" />
+          <button type="submit"
+            class="rounded-lg bg-indigo-600 text-white px-5 py-2 font-medium hover:bg-indigo-700">進入</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- 房間內 -->
+    <section id="room-view" class="hidden">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h1 class="text-2xl font-semibold">房間</h1>
+          <p class="text-sm text-slate-500">密語：<span id="room-name" class="font-mono"></span></p>
+        </div>
+        <button id="leave-btn" class="text-sm text-slate-500 hover:text-slate-800">離開</button>
+      </div>
+
+      <form id="add-form" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-6 space-y-3">
+        <input id="url-input" type="url" required
+          class="w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          placeholder="目標網址 https://..." />
+        <div class="flex gap-2">
+          <input id="title-input" type="text"
+            class="flex-1 rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            placeholder="標題（可選）" />
+          <button type="submit"
+            class="rounded-lg bg-indigo-600 text-white px-5 py-2 font-medium hover:bg-indigo-700">新增</button>
+        </div>
+      </form>
+
+      <div id="error-box"
+        class="hidden mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2"></div>
+
+      <ul id="item-list" class="space-y-3"></ul>
+      <p id="empty-hint" class="hidden text-center text-slate-400 py-10">還沒有任何項目，從上面新增一個吧。</p>
+    </section>
+  </div>
+
+  <script>
+    const API = '/api/rooms/items';
+    let passphrase = sessionStorage.getItem('roomPass') || '';
+    let currentItems = [];
+
+    const enterView = document.getElementById('enter-view');
+    const roomView = document.getElementById('room-view');
+    const errorBox = document.getElementById('error-box');
+
+    function headers() {
+      return { 'Content-Type': 'application/json', 'X-Room-Pass': passphrase };
+    }
+    function showError(msg) {
+      errorBox.textContent = msg;
+      errorBox.classList.remove('hidden');
+      setTimeout(() => errorBox.classList.add('hidden'), 4000);
+    }
+    function esc(s) {
+      return String(s).replace(/[&<>"']/g, (c) =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    function render(items) {
+      currentItems = items;
+      const list = document.getElementById('item-list');
+      const empty = document.getElementById('empty-hint');
+      list.innerHTML = '';
+      empty.classList.toggle('hidden', items.length > 0);
+      for (const it of items) {
+        const li = document.createElement('li');
+        li.className =
+          'bg-white rounded-xl border border-slate-200 p-4 flex items-start justify-between gap-3';
+        li.innerHTML =
+          '<div class="min-w-0">' +
+            '<p class="font-medium truncate">' + esc(it.title || it.shortCode) + '</p>' +
+            '<p class="text-xs text-slate-400 font-mono">/' + esc(it.shortCode) + '</p>' +
+            '<a href="' + esc(it.originalUrl) + '" target="_blank" rel="noopener" ' +
+              'class="text-sm text-indigo-600 hover:underline break-all">' + esc(it.originalUrl) + '</a>' +
+          '</div>' +
+          '<div class="flex flex-col gap-1 shrink-0 text-sm">' +
+            '<button data-id="' + esc(it.id) + '" class="edit-btn text-slate-400 hover:text-indigo-600">編輯</button>' +
+            '<button data-id="' + esc(it.id) + '" class="del-btn text-slate-400 hover:text-red-600">刪除</button>' +
+          '</div>';
+        list.appendChild(li);
+      }
+      list.querySelectorAll('.del-btn').forEach((b) =>
+        b.addEventListener('click', () => removeItem(b.dataset.id)));
+      list.querySelectorAll('.edit-btn').forEach((b) =>
+        b.addEventListener('click', () => editItem(b.dataset.id)));
+    }
+
+    async function load() {
+      const res = await fetch(API, { headers: headers(), cache: 'no-store' });
+      if (!res.ok) { showError('載入失敗'); return; }
+      render((await res.json()).items || []);
+    }
+
+    async function addItem(originalUrl, title) {
+      const res = await fetch(API, {
+        method: 'POST', headers: headers(), body: JSON.stringify({ originalUrl, title }),
+      });
+      if (!res.ok) { showError((await res.json().catch(() => ({}))).error || '新增失敗'); return; }
+      await load();
+    }
+
+    async function editItem(id) {
+      const cur = currentItems.find((x) => x.id === id);
+      if (!cur) return;
+      const title = prompt('標題', cur.title || '');
+      if (title === null) return;
+      const originalUrl = prompt('目標網址', cur.originalUrl);
+      if (originalUrl === null) return;
+      const res = await fetch(API + '/' + id, {
+        method: 'PUT', headers: headers(), body: JSON.stringify({ title, originalUrl }),
+      });
+      if (!res.ok) { showError((await res.json().catch(() => ({}))).error || '更新失敗'); return; }
+      await load();
+    }
+
+    async function removeItem(id) {
+      const res = await fetch(API + '/' + id, { method: 'DELETE', headers: headers() });
+      if (!res.ok) { showError('刪除失敗'); return; }
+      await load();
+    }
+
+    function enterRoom(pass) {
+      passphrase = pass;
+      sessionStorage.setItem('roomPass', pass);
+      document.getElementById('room-name').textContent = pass;
+      enterView.classList.add('hidden');
+      roomView.classList.remove('hidden');
+      load();
+    }
+
+    function leaveRoom() {
+      passphrase = '';
+      sessionStorage.removeItem('roomPass');
+      roomView.classList.add('hidden');
+      enterView.classList.remove('hidden');
+      document.getElementById('passphrase-input').value = '';
+    }
+
+    document.getElementById('enter-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const val = document.getElementById('passphrase-input').value.trim();
+      if (val) enterRoom(val);
+    });
+    document.getElementById('add-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const url = document.getElementById('url-input').value.trim();
+      const title = document.getElementById('title-input').value.trim();
+      if (url) { addItem(url, title); e.target.reset(); }
+    });
+    document.getElementById('leave-btn').addEventListener('click', leaveRoom);
+
+    if (passphrase) enterRoom(passphrase);
+    else enterView.classList.remove('hidden');
+  </script>
+</body>
+</html>

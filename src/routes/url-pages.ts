@@ -32,3 +32,5 @@ urlPageRoutes.get('/docs', (c) => serveHtml(c, './public/docs/index.html'));
 urlPageRoutes.get('/ui-kit', (c) => serveHtml(c, './public/ui-kit.html'));
 
 urlPageRoutes.get('/admin', (c) => serveHtml(c, './public/admin.html'));
+
+urlPageRoutes.get('/r', (c) => serveHtml(c, './public/room.html'));
