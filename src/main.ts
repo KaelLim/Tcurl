@@ -24,6 +24,8 @@ import { authRoutes } from './routes/auth.ts';
 import { urlChannelRoutes } from './routes/url-channels.ts';
 import { feedbackRoutes } from './routes/feedbacks.ts';
 import { adminRoutes } from './routes/admin.ts';
+import { createRoomsRouter } from './routes/rooms.ts';
+import { createRoomStore } from './services/room-store.ts';
 import { renderRateLimitPage } from './utils/html-templates.ts';
 
 // 導入服務
@@ -108,7 +110,7 @@ app.use(
     },
     credentials: true,
     allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    allowHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Room-Pass'],
   })
 );
 
@@ -217,6 +219,10 @@ app.route('/', feedbackRoutes);
 
 // 註冊管理員路由
 app.route('/', adminRoutes);
+
+// 註冊密語房間路由（POC，免登入，Deno KV）
+const roomKv = await Deno.openKv();
+app.route('/', createRoomsRouter(createRoomStore(roomKv)));
 
 // MIME type 對照表
 const MIME_TYPES: Record<string, string> = {
