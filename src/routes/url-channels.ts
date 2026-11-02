@@ -6,12 +6,14 @@
  * @module routes/url-channels
  */
 
-import { Hono } from '@hono/hono';
+import { Hono } from 'hono';
 
 import { getSupabase } from '../services/supabase.ts';
+import { invalidateChannel } from '../services/redirect-cache.ts';
+import type { AppEnv } from '../types/env.ts';
 import { getUserClientFromRequest, sendUnauthorized } from './_helpers.ts';
 
-export const urlChannelRoutes = new Hono();
+export const urlChannelRoutes = new Hono<AppEnv>();
 
 const MAX_CHANNELS = 5;
 const GROUP_KEY_LENGTH = 6;
@@ -52,7 +54,7 @@ urlChannelRoutes.get('/api/urls/:id/channels', async (c) => {
     return c.json({ error: 'URL not found' }, 404);
   }
 
-  const supabase = getSupabase();
+  const supabase = getSupabase(c.env);
   const { data, error } = await supabase
     .from('url_channels')
     .select('*')
@@ -104,7 +106,7 @@ urlChannelRoutes.post('/api/urls/:id/channels', async (c) => {
     return c.json({ error: 'URL not found' }, 404);
   }
 
-  const supabase = getSupabase();
+  const supabase = getSupabase(c.env);
 
   // 檢查管道數量上限
   const { count } = await supabase
@@ -198,7 +200,7 @@ urlChannelRoutes.put('/api/urls/:id/channels/:channelId', async (c) => {
   if (utm_content !== undefined) updates.utm_content = utm_content || null;
   if (utm_term !== undefined) updates.utm_term = utm_term || null;
 
-  const supabase = getSupabase();
+  const supabase = getSupabase(c.env);
   const { data, error } = await supabase
     .from('url_channels')
     .update(updates)
@@ -210,6 +212,9 @@ urlChannelRoutes.put('/api/urls/:id/channels/:channelId', async (c) => {
   if (error || !data) {
     return c.json({ error: 'Channel not found' }, 404);
   }
+
+  // UTM 會影響轉址目的網址：清掉這個管道的轉址快取
+  await invalidateChannel(c.env.REDIRECT_CACHE, urlId, data.group_key);
 
   return c.json(data);
 });
@@ -237,16 +242,22 @@ urlChannelRoutes.delete('/api/urls/:id/channels/:channelId', async (c) => {
     return c.json({ error: 'URL not found' }, 404);
   }
 
-  const supabase = getSupabase();
-  const { error } = await supabase
+  const supabase = getSupabase(c.env);
+  // 取回被刪除的 group_key，用來清掉該管道的轉址快取
+  const { data: deleted, error } = await supabase
     .from('url_channels')
     .delete()
     .eq('id', channelId)
-    .eq('url_id', urlId);
+    .eq('url_id', urlId)
+    .select('group_key');
 
   if (error) {
     console.error('Failed to delete channel:', error);
     return c.json({ error: 'Failed to delete channel' }, 500);
+  }
+
+  for (const { group_key } of deleted ?? []) {
+    await invalidateChannel(c.env.REDIRECT_CACHE, urlId, group_key);
   }
 
   return c.json({ message: 'Channel deleted successfully' });

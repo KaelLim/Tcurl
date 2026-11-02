@@ -318,7 +318,7 @@
             const sidebar = document.querySelector('tc-sidebar')
             const user = await auth.getUser()
             if (user) {
-                const name = user.user_metadata?.full_name || user.user_metadata?.name || user.user_metadata?.display_name || user.email?.split('@')[0] || '使用者'
+                const name = auth.getDisplayName(user)
                 const email = user.email || ''
                 const avatar = user.user_metadata?.avatar_url || user.user_metadata?.picture || null
                 sidebar.setUser({ name, email, avatar })

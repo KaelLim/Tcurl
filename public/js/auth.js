@@ -1,15 +1,10 @@
 // Supabase Auth 客戶端
-// 使用與後端相同的 Supabase 實例
+// 使用與後端相同的 Supabase 實例（Supabase Cloud），登入方式為 Google OAuth
 
-const SUPABASE_URL = window.location.origin.includes('localhost')
-  ? 'http://localhost:8000'
-  : 'https://sbeurlpj.tzuchi-org.tw'
+const SUPABASE_URL = 'https://fsneeigsjdryxutmdrmg.supabase.co'
 
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzUwMzQ4ODAwLCJleHAiOjE5MDgxMTUyMDB9.gAgVJVSC45QFHO7gqEirpCquw-3w1k6pqWpoOQRA-Qg'
-
-// Keycloak 設定
-const KEYCLOAK_URL = 'https://auth.tzuchi.net/realms/tzuchi'
-const KEYCLOAK_CLIENT_ID = 'tcurl'
+// Publishable key（公開值，權限由 RLS 控管）
+const SUPABASE_ANON_KEY = 'sb_publishable_XYMtpVzQz4ge2R1gD1NcaQ_VRXLTvmX'
 
 // 動態載入 Supabase SDK
 let supabaseClient = null
@@ -37,27 +32,60 @@ async function initSupabase() {
   return supabaseClient
 }
 
+// OAuth 失敗時（例如被 Supabase「僅限慈濟帳號」hook 拒絕），Supabase 會帶 error_description 導回；
+// 先暫存，交由登入頁顯示（各頁未登入時會被導向登入頁，網址參數會遺失）
+const AUTH_ERROR_KEY = 'tcurl_auth_error'
+
+function captureOAuthError() {
+  try {
+    const params = new URLSearchParams(window.location.search)
+    const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+    const message = params.get('error_description') || hash.get('error_description')
+    if (message) {
+      sessionStorage.setItem(AUTH_ERROR_KEY, message.slice(0, 200))
+    }
+  } catch (e) {
+    // sessionStorage 不可用時略過
+  }
+}
+
+// 取出並清除暫存的登入錯誤（只用 textContent 顯示）
+function takeAuthError() {
+  try {
+    const message = sessionStorage.getItem(AUTH_ERROR_KEY)
+    sessionStorage.removeItem(AUTH_ERROR_KEY)
+    return message
+  } catch (e) {
+    return null
+  }
+}
+
 // Auth 模組
 const auth = {
   // 初始化
   async init() {
+    captureOAuthError()
     await initSupabase()
     return this
   },
+
+  takeAuthError,
 
   // 取得 Supabase Client
   getClient() {
     return supabaseClient
   },
 
-  // Keycloak OIDC 登入（慈濟員工）
-  async signInWithKeycloak(redirectTo = '/') {
+  // Google OAuth 登入（經 Supabase Auth，PKCE）
+  async signInWithGoogle(redirectTo = '/') {
     const client = await initSupabase()
     const { data, error } = await client.auth.signInWithOAuth({
-      provider: 'keycloak',
+      provider: 'google',
       options: {
         redirectTo: `${window.location.origin}${redirectTo}`,
-        scopes: 'openid profile email'  // Keycloak 22+ 必須明確傳入 openid
+        // 只是提示 Google 帳號選單優先顯示慈濟帳號；真正的限制在 Supabase 的
+        // Custom Access Token hook（hook_restrict_login_domain），非 @tzuchi.org.tw 一律拿不到 token
+        queryParams: { hd: 'tzuchi.org.tw' }
       }
     })
 
@@ -68,7 +96,7 @@ const auth = {
     return data
   },
 
-  // 登出（同時登出 Supabase 和 Keycloak）
+  // 登出：只登出 Supabase，然後導回登入頁
   async signOut(redirectTo = '/login.html') {
     const client = await initSupabase()
     const { error } = await client.auth.signOut()
@@ -77,14 +105,17 @@ const auth = {
       console.error('Supabase signOut error:', error)
     }
 
-    // 清除本地儲存
-    localStorage.removeItem('supabase.auth.token')
+    window.location.href = redirectTo
+  },
 
-    // 重導向到 Keycloak 登出頁面，登出後自動返回應用程式
-    const keycloakLogoutUrl = `${KEYCLOAK_URL}/protocol/openid-connect/logout?` +
-      `client_id=${KEYCLOAK_CLIENT_ID}&` +
-      `post_logout_redirect_uri=${encodeURIComponent(window.location.origin + redirectTo)}`
-    window.location.href = keycloakLogoutUrl
+  // 顯示名稱：中文姓名 → full_name → name → display_name → email（@ 前段）
+  // 與後端 src/utils/display-name.ts 相同順序
+  getDisplayName(user) {
+    const meta = user?.user_metadata || {}
+    if (meta.chinese_lastname && meta.chinese_firstname) {
+      return `${meta.chinese_lastname}${meta.chinese_firstname}`
+    }
+    return meta.full_name || meta.name || meta.display_name || user?.email?.split('@')[0] || '使用者'
   },
 
   // 取得當前 Session
@@ -134,48 +165,6 @@ const auth = {
       console.error('Failed to decode JWT:', e)
       return null
     }
-  },
-
-  // 取得完整的 Session 資訊（包含 provider token）
-  async getFullSession() {
-    const client = await initSupabase()
-    const { data: { session }, error } = await client.auth.getSession()
-
-    if (error || !session) {
-      return null
-    }
-
-    // 解析 Supabase access token
-    const supabaseTokenData = this.decodeJwt(session.access_token)
-
-    // 解析 provider token（如果有的話，這是原始的 Keycloak token）
-    const providerTokenData = session.provider_token
-      ? this.decodeJwt(session.provider_token)
-      : null
-
-    return {
-      session,
-      supabaseTokenData,
-      providerTokenData,
-      // Keycloak 角色權限通常在這裡
-      resourceAccess: providerTokenData?.resource_access || null,
-      realmAccess: providerTokenData?.realm_access || null
-    }
-  },
-
-  // 檢查使用者是否有特定角色
-  async hasRole(role, clientId = 'tcurl') {
-    const fullSession = await this.getFullSession()
-    if (!fullSession?.resourceAccess?.[clientId]?.roles) {
-      return false
-    }
-    return fullSession.resourceAccess[clientId].roles.includes(role)
-  },
-
-  // 取得使用者的所有角色
-  async getRoles(clientId = 'tcurl') {
-    const fullSession = await this.getFullSession()
-    return fullSession?.resourceAccess?.[clientId]?.roles || []
   },
 
   // 監聽認證狀態變化

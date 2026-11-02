@@ -7,8 +7,9 @@
  * @module routes/rooms
  */
 
-import { Hono } from '@hono/hono';
-import type { Context } from '@hono/hono';
+import { Hono } from 'hono';
+import type { Context } from 'hono';
+import type { AppEnv } from '../types/env.ts';
 import { deriveRoomKey, normalizePassphrase } from '../utils/room-key.ts';
 import { validateUrl } from '../utils/url-validator.ts';
 import type { RoomStore } from '../services/room-store.ts';
@@ -21,14 +22,18 @@ async function resolveRoomKey(c: Context): Promise<string | null> {
   return await deriveRoomKey(pass);
 }
 
-/** 以注入的 store 建立 rooms 路由（方便測試） */
-export function createRoomsRouter(store: RoomStore): Hono {
-  const app = new Hono();
+/**
+ * 以注入的 store 解析函數建立 rooms 路由（方便測試）
+ *
+ * Workers 的 KV binding 只能從請求的 env 取得，因此每個請求才解析 store。
+ */
+export function createRoomsRouter(resolveStore: (c: Context<AppEnv>) => RoomStore): Hono<AppEnv> {
+  const app = new Hono<AppEnv>();
 
   app.get('/api/rooms/items', async (c) => {
     const roomKey = await resolveRoomKey(c);
     if (!roomKey) return c.json(MISSING_PASS, 400);
-    return c.json({ items: await store.listItems(roomKey) });
+    return c.json({ items: await resolveStore(c).listItems(roomKey) });
   });
 
   app.post('/api/rooms/items', async (c) => {
@@ -42,7 +47,7 @@ export function createRoomsRouter(store: RoomStore): Hono {
     const check = validateUrl(body.originalUrl);
     if (!check.valid) return c.json({ error: check.reason }, 400);
 
-    const item = await store.createItem(roomKey, {
+    const item = await resolveStore(c).createItem(roomKey, {
       originalUrl: body.originalUrl,
       title: typeof body.title === 'string' ? body.title : undefined,
     });
@@ -59,7 +64,7 @@ export function createRoomsRouter(store: RoomStore): Hono {
       const check = validateUrl(body.originalUrl);
       if (!check.valid) return c.json({ error: check.reason }, 400);
     }
-    const updated = await store.updateItem(roomKey, c.req.param('id'), {
+    const updated = await resolveStore(c).updateItem(roomKey, c.req.param('id'), {
       originalUrl: typeof body.originalUrl === 'string' ? body.originalUrl : undefined,
       title: typeof body.title === 'string' ? body.title : undefined,
     });
@@ -70,7 +75,7 @@ export function createRoomsRouter(store: RoomStore): Hono {
   app.delete('/api/rooms/items/:id', async (c) => {
     const roomKey = await resolveRoomKey(c);
     if (!roomKey) return c.json(MISSING_PASS, 400);
-    const ok = await store.removeItem(roomKey, c.req.param('id'));
+    const ok = await resolveStore(c).removeItem(roomKey, c.req.param('id'));
     if (!ok) return c.json({ error: '找不到項目' }, 404);
     return c.json({ ok: true });
   });

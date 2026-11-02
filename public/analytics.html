@@ -330,9 +330,10 @@
             tbody.innerHTML = topUrls.map((url, index) => {
                 const percentage = totalClicks > 0 ? ((url.clicks || 0) / totalClicks * 100).toFixed(1) : 0
                 const shortUrl = `${window.location.origin}/s/${url.short_code}`
-                const displayUrl = url.original_url.length > 50
+                // 原始網址只當文字顯示，一律跳脫
+                const displayUrl = utils.escapeHtml(url.original_url.length > 50
                     ? url.original_url.substring(0, 50) + '...'
-                    : url.original_url
+                    : url.original_url)
 
                 return `
                     <tr class="border-b border-white/5 hover:bg-white/5">
@@ -344,12 +345,12 @@
                             </span>
                         </td>
                         <td class="p-3">
-                            <a href="${shortUrl}" target="_blank" class="text-blue-400 hover:text-blue-300 hover:underline font-medium text-base">
-                                ${url.short_code}
+                            <a href="${utils.escapeHtml(shortUrl)}" target="_blank" class="text-blue-400 hover:text-blue-300 hover:underline font-medium text-base">
+                                ${utils.escapeHtml(url.short_code)}
                             </a>
                         </td>
                         <td class="p-3">
-                            <span class="text-white text-base" title="${url.original_url}">
+                            <span class="text-white text-base" title="${utils.escapeHtml(url.original_url)}">
                                 ${displayUrl}
                             </span>
                         </td>
@@ -528,7 +529,7 @@
             const sidebar = document.querySelector('tc-sidebar')
             const user = await auth.getUser()
             if (user) {
-                const name = user.user_metadata?.full_name || user.user_metadata?.name || user.user_metadata?.display_name || user.email?.split('@')[0] || '使用者'
+                const name = auth.getDisplayName(user)
                 const email = user.email || ''
                 const avatar = user.user_metadata?.avatar_url || user.user_metadata?.picture || null
                 sidebar.setUser({ name, email, avatar })

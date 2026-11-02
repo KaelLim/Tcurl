@@ -2,56 +2,62 @@
  * 短網址重定向測試
  *
  * 針對 /s/:shortCode 的各種狀態進行測試
- * 需要服務在 localhost:3000 運行
  */
 
-import { assertEquals, assertStringIncludes } from '@std/assert';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import { mockSupabaseFetch, pgrstNotFound, workerRequest } from './helpers/test-env.ts';
 
-const BASE = 'http://localhost:3000';
-
-Deno.test('redirect - 不存在的短碼應回傳 404 HTML 頁面', async () => {
-  const res = await fetch(`${BASE}/s/this_code_does_not_exist_99`, { redirect: 'manual' });
-  assertEquals(res.status, 404);
-  const body = await res.text();
-  assertStringIncludes(body, '此短網址不存在或已失效');
-  assertStringIncludes(body, '<!DOCTYPE html>');
+beforeEach(() => {
+  mockSupabaseFetch((call) => (call.url.pathname.startsWith('/rest/v1/') ? pgrstNotFound() : undefined));
 });
 
-Deno.test('redirect - 空短碼不應造成 500', async () => {
-  const res = await fetch(`${BASE}/s/`, { redirect: 'manual' });
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+test('redirect - 不存在的短碼應回傳 404 HTML 頁面', async () => {
+  const { res } = await workerRequest('/s/this_code_does_not_exist_99', { redirect: 'manual' });
+  expect(res.status).toBe(404);
+  const body = await res.text();
+  expect(body).toContain('此短網址不存在或已失效');
+  expect(body).toContain('<!DOCTYPE html>');
+});
+
+test('redirect - 空短碼不應造成 500', async () => {
+  const { res } = await workerRequest('/s/', { redirect: 'manual' });
   const status = res.status;
   await res.body?.cancel();
-  assertEquals(status !== 500, true, `空短碼不應造成 500，實際 ${status}`);
+  expect(status, `空短碼不應造成 500，實際 ${status}`).not.toBe(500);
 });
 
-Deno.test('redirect - 短碼格式異常不應造成 500', async () => {
+test('redirect - 短碼格式異常不應造成 500', async () => {
   const badCodes = [
-    'a',           // 太短
+    'a', // 太短
     '../etc/passwd', // path traversal attempt
-    '<script>',    // XSS attempt
+    '<script>', // XSS attempt
     'a'.repeat(50), // 超長
   ];
 
   for (const code of badCodes) {
-    const res = await fetch(`${BASE}/s/${encodeURIComponent(code)}`, { redirect: 'manual' });
+    const { res } = await workerRequest(`/s/${encodeURIComponent(code)}`, { redirect: 'manual' });
     const status = res.status;
     await res.body?.cancel();
-    assertEquals(status !== 500, true, `短碼 "${code}" 不應造成 500，實際回傳 ${status}`);
+    expect(status, `短碼 "${code}" 不應造成 500，實際回傳 ${status}`).not.toBe(500);
   }
 });
 
-Deno.test('health - 應回傳 ok', async () => {
-  const res = await fetch(`${BASE}/health`);
-  assertEquals(res.status, 200);
-  const data = await res.json();
-  assertEquals(data.status, 'ok');
+test('health - 應回傳 ok', async () => {
+  const { res } = await workerRequest('/health');
+  expect(res.status).toBe(200);
+  const data = (await res.json()) as { status: string };
+  expect(data.status).toBe('ok');
 });
 
-Deno.test('version - 應回傳版本號', async () => {
-  const res = await fetch(`${BASE}/api/version`);
-  assertEquals(res.status, 200);
-  const data = await res.json();
-  assertEquals(typeof data.version, 'string');
+test('version - 應回傳版本號', async () => {
+  const { res } = await workerRequest('/api/version');
+  expect(res.status).toBe(200);
+  const data = (await res.json()) as { version: unknown };
+  expect(typeof data.version).toBe('string');
   // 版本號應符合 semver 格式
-  assertEquals(/^\d+\.\d+\.\d+$/.test(data.version), true, `版本格式異常: ${data.version}`);
+  expect(/^\d+\.\d+\.\d+$/.test(data.version as string), `版本格式異常: ${data.version}`).toBe(true);
 });

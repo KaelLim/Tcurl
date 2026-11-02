@@ -31,6 +31,29 @@ function escapeJs(str: string): string {
 }
 
 /**
+ * 目的網址只允許 http: / https:（縱深防禦：避免 javascript: 等 scheme 被放進 location / href）
+ * 不符合時回傳空字串
+ */
+export function safeHttpUrl(url: string): string {
+  try {
+    const { protocol } = new URL(url)
+    return protocol === 'http:' || protocol === 'https:' ? url : ''
+  } catch {
+    return ''
+  }
+}
+
+/** 頁面內共用的 JS：導向前再檢查一次 scheme（API 回應的網址也要經過） */
+const CLIENT_IS_HTTP_URL = `function isHttpUrl(u) {
+            try {
+                const p = new URL(u).protocol
+                return p === 'http:' || p === 'https:'
+            } catch (e) {
+                return false
+            }
+        }`
+
+/**
  * 產生共用 <head> 內容
  * 用於伺服端產出的頁面（password, expired, ad, not-found）
  */
@@ -123,6 +146,7 @@ export function renderPasswordPage(shortCode: string, isQrScan: boolean = false)
     <script>
         const shortCode = '${escapeJs(shortCode)}'
         const isQrScan = ${isQrScan}
+        ${CLIENT_IS_HTTP_URL}
         const passwordInput = document.getElementById('passwordInput')
         const togglePasswordBtn = document.getElementById('togglePassword')
         const passwordForm = document.getElementById('passwordForm')
@@ -149,13 +173,21 @@ export function renderPasswordPage(shortCode: string, isQrScan: boolean = false)
                 const response = await fetch(\`/api/urls/\${shortCode}/verify-password\`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ password })
+                    body: JSON.stringify({ password, qr: isQrScan })
                 })
 
                 if (response.ok) {
                     const data = await response.json()
-                    window.location.href = data.original_url
+                    if (isHttpUrl(data.original_url)) {
+                        window.location.href = data.original_url
+                    } else {
+                        errorMessage.textContent = '此連結的目的網址無效'
+                        errorMessage.classList.remove('hidden')
+                    }
                 } else {
+                    errorMessage.textContent = response.status === 429
+                        ? '嘗試次數過多，請稍後再試'
+                        : '密碼錯誤，請重試'
                     errorMessage.classList.remove('hidden')
                     passwordInput.value = ''
                     passwordInput.focus()
@@ -290,14 +322,11 @@ export function renderServerErrorPage(): string {
 }
 
 export function renderAdPage(shortCode: string, originalUrl: string): string {
+  // 只有 http(s) 網址會出現在頁面與導向目標中
+  const targetUrl = safeHttpUrl(originalUrl)
+
   // 解析目標網址的域名
-  let targetDomain = ''
-  try {
-    const url = new URL(originalUrl)
-    targetDomain = url.hostname
-  } catch {
-    targetDomain = originalUrl
-  }
+  const targetDomain = targetUrl ? new URL(targetUrl).hostname : '無效的目的網址'
 
   return `<!DOCTYPE html>
 <html class="dark" lang="zh-TW">
@@ -343,7 +372,7 @@ export function renderAdPage(shortCode: string, originalUrl: string): string {
                 </div>
                 <div class="bg-white/5 rounded-lg p-3 md:p-4">
                     <p class="text-white font-bold text-lg md:text-2xl break-all mb-2">${escapeHtml(targetDomain)}</p>
-                    <p class="text-white/50 text-xs md:text-sm break-all">${escapeHtml(originalUrl)}</p>
+                    <p class="text-white/50 text-xs md:text-sm break-all">${escapeHtml(targetUrl)}</p>
                 </div>
             </div>
 
@@ -392,7 +421,8 @@ export function renderAdPage(shortCode: string, originalUrl: string): string {
 
     <script>
         const shortCode = '${escapeJs(shortCode)}'
-        const originalUrl = '${escapeJs(originalUrl)}'
+        const originalUrl = '${escapeJs(targetUrl)}'
+        ${CLIENT_IS_HTTP_URL}
         const goBtn = document.getElementById('goBtn')
         const btnIcon = document.getElementById('btnIcon')
         const btnText = document.getElementById('btnText')
@@ -429,6 +459,15 @@ export function renderAdPage(shortCode: string, originalUrl: string): string {
             }
         }, 1000)
 
+        // 只導向 http(s) 網址
+        function go(u) {
+            if (isHttpUrl(u)) {
+                window.location.href = u
+            } else {
+                btnText.textContent = '目的網址無效'
+            }
+        }
+
         // 點擊前往
         goBtn.addEventListener('click', async () => {
             if (goBtn.disabled) return
@@ -441,15 +480,15 @@ export function renderAdPage(shortCode: string, originalUrl: string): string {
                 const response = await fetch(\`/api/ad/\${shortCode}/click\`, { method: 'POST' })
                 if (response.ok) {
                     const data = await response.json()
-                    window.location.href = data.original_url
+                    go(data.original_url)
                 } else {
                     // 如果 API 失敗，直接跳轉
-                    window.location.href = originalUrl
+                    go(originalUrl)
                 }
             } catch (e) {
                 console.error('Error:', e)
                 // 錯誤時仍然跳轉
-                window.location.href = originalUrl
+                go(originalUrl)
             }
         })
     </script>

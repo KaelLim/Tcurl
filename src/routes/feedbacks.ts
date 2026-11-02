@@ -1,17 +1,22 @@
 /**
- * 社群建議路由 - Deno/Hono 版本
+ * 社群建議路由 - Hono 版本
  *
  * 提供社群建議的 CRUD 操作、留言、投票等功能
  *
  * @module routes/feedbacks
  */
 
-import { Hono } from '@hono/hono';
+import { Hono } from 'hono';
 import { getSupabase } from '../services/supabase.ts';
+import type { AppEnv } from '../types/env.ts';
+import { getDisplayName } from '../utils/display-name.ts';
 import { getUserClientFromRequest, sendUnauthorized } from './_helpers.ts';
 
 // 建立路由實例
-export const feedbackRoutes = new Hono();
+export const feedbackRoutes = new Hono<AppEnv>();
+
+/** 資料庫錯誤對外只回通用訊息（原文只記在伺服器 log） */
+const DB_ERROR_MESSAGE = '資料處理失敗，請稍後再試';
 
 // ============================================================
 // API 路由 - 建議列表
@@ -64,22 +69,19 @@ feedbackRoutes.get('/api/feedbacks', async (c) => {
 
     if (error) {
       console.error('Error fetching feedbacks:', error);
-      return c.json({ error: 'Failed to fetch feedbacks', message: error.message }, 500);
+      return c.json({ error: 'Failed to fetch feedbacks', message: DB_ERROR_MESSAGE }, 500);
     }
 
     // 取得發起人資訊
-    const supabase = getSupabase();
+    const supabase = getSupabase(c.env);
     const feedbacksWithUsers = await Promise.all(
       (data || []).map(async (feedback) => {
         if (feedback.created_by) {
           const { data: userData } = await supabase.auth.admin.getUserById(feedback.created_by);
           if (userData?.user) {
-            const meta = userData.user.user_metadata || {};
             feedback.author = {
               id: userData.user.id,
-              display_name: meta.chinese_firstname && meta.chinese_lastname
-                ? `${meta.chinese_lastname}${meta.chinese_firstname}`
-                : meta.display_name || meta.name || userData.user.email?.split('@')[0] || '匿名用戶'
+              display_name: getDisplayName(userData.user, '匿名用戶'),
             };
           }
         }
@@ -118,16 +120,13 @@ feedbackRoutes.get('/api/feedbacks/:id', async (c) => {
     }
 
     // 取得發起人資訊
-    const supabase = getSupabase();
+    const supabase = getSupabase(c.env);
     if (feedback.created_by) {
       const { data: userData } = await supabase.auth.admin.getUserById(feedback.created_by);
       if (userData?.user) {
-        const meta = userData.user.user_metadata || {};
         feedback.author = {
           id: userData.user.id,
-          display_name: meta.chinese_firstname && meta.chinese_lastname
-            ? `${meta.chinese_lastname}${meta.chinese_firstname}`
-            : meta.display_name || meta.name || userData.user.email?.split('@')[0] || '匿名用戶'
+          display_name: getDisplayName(userData.user, '匿名用戶'),
         };
       }
     }
@@ -145,12 +144,9 @@ feedbackRoutes.get('/api/feedbacks/:id', async (c) => {
         if (comment.created_by) {
           const { data: userData } = await supabase.auth.admin.getUserById(comment.created_by);
           if (userData?.user) {
-            const meta = userData.user.user_metadata || {};
             comment.author = {
               id: userData.user.id,
-              display_name: meta.chinese_firstname && meta.chinese_lastname
-                ? `${meta.chinese_lastname}${meta.chinese_firstname}`
-                : meta.display_name || meta.name || userData.user.email?.split('@')[0] || '匿名用戶'
+              display_name: getDisplayName(userData.user, '匿名用戶'),
             };
           }
         }
@@ -223,7 +219,7 @@ feedbackRoutes.post('/api/feedbacks', async (c) => {
 
     if (error) {
       console.error('Error creating feedback:', error);
-      return c.json({ error: 'Failed to create feedback', message: error.message }, 500);
+      return c.json({ error: 'Failed to create feedback', message: DB_ERROR_MESSAGE }, 500);
     }
 
     return c.json(data, 201);
@@ -264,7 +260,7 @@ feedbackRoutes.put('/api/feedbacks/:id', async (c) => {
 
     if (error) {
       console.error('Error updating feedback:', error);
-      return c.json({ error: 'Failed to update feedback', message: error.message }, 500);
+      return c.json({ error: 'Failed to update feedback', message: DB_ERROR_MESSAGE }, 500);
     }
 
     return c.json(data);
@@ -294,7 +290,7 @@ feedbackRoutes.delete('/api/feedbacks/:id', async (c) => {
 
     if (error) {
       console.error('Error deleting feedback:', error);
-      return c.json({ error: 'Failed to delete feedback', message: error.message }, 500);
+      return c.json({ error: 'Failed to delete feedback', message: DB_ERROR_MESSAGE }, 500);
     }
 
     return c.json({ message: '已刪除' });
@@ -346,19 +342,16 @@ feedbackRoutes.post('/api/feedbacks/:id/comments', async (c) => {
 
     if (error) {
       console.error('Error creating comment:', error);
-      return c.json({ error: 'Failed to create comment', message: error.message }, 500);
+      return c.json({ error: 'Failed to create comment', message: DB_ERROR_MESSAGE }, 500);
     }
 
     // 附加作者資訊
-    const supabase = getSupabase();
+    const supabase = getSupabase(c.env);
     const { data: userData } = await supabase.auth.admin.getUserById(user.id);
     if (userData?.user) {
-      const meta = userData.user.user_metadata || {};
       data.author = {
         id: userData.user.id,
-        display_name: meta.chinese_firstname && meta.chinese_lastname
-          ? `${meta.chinese_lastname}${meta.chinese_firstname}`
-          : meta.display_name || meta.name || userData.user.email?.split('@')[0] || '匿名用戶'
+        display_name: getDisplayName(userData.user, '匿名用戶'),
       };
     }
 
@@ -389,7 +382,7 @@ feedbackRoutes.delete('/api/feedbacks/:id/comments/:commentId', async (c) => {
 
     if (error) {
       console.error('Error deleting comment:', error);
-      return c.json({ error: 'Failed to delete comment', message: error.message }, 500);
+      return c.json({ error: 'Failed to delete comment', message: DB_ERROR_MESSAGE }, 500);
     }
 
     return c.json({ message: '已刪除' });
@@ -439,7 +432,8 @@ feedbackRoutes.post('/api/feedbacks/:id/vote', async (c) => {
         .eq('user_id', user.id);
 
       if (error) {
-        return c.json({ error: 'Failed to remove vote', message: error.message }, 500);
+        console.error('Error removing vote:', error);
+        return c.json({ error: 'Failed to remove vote', message: DB_ERROR_MESSAGE }, 500);
       }
 
       return c.json({ voted: false, message: '已取消投票' });
@@ -453,7 +447,8 @@ feedbackRoutes.post('/api/feedbacks/:id/vote', async (c) => {
         });
 
       if (error) {
-        return c.json({ error: 'Failed to add vote', message: error.message }, 500);
+        console.error('Error adding vote:', error);
+        return c.json({ error: 'Failed to add vote', message: DB_ERROR_MESSAGE }, 500);
       }
 
       return c.json({ voted: true, message: '已投票' });

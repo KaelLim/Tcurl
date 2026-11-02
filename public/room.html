@@ -118,7 +118,9 @@
         method: 'POST', headers: headers(), body: JSON.stringify({ originalUrl, title }),
       });
       if (!res.ok) { showError((await res.json().catch(() => ({}))).error || '新增失敗'); return; }
-      await load();
+      // KV list 為最終一致，立刻重新列表可能還看不到新項目：直接用回應的 item 更新本地列表
+      const { item } = await res.json();
+      render([item, ...currentItems.filter((x) => x.id !== item.id)]);
     }
 
     async function editItem(id) {
@@ -132,13 +134,15 @@
         method: 'PUT', headers: headers(), body: JSON.stringify({ title, originalUrl }),
       });
       if (!res.ok) { showError((await res.json().catch(() => ({}))).error || '更新失敗'); return; }
-      await load();
+      const { item } = await res.json();
+      render(currentItems.map((x) => (x.id === item.id ? item : x)));
     }
 
     async function removeItem(id) {
       const res = await fetch(API + '/' + id, { method: 'DELETE', headers: headers() });
-      if (!res.ok) { showError('刪除失敗'); return; }
-      await load();
+      // 404 代表已被刪除（列表可能是最終一致的舊資料），一樣從本地移除
+      if (!res.ok && res.status !== 404) { showError('刪除失敗'); return; }
+      render(currentItems.filter((x) => x.id !== id));
     }
 
     function enterRoom(pass) {

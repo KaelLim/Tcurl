@@ -1,11 +1,74 @@
 [
   {
+    "version": "1.6.2",
+    "date": "2026-11-02",
+    "title": "短網址轉址加速",
+    "changes": [
+      {
+        "type": "feat",
+        "text": "短網址轉址加入快取：同一個短網址 60 秒內再次被開啟時直接轉址，不必等待資料庫，活動現場大量掃碼時更快更穩"
+      },
+      {
+        "type": "update",
+        "text": "修改或停用短網址、管道後立即清除快取；刪除短網址後最多約 60 秒內舊連結可能仍會轉址"
+      },
+      {
+        "type": "update",
+        "text": "網站入口改由 Cloudflare Pages 提供，之後可接上自訂網域"
+      }
+    ]
+  },
+  {
+    "version": "1.6.1",
+    "date": "2026-11-02",
+    "title": "僅限慈濟帳號登入",
+    "changes": [
+      {
+        "type": "security",
+        "text": "只有 @tzuchi.org.tw 的 Google 帳號可以登入與註冊，其他帳號會被拒絕並顯示原因"
+      },
+      {
+        "type": "update",
+        "text": "Google 帳號選單優先顯示慈濟帳號"
+      }
+    ]
+  },
+  {
+    "version": "1.6.0",
+    "date": "2026-11-02",
+    "title": "遷移至 Cloudflare Workers 與 Supabase Cloud",
+    "changes": [
+      {
+        "type": "update",
+        "text": "後端從自架 Deno 主機遷移至 Cloudflare Workers（Hono），靜態檔改由 Workers Static Assets 提供"
+      },
+      {
+        "type": "update",
+        "text": "資料庫與登入改用 Supabase Cloud，既有使用者、短網址與點擊資料完整搬移"
+      },
+      {
+        "type": "feat",
+        "text": "登入方式改為 Google 帳號"
+      },
+      {
+        "type": "security",
+        "text": "安全性修正：廣告頁比照短網址檢查停用／過期／密碼保護、密碼驗證專屬限流、更新欄位白名單、目的網址只允許 http(s)、錯誤訊息不外洩"
+      }
+    ]
+  },
+  {
     "version": "1.5.0",
     "date": "2026-07-18",
     "title": "密語房間（實驗性 POC）",
     "changes": [
-      { "type": "feat", "text": "新增「密語房間」：輸入相同密語即進到同一個隔離空間，免登入、多人共用（重整同步）" },
-      { "type": "feat", "text": "房間資料存於獨立 Deno KV，7 天自動過期，與正式資料完全隔離" }
+      {
+        "type": "feat",
+        "text": "新增「密語房間」：輸入相同密語即進到同一個隔離空間，免登入、多人共用（重整同步）"
+      },
+      {
+        "type": "feat",
+        "text": "房間資料存於獨立 Deno KV，7 天自動過期，與正式資料完全隔離"
+      }
     ]
   },
   {
@@ -13,14 +76,38 @@
     "date": "2026-06-02",
     "title": "安全性強化與依賴升級",
     "changes": [
-      { "type": "security", "text": "OAuth 登入流程從 implicit 切換至 PKCE，防止 token 透過 URL 洩漏" },
-      { "type": "security", "text": "Nginx 安全補丁更新（CVE 修復）" },
-      { "type": "security", "text": "系統層級套件安全更新（systemd、apparmor、Docker 等共 55 項）" },
-      { "type": "update", "text": "Hono 框架 4.3 → 4.12，遷移至 JSR 官方發布源" },
-      { "type": "update", "text": "Supabase JS 2.81 → 2.106，提升 Auth 與資料庫查詢穩定性" },
-      { "type": "update", "text": "Deno 2.6 → 2.8，TypeScript 引擎升級至 6.0" },
-      { "type": "update", "text": "前端 CDN 統一版本（Chart.js 4.5.1、QR Code Styling 1.9.2）" },
-      { "type": "feat", "text": "新增管理員後台，sidebar 自動偵測管理員身分" }
+      {
+        "type": "security",
+        "text": "OAuth 登入流程從 implicit 切換至 PKCE，防止 token 透過 URL 洩漏"
+      },
+      {
+        "type": "security",
+        "text": "Nginx 安全補丁更新（CVE 修復）"
+      },
+      {
+        "type": "security",
+        "text": "系統層級套件安全更新（systemd、apparmor、Docker 等共 55 項）"
+      },
+      {
+        "type": "update",
+        "text": "Hono 框架 4.3 → 4.12，遷移至 JSR 官方發布源"
+      },
+      {
+        "type": "update",
+        "text": "Supabase JS 2.81 → 2.106，提升 Auth 與資料庫查詢穩定性"
+      },
+      {
+        "type": "update",
+        "text": "Deno 2.6 → 2.8，TypeScript 引擎升級至 6.0"
+      },
+      {
+        "type": "update",
+        "text": "前端 CDN 統一版本（Chart.js 4.5.1、QR Code Styling 1.9.2）"
+      },
+      {
+        "type": "feat",
+        "text": "新增管理員後台，sidebar 自動偵測管理員身分"
+      }
     ]
   },
   {
@@ -28,10 +115,22 @@
     "date": "2026-05-15",
     "title": "管道追蹤與 UTM 整合",
     "changes": [
-      { "type": "feat", "text": "新增管道追蹤功能，可為每個短網址建立最多 5 個管道" },
-      { "type": "feat", "text": "每個管道可設定獨立 UTM 參數，自動附加到目標網址" },
-      { "type": "feat", "text": "管道點擊數據獨立統計，方便分析不同來源成效" },
-      { "type": "update", "text": "修改管道名稱或 UTM 參數不需要更換 QR Code" }
+      {
+        "type": "feat",
+        "text": "新增管道追蹤功能，可為每個短網址建立最多 5 個管道"
+      },
+      {
+        "type": "feat",
+        "text": "每個管道可設定獨立 UTM 參數，自動附加到目標網址"
+      },
+      {
+        "type": "feat",
+        "text": "管道點擊數據獨立統計，方便分析不同來源成效"
+      },
+      {
+        "type": "update",
+        "text": "修改管道名稱或 UTM 參數不需要更換 QR Code"
+      }
     ]
   },
   {
@@ -39,9 +138,18 @@
     "date": "2026-05-15",
     "title": "架構優化與統計效能提升",
     "changes": [
-      { "type": "refactor", "text": "路由模組化拆分，提升程式碼可維護性" },
-      { "type": "update", "text": "統計查詢改為資料庫端運算，大幅減少回應時間" },
-      { "type": "update", "text": "新增複合索引，加速點擊數據查詢" }
+      {
+        "type": "refactor",
+        "text": "路由模組化拆分，提升程式碼可維護性"
+      },
+      {
+        "type": "update",
+        "text": "統計查詢改為資料庫端運算，大幅減少回應時間"
+      },
+      {
+        "type": "update",
+        "text": "新增複合索引，加速點擊數據查詢"
+      }
     ]
   },
   {
@@ -49,12 +157,30 @@
     "date": "2026-03-14",
     "title": "介面優化與錯誤頁面",
     "changes": [
-      { "type": "feat", "text": "新增更新日誌頁面，方便查看歷次版本變更" },
-      { "type": "update", "text": "短網址不存在、請求過於頻繁、系統錯誤等狀態改為完整頁面提示" },
-      { "type": "update", "text": "登入頁面簡化，提供更清爽的登入體驗" },
-      { "type": "update", "text": "API 文檔頁加入各工具官方圖示" },
-      { "type": "update", "text": "頁面元件化，提升整體一致性與載入效能" },
-      { "type": "fix", "text": "修復短網址設定變更後快取未即時更新的問題" }
+      {
+        "type": "feat",
+        "text": "新增更新日誌頁面，方便查看歷次版本變更"
+      },
+      {
+        "type": "update",
+        "text": "短網址不存在、請求過於頻繁、系統錯誤等狀態改為完整頁面提示"
+      },
+      {
+        "type": "update",
+        "text": "登入頁面簡化，提供更清爽的登入體驗"
+      },
+      {
+        "type": "update",
+        "text": "API 文檔頁加入各工具官方圖示"
+      },
+      {
+        "type": "update",
+        "text": "頁面元件化，提升整體一致性與載入效能"
+      },
+      {
+        "type": "fix",
+        "text": "修復短網址設定變更後快取未即時更新的問題"
+      }
     ]
   },
   {
@@ -62,11 +188,26 @@
     "date": "2026-03-13",
     "title": "介面統一與版本管理",
     "changes": [
-      { "type": "feat", "text": "側邊欄、頁首等共用元件統一管理，各頁面風格更一致" },
-      { "type": "feat", "text": "版本號自動同步顯示，不再需要手動更新" },
-      { "type": "update", "text": "全站圖示統一使用本地檔案，加快載入速度" },
-      { "type": "update", "text": "BETA 標籤升級為正式版本標示" },
-      { "type": "fix", "text": "修復上游代理快取導致設定變更延遲生效的問題" }
+      {
+        "type": "feat",
+        "text": "側邊欄、頁首等共用元件統一管理，各頁面風格更一致"
+      },
+      {
+        "type": "feat",
+        "text": "版本號自動同步顯示，不再需要手動更新"
+      },
+      {
+        "type": "update",
+        "text": "全站圖示統一使用本地檔案，加快載入速度"
+      },
+      {
+        "type": "update",
+        "text": "BETA 標籤升級為正式版本標示"
+      },
+      {
+        "type": "fix",
+        "text": "修復上游代理快取導致設定變更延遲生效的問題"
+      }
     ]
   },
   {
@@ -74,14 +215,38 @@
     "date": "2026-03-10",
     "title": "正式版本發佈",
     "changes": [
-      { "type": "feat", "text": "短網址建立、編輯、刪除與管理" },
-      { "type": "feat", "text": "QR Code 產生，支援自訂樣式與 Logo" },
-      { "type": "feat", "text": "密碼保護與過期時間設定" },
-      { "type": "feat", "text": "點擊數據追蹤與分析儀表板" },
-      { "type": "feat", "text": "廣告插頁功能" },
-      { "type": "feat", "text": "社群建議回饋系統" },
-      { "type": "feat", "text": "慈濟員工帳號登入" },
-      { "type": "feat", "text": "API 文檔：Swagger UI / RapiDoc / Scalar 三種檢視方式" }
+      {
+        "type": "feat",
+        "text": "短網址建立、編輯、刪除與管理"
+      },
+      {
+        "type": "feat",
+        "text": "QR Code 產生，支援自訂樣式與 Logo"
+      },
+      {
+        "type": "feat",
+        "text": "密碼保護與過期時間設定"
+      },
+      {
+        "type": "feat",
+        "text": "點擊數據追蹤與分析儀表板"
+      },
+      {
+        "type": "feat",
+        "text": "廣告插頁功能"
+      },
+      {
+        "type": "feat",
+        "text": "社群建議回饋系統"
+      },
+      {
+        "type": "feat",
+        "text": "慈濟員工帳號登入"
+      },
+      {
+        "type": "feat",
+        "text": "API 文檔：Swagger UI / RapiDoc / Scalar 三種檢視方式"
+      }
     ]
   }
 ]

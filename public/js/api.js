@@ -275,6 +275,24 @@ const api = {
 
 // 工具函數
 const utils = {
+  // HTML 跳脫（含引號，可用於屬性值）
+  escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    }[ch]))
+  },
+
+  // 是否為 http(s) 絕對網址（只有這種網址才能放進 href 或用來導向）
+  isHttpUrl(value) {
+    if (typeof value !== 'string' || !value) return false
+    try {
+      const { protocol } = new URL(value)
+      return protocol === 'http:' || protocol === 'https:'
+    } catch {
+      return false
+    }
+  },
+
   // 複製到剪貼簿
   async copyToClipboard(text) {
     try {

@@ -79,15 +79,33 @@ export class TCSidebar extends TCElement {
       if (nameEl) nameEl.textContent = this.#user.name || '使用者';
       if (emailEl) emailEl.textContent = this.#user.email || '';
       if (avatarEl) {
-        if (this.#user.avatar) {
-          avatarEl.innerHTML = `<img src="${this.#user.avatar}" alt="Avatar" style="width:100%;height:100%;object-fit:cover;">`;
+        // 頭像網址來自 user_metadata（使用者可自行修改）：以 DOM API 設定，且只接受 http(s)
+        if (TCSidebar.#isHttpUrl(this.#user.avatar)) {
+          const img = document.createElement('img');
+          img.src = this.#user.avatar;
+          img.alt = 'Avatar';
+          img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+          avatarEl.replaceChildren(img);
         } else {
-          avatarEl.innerHTML = `<span class="material-symbols-outlined icon">person</span>`;
+          const icon = document.createElement('span');
+          icon.className = 'material-symbols-outlined icon';
+          icon.textContent = 'person';
+          avatarEl.replaceChildren(icon);
         }
       }
     } else {
       userSection.classList.add('hidden');
       loginSection.classList.remove('hidden');
+    }
+  }
+
+  static #isHttpUrl(value) {
+    if (typeof value !== 'string' || !value) return false;
+    try {
+      const { protocol } = new URL(value);
+      return protocol === 'http:' || protocol === 'https:';
+    } catch {
+      return false;
     }
   }
 

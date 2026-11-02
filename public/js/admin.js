@@ -25,7 +25,8 @@ const CATEGORY_LABELS = {
 function escapeHtml(str) {
   const div = document.createElement('div')
   div.textContent = str
-  return div.innerHTML
+  // innerHTML 只會跳脫 & < >；結果會放進 href="" / title="" 等屬性，引號也要跳脫
+  return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;')
 }
 
 function formatDate(dateStr) {
@@ -152,7 +153,9 @@ async function loadUrls() {
             <a href="/edit/${url.id}" class="text-blue-400 hover:text-blue-300 hover:underline font-medium text-sm">${escapeHtml(url.short_code)}</a>
           </td>
           <td class="p-3">
-            <a href="${escapeHtml(url.original_url)}" target="_blank" rel="noopener" class="text-white/80 text-sm hover:text-white" title="${escapeHtml(url.original_url)}">${displayUrl}</a>
+            ${utils.isHttpUrl(url.original_url)
+              ? `<a href="${escapeHtml(url.original_url)}" target="_blank" rel="noopener" class="text-white/80 text-sm hover:text-white" title="${escapeHtml(url.original_url)}">${displayUrl}</a>`
+              : `<span class="text-white/80 text-sm" title="${escapeHtml(url.original_url)}">${displayUrl}</span>`}
           </td>
           <td class="p-3 text-white/60 text-sm">${creator}</td>
           <td class="p-3 text-white font-medium text-sm">${(url.click_count || 0).toLocaleString()}</td>

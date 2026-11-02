@@ -64,18 +64,18 @@
             </div>
 
             <p class="text-white/70 text-sm mb-6 text-center">
-                請使用慈濟員工帳號進行登入
+                請使用慈濟 Google 帳號（@tzuchi.org.tw）登入
             </p>
 
-            <!-- Keycloak Login Button -->
+            <!-- Google Login Button -->
             <button
                 type="button"
-                id="keycloakLoginBtn"
+                id="googleLoginBtn"
                 class="flex w-full cursor-pointer items-center justify-center gap-3 rounded-lg h-14 px-5 bg-primary hover:bg-blue-600 transition-colors text-white text-lg font-medium shadow-[0_0_20px_theme(colors.primary/0.4)]"
             >
-                <span class="material-symbols-outlined text-2xl">badge</span>
-                <span id="keycloakBtnText">慈濟員工登入</span>
-                <span id="keycloakBtnLoading" class="hidden">
+                <span class="material-symbols-outlined text-2xl">login</span>
+                <span id="googleBtnText">使用 Google 帳號登入</span>
+                <span id="googleBtnLoading" class="hidden">
                     <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -85,7 +85,7 @@
 
             <div class="flex items-center justify-center gap-2 mt-4 text-white/50 text-xs">
                 <span class="material-symbols-outlined text-sm">shield</span>
-                <span>透過慈濟內部認證系統安全登入</span>
+                <span>透過 Google 帳號安全登入</span>
             </div>
         </div>
 
@@ -104,31 +104,38 @@
             }
 
             const errorMessage = document.getElementById('errorMessage')
-            const keycloakLoginBtn = document.getElementById('keycloakLoginBtn')
-            const keycloakBtnText = document.getElementById('keycloakBtnText')
-            const keycloakBtnLoading = document.getElementById('keycloakBtnLoading')
+            const googleLoginBtn = document.getElementById('googleLoginBtn')
+            const googleBtnText = document.getElementById('googleBtnText')
+            const googleBtnLoading = document.getElementById('googleBtnLoading')
 
-            // Keycloak 登入（慈濟員工）
-            keycloakLoginBtn.addEventListener('click', async () => {
+            // 上一次 Google 登入被拒（例如非慈濟帳號）時顯示原因
+            const authError = auth.takeAuthError()
+            if (authError) {
+                errorMessage.textContent = authError
+                errorMessage.classList.remove('hidden')
+            }
+
+            // Google 登入（經 Supabase Auth）
+            googleLoginBtn.addEventListener('click', async () => {
                 // 重置訊息
                 errorMessage.classList.add('hidden')
 
                 // 顯示載入狀態
-                keycloakLoginBtn.disabled = true
-                keycloakBtnText.classList.add('hidden')
-                keycloakBtnLoading.classList.remove('hidden')
+                googleLoginBtn.disabled = true
+                googleBtnText.classList.add('hidden')
+                googleBtnLoading.classList.remove('hidden')
 
                 try {
-                    await auth.signInWithKeycloak(getRedirectUrl())
+                    await auth.signInWithGoogle(getRedirectUrl())
                 } catch (error) {
-                    console.error('Keycloak login error:', error)
+                    console.error('Google login error:', error)
                     errorMessage.textContent = '登入失敗，請稍後再試'
                     errorMessage.classList.remove('hidden')
 
                     // 重置按鈕
-                    keycloakLoginBtn.disabled = false
-                    keycloakBtnText.classList.remove('hidden')
-                    keycloakBtnLoading.classList.add('hidden')
+                    googleLoginBtn.disabled = false
+                    googleBtnText.classList.remove('hidden')
+                    googleBtnLoading.classList.add('hidden')
                 }
             })
         })

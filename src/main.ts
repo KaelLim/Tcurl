@@ -1,25 +1,27 @@
 /**
  * TCurl - 慈濟短網址系統
- * Deno + Hono 版本
+ * Cloudflare Workers + Hono 版本
+ *
+ * 靜態檔案由 Workers Static Assets（public/）直接提供；
+ * 只有 cloudflare.config.ts 的 assets.runWorkerFirst 列出的路徑（API、轉址、HTML 頁面）
+ * 與找不到對應檔案的請求才會進到這個 Worker。
  *
  * @module main
- * @version 1.1.0
  */
 
-import { Hono } from '@hono/hono';
-import { cors } from '@hono/cors';
-import { secureHeaders } from '@hono/secure-headers';
-import { logger } from '@hono/logger';
-// serveStatic 已替換為自訂靜態檔案處理
+import { Hono } from 'hono';
+import type { Context } from 'hono';
+import { cors } from 'hono/cors';
+import { secureHeaders } from 'hono/secure-headers';
+import { logger } from 'hono/logger';
 
-// 載入環境變數
-import '@std/dotenv/load';
+import type { AppEnv } from './types/env.ts';
 
 // 導入路由
 import { urlCrudRoutes } from './routes/url-crud.ts';
 import { urlRedirectRoutes } from './routes/url-redirect.ts';
 import { urlStatsRoutes } from './routes/url-stats.ts';
-import { urlPageRoutes } from './routes/url-pages.ts';
+import { fetchAssetHtml, htmlResponse, urlPageRoutes } from './routes/url-pages.ts';
 import { authRoutes } from './routes/auth.ts';
 import { urlChannelRoutes } from './routes/url-channels.ts';
 import { feedbackRoutes } from './routes/feedbacks.ts';
@@ -28,15 +30,12 @@ import { createRoomsRouter } from './routes/rooms.ts';
 import { createRoomStore } from './services/room-store.ts';
 import { renderRateLimitPage } from './utils/html-templates.ts';
 
-// 導入服務
-import { initSupabase } from './services/supabase.ts';
-import { startClickLogWatcher } from './services/click-log-watcher.ts';
-
 // 導入稽核日誌（ISO 27001 A.12.4）
-import { createAuditMiddleware, logSystemStart } from './utils/audit-logger.ts';
+import { createAuditMiddleware } from './utils/audit-logger.ts';
+import { APP_VERSION } from './utils/asset-version.ts';
 
 // 創建 Hono 應用
-const app = new Hono();
+const app = new Hono<AppEnv>();
 
 // ============================================================
 // 中間件配置
@@ -68,9 +67,8 @@ app.use(
       imgSrc: ["'self'", 'data:', 'blob:', 'info.tzuchi.org', '*.tzuchi.org', 'validator.swagger.io', '*.googleusercontent.com'],
       connectSrc: [
         "'self'",
-        Deno.env.get('SUPABASE_URL') || 'https://*.supabase.co',
-        'sbeurlpj.tzuchi-org.tw',
-        '*.tzuchi-org.tw',
+        // Supabase Cloud（cloudflare.config.ts 的 SUPABASE_URL）；前端未使用 Realtime，不需 wss://
+        (c) => (c as Context<AppEnv>).env.SUPABASE_URL || 'https://*.supabase.co',
         'unpkg.com',
         'cdn.jsdelivr.net',
       ],
@@ -91,20 +89,24 @@ app.use(
   })
 );
 
-// 3. CORS 中間件
-const allowedOrigins = [
-  'https://url.tzuchi.org',
-  Deno.env.get('CORS_ORIGIN'),
-  Deno.env.get('DENO_ENV') === 'development' ? 'http://localhost:3000' : undefined,
-  Deno.env.get('DENO_ENV') === 'development' ? 'http://localhost:8080' : undefined,
-].filter(Boolean) as string[];
+// 3. CORS 中間件（允許來源依請求的 env 計算）
+function getAllowedOrigins(c: Context<AppEnv>): string[] {
+  const isDev = c.env.ENVIRONMENT === 'development';
+  return [
+    'https://url.tzuchi.org',
+    // 可用逗號列出多個來源（例如 Pages 網域與自訂網域並存的過渡期）
+    ...(c.env.CORS_ORIGIN || '').split(',').map((o) => o.trim()),
+    isDev ? 'http://localhost:3000' : undefined,
+    isDev ? 'http://localhost:8080' : undefined,
+  ].filter(Boolean) as string[];
+}
 
 app.use(
   '*',
   cors({
-    origin: (origin) => {
+    origin: (origin, c) => {
       if (!origin) return '*';
-      if (allowedOrigins.includes(origin)) return origin;
+      if (getAllowedOrigins(c as Context<AppEnv>).includes(origin)) return origin;
       console.warn(`CORS blocked origin: ${origin}`);
       return null;
     },
@@ -114,63 +116,62 @@ app.use(
   })
 );
 
-// 4. 速率限制中間件
-const rateLimitEnabled = Deno.env.get('RATE_LIMIT_ENABLED') !== 'false';
-const rateLimitMax = Number(Deno.env.get('RATE_LIMIT_MAX')) || 100;
-const rateLimitWindow = 60 * 1000; // 1 分鐘
+// 4. 速率限制中間件（Workers Rate Limiting binding，鍵為 CF-Connecting-IP）
+// - 短網址轉址 /s/*、廣告頁 /ad/*：REDIRECT_RATE_LIMITER（每 IP 每 60 秒 1000 次）。
+//   以前 Nginx 快取命中不會進到限流器；現在每次轉址都進 Worker，活動現場共用出口 IP
+//   （場館 Wi-Fi、電信 CGNAT）大量掃 QR 時不能套用一般 API 的上限。
+// - 其餘路徑（/api/*、HTML 頁面）：RATE_LIMITER（每 IP 每 60 秒 100 次）
+// 上限與時間窗設定在 cloudflare.config.ts
+const RATE_LIMIT_PERIOD_SECONDS = 60;
 
-// 簡單的內存速率限制器
-const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
-
-// 定期清理過期記錄，防止 Map 無限增長
-setInterval(() => {
-  const now = Date.now();
-  for (const [ip, record] of rateLimitStore) {
-    if (record.resetAt < now) rateLimitStore.delete(ip);
-  }
-}, 5 * 60 * 1000);
-
-if (rateLimitEnabled) {
-  app.use('*', async (c, next) => {
-    const ip =
-      c.req.header('x-forwarded-for')?.split(',')[0] ||
-      c.req.header('x-real-ip') ||
-      'unknown';
-
-    const now = Date.now();
-    const record = rateLimitStore.get(ip);
-
-    if (!record || record.resetAt < now) {
-      rateLimitStore.set(ip, { count: 1, resetAt: now + rateLimitWindow });
-    } else if (record.count >= rateLimitMax) {
-      const retryAfter = Math.ceil((record.resetAt - now) / 1000);
-      // API 路徑回傳 JSON，其餘回傳 HTML 頁面
-      if (c.req.path.startsWith('/api/')) {
-        return c.json(
-          {
-            statusCode: 429,
-            error: 'Too Many Requests',
-            message: `請求過於頻繁，請在 ${retryAfter} 秒後重試`,
-          },
-          429
-        );
-      }
-      return c.html(renderRateLimitPage(retryAfter), 429);
-    } else {
-      record.count++;
-    }
-
-    return await next();
-  });
-} else {
-  console.warn('⚠️  Rate limiting is DISABLED (RATE_LIMIT_ENABLED=false)');
+/** 轉址類路徑（不套用一般限流，改用 REDIRECT_RATE_LIMITER） */
+function isRedirectPath(path: string): boolean {
+  // /api/ad/:code/view|click 是廣告頁的計數 API，與轉址同屬活動現場共用 IP 的流量
+  return path.startsWith('/s/') || path.startsWith('/ad/') || path.startsWith('/api/ad/');
 }
+
+app.use('*', async (c, next) => {
+  if (c.env.RATE_LIMIT_ENABLED === 'false') {
+    return await next();
+  }
+
+  const limiter = isRedirectPath(c.req.path) ? c.env.REDIRECT_RATE_LIMITER : c.env.RATE_LIMITER;
+  if (!limiter) {
+    return await next();
+  }
+
+  const ip = c.req.header('cf-connecting-ip') || 'unknown';
+
+  let success = true;
+  try {
+    ({ success } = await limiter.limit({ key: ip }));
+  } catch (err) {
+    // 限流服務異常時放行（fail-open），避免整站無法使用
+    console.error('Rate limiter error:', err instanceof Error ? err.message : err);
+  }
+
+  if (!success) {
+    const retryAfter = RATE_LIMIT_PERIOD_SECONDS;
+    // API 路徑回傳 JSON，其餘回傳 HTML 頁面
+    if (c.req.path.startsWith('/api/')) {
+      return c.json(
+        {
+          statusCode: 429,
+          error: 'Too Many Requests',
+          message: `請求過於頻繁，請在 ${retryAfter} 秒後重試`,
+        },
+        429
+      );
+    }
+    return c.html(renderRateLimitPage(retryAfter), 429);
+  }
+
+  return await next();
+});
 
 // ============================================================
 // 路由配置
 // ============================================================
-
-import { APP_VERSION, injectAssetVersion } from './utils/asset-version.ts';
 
 // 版本 API（供前端 badge 自動讀取）
 app.get('/api/version', (c) => {
@@ -182,8 +183,8 @@ app.get('/health', (c) => {
   return c.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    runtime: 'Deno',
-    version: Deno.version.deno,
+    runtime: 'Cloudflare Workers',
+    version: APP_VERSION,
   });
 });
 
@@ -192,7 +193,7 @@ app.get('/api', (c) => {
   return c.json({
     name: 'TCurl - 慈濟短網址 API',
     version: APP_VERSION,
-    runtime: 'Deno + Hono',
+    runtime: 'Cloudflare Workers + Hono',
     endpoints: {
       create: 'POST /api/urls',
       list: 'GET /api/urls',
@@ -220,144 +221,61 @@ app.route('/', feedbackRoutes);
 // 註冊管理員路由
 app.route('/', adminRoutes);
 
-// 註冊密語房間路由（POC，免登入，Deno KV）
-const roomKv = await Deno.openKv();
-app.route('/', createRoomsRouter(createRoomStore(roomKv)));
+// 註冊密語房間路由（POC，免登入，Workers KV）
+app.route('/', createRoomsRouter((c) => createRoomStore(c.env.ROOMS_KV)));
 
-// MIME type 對照表
-const MIME_TYPES: Record<string, string> = {
-  '.html': 'text/html; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.js': 'application/javascript; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.gif': 'image/gif',
-  '.svg': 'image/svg+xml',
-  '.ico': 'image/x-icon',
-  '.woff': 'font/woff',
-  '.woff2': 'font/woff2',
-  '.ttf': 'font/ttf',
-  '.txt': 'text/plain; charset=utf-8',
-};
+// ============================================================
+// 靜態檔案 fallback（Workers Static Assets）
+// ============================================================
 
-// 取得 MIME type
-function getMimeType(path: string): string {
-  const ext = path.substring(path.lastIndexOf('.'));
-  return MIME_TYPES[ext] || 'application/octet-stream';
+/** 從 ASSETS binding 取檔；不存在回傳 null */
+async function fetchAsset(c: Context<AppEnv>, assetPath: string): Promise<Response | null> {
+  const res = await c.env.ASSETS.fetch(new URL(assetPath, c.req.url));
+  if (!res.ok) {
+    await res.body?.cancel();
+    return null;
+  }
+  return res;
 }
 
-// 快取策略：JS/CSS 帶版本號可長快取，圖片中等快取，HTML 不快取
-function getCacheControl(path: string): string {
-  if (path.match(/\.(js|css)$/)) return 'public, max-age=31536000, immutable';
-  if (path.match(/\.(png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf)$/)) return 'public, max-age=2592000';
-  return 'no-cache';
-}
-
-function serveHtmlResponse(content: Uint8Array | string): Response {
-  const html = typeof content === 'string' ? content : new TextDecoder().decode(content);
-  return new Response(injectAssetVersion(html), {
-    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' },
-  });
-}
-
-// 靜態文件服務（放在最後）- Deno 版本
+/**
+ * 放在最後：處理 runWorkerFirst 的 HTML 路徑（/、*.html）與找不到檔案的請求。
+ * 檔案只能從 ASSETS binding 取得（只含 public/ 內容），不讀本機檔案系統。
+ */
 app.get('/*', async (c) => {
   const path = c.req.path;
 
-  // 嘗試讀取靜態檔案
-  try {
-    const filePath = `./public${path}`;
-    const file = await Deno.readFile(filePath);
-    const mimeType = getMimeType(path);
-
-    if (mimeType.startsWith('text/html')) {
-      return serveHtmlResponse(file);
+  const asset = await fetchAsset(c, path);
+  if (asset) {
+    if ((asset.headers.get('content-type') || '').startsWith('text/html')) {
+      return htmlResponse(c, await asset.text());
     }
+    // 複製成可修改 headers 的 Response（後續中間件會加安全標頭）
+    return new Response(asset.body, asset);
+  }
 
-    return new Response(file, {
-      headers: {
-        'Content-Type': mimeType,
-        'Cache-Control': getCacheControl(path),
-      },
-    });
-  } catch {
-    if (!path.includes('.')) {
-      // 嘗試 .html（隱藏副檔名：/login → /login.html）
-      try {
-        const file = await Deno.readFile(`./public${path}.html`);
-        return serveHtmlResponse(file);
-      } catch { /* continue */ }
-
-      // 嘗試目錄 index.html（/docs → /docs/index.html）
-      try {
-        const indexPath = path.endsWith('/') ? `${path}index.html` : `${path}/index.html`;
-        const file = await Deno.readFile(`./public${indexPath}`);
-        return serveHtmlResponse(file);
-      } catch { /* continue */ }
-
+  if (!path.includes('.')) {
+    const candidates = [
+      // 隱藏副檔名：/login → /login.html
+      `${path}.html`,
+      // 目錄 index.html：/docs/ → /docs/index.html
+      path.endsWith('/') ? `${path}index.html` : `${path}/index.html`,
       // SPA fallback
-      try {
-        const content = await Deno.readFile('./public/index.html');
-        return serveHtmlResponse(content);
-      } catch {
-        return c.text('Not Found', 404);
+      '/index.html',
+    ];
+    for (const candidate of candidates) {
+      const raw = await fetchAssetHtml(c, candidate);
+      if (raw !== null) {
+        return htmlResponse(c, raw);
       }
     }
-    return c.text('Not Found', 404);
   }
+
+  return c.text('Not Found', 404);
 });
 
 // ============================================================
-// 啟動服務器
+// Workers 進入點
 // ============================================================
 
-const port = Number(Deno.env.get('PORT')) || 3000;
-const host = Deno.env.get('HOST') || '0.0.0.0';
-
-// 初始化服務
-try {
-  await initSupabase();
-  console.log('✅ Services initialized');
-} catch (error) {
-  console.error('❌ Failed to initialize services:', error);
-}
-
-console.log(`🚀 Server is running on http://${host}:${port}`);
-console.log(`📝 API Documentation: http://${host}:${port}/api`);
-console.log(`🔗 Short URL format: http://${host}:${port}/s/{code}`);
-console.log(`🦕 Runtime: Deno ${Deno.version.deno}`);
-
-// 記錄系統啟動（ISO 27001 A.12.4）
-logSystemStart({
-  port,
-  host,
-  environment: Deno.env.get('DENO_ENV') || 'production',
-});
-
-// 啟動 Nginx 點擊日誌監聽（背景執行）
-startClickLogWatcher().catch((err) => {
-  console.error('❌ Click log watcher failed:', err);
-});
-
-const server = Deno.serve({ port, hostname: host }, app.fetch);
-
-// ============================================================
-// Graceful Shutdown
-// ============================================================
-
-const shutdown = async () => {
-  console.log('\n🛑 收到終止信號，正在優雅關閉...');
-  try {
-    await server.shutdown();
-    console.log('✅ 伺服器已停止接受新連線');
-  } catch (err) {
-    console.error('❌ 關閉時發生錯誤:', err);
-  }
-  console.log('👋 服務已完全關閉');
-  Deno.exit(0);
-};
-
-Deno.addSignalListener('SIGTERM', shutdown);
-Deno.addSignalListener('SIGINT', shutdown);
+export default app;

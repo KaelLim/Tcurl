@@ -104,15 +104,16 @@ function createUrlRow(url) {
   const shortUrl = `${window.location.origin}/s/${url.short_code}`
   const adUrl = `${window.location.origin}/ad/${url.short_code}`
   const maxUrlLength = 60
-  const displayUrl = url.original_url.length > maxUrlLength
+  // 原始網址只當文字顯示（整列點擊進入編輯頁），一律跳脫
+  const displayUrl = utils.escapeHtml(url.original_url.length > maxUrlLength
     ? url.original_url.substring(0, maxUrlLength) + '...'
-    : url.original_url
+    : url.original_url)
 
   row.innerHTML = `
     <td class="p-4">
       <div class="flex items-center gap-2">
         <span class="text-blue-400 hover:text-blue-300 text-base font-medium hover:underline cursor-pointer" onclick="event.stopPropagation(); window.open('${shortUrl}', '_blank')">
-          ${url.short_code}
+          ${utils.escapeHtml(url.short_code)}
         </span>
         <button class="text-white/70 hover:text-white" onclick="event.stopPropagation(); copyShortUrl('${shortUrl}')" title="複製短網址 /s/">
           <span class="material-symbols-outlined text-base">content_copy</span>
@@ -123,7 +124,7 @@ function createUrlRow(url) {
       </div>
     </td>
     <td class="p-4">
-      <span class="text-white/90 text-base" title="${url.original_url}">
+      <span class="text-white/90 text-base" title="${utils.escapeHtml(url.original_url)}">
         ${displayUrl}
       </span>
     </td>

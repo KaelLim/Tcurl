@@ -4,6 +4,13 @@
 *.env
 *_env
 !.env.example
+# Workers 本機 secrets（cf dev / Vite plugin 會讀取）
+.dev.vars
+.dev.vars.*
+
+# Cloudflare 建置輸出、本機模擬狀態、產生的型別
+.cloudflare/
+.wrangler/
 
 # 依賴套件
 node_modules/

@@ -1,5 +1,5 @@
 /**
- * 稽核日誌工具 - Deno 版本
+ * 稽核日誌工具 - Cloudflare Workers 版本（只輸出 console，由 Workers Logs 收集）
  *
  * 符合 ISO 27001 資訊安全標準的日誌記錄
  *
@@ -102,10 +102,11 @@ function sanitizeDetails(details: Record<string, unknown>): Record<string, unkno
 }
 
 /**
- * 取得客戶端 IP
+ * 取得客戶端 IP（Cloudflare 以 CF-Connecting-IP 提供真實來源 IP）
  */
 export function getClientIp(headers: Headers): string {
   return (
+    headers.get('cf-connecting-ip') ||
     headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
     headers.get('x-real-ip') ||
     'unknown'
@@ -134,8 +135,7 @@ export function logAuditEvent(entry: Omit<AuditLogEntry, 'timestamp'>): void {
     console.info(`[AUDIT] ${logLine}`);
   }
 
-  // 未來可以擴展：寫入檔案或發送到日誌服務
-  // await Deno.writeTextFile('./logs/audit.log', logLine + '\n', { append: true });
+  // 未來可以擴展：發送到日誌服務（Workers 無本機檔案系統）
 }
 
 /**
@@ -260,7 +260,7 @@ export function logSystemStart(details?: Record<string, unknown>): void {
     clientIp: 'localhost',
     success: true,
     details: {
-      runtime: `Deno ${Deno.version.deno}`,
+      runtime: 'Cloudflare Workers',
       ...details,
     },
   });

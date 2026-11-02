@@ -7,11 +7,15 @@
  * @module utils/room-key
  */
 
-import { crypto } from '@std/crypto';
-import { encodeHex } from '@std/encoding/hex';
-
 /** 命名空間前綴，避免 roomKey 是明文密語的裸 SHA-256 */
 const KEY_NAMESPACE = 'tcurl-room:v1:';
+
+/** bytes → 小寫 hex 字串 */
+function encodeHex(bytes: Uint8Array): string {
+  let out = '';
+  for (const b of bytes) out += b.toString(16).padStart(2, '0');
+  return out;
+}
 
 /**
  * 正規化密語：去頭尾空白 + Unicode NFC。

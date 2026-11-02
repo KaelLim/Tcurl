@@ -6,16 +6,45 @@
  * @module routes/url-crud
  */
 
-import { Hono } from '@hono/hono';
-import * as bcrypt from 'bcrypt';
+import { Hono } from 'hono';
+import type { Context } from 'hono';
+import bcrypt from 'bcryptjs';
 
 import { getSupabase, extractToken } from '../services/supabase.ts';
-import { purgeNginxCache } from '../services/nginx-cache.ts';
+import { invalidateUrl } from '../services/redirect-cache.ts';
+import type { AppEnv } from '../types/env.ts';
 import { generateShortCode, isValidShortCode } from '../utils/shortcode.ts';
 import { validateUrl } from '../utils/url-validator.ts';
-import { getUserClientFromRequest, sendUnauthorized } from './_helpers.ts';
+import { getUserClientFromRequest, runInBackground, sendUnauthorized } from './_helpers.ts';
 
-export const urlCrudRoutes = new Hono();
+export const urlCrudRoutes = new Hono<AppEnv>();
+
+/** bcrypt cost（與舊版 deno.land/x/bcrypt 預設值相同） */
+const BCRYPT_ROUNDS = 10;
+
+/** PUT /api/urls/:id 可由請求直接更新的欄位（password / password_protected 另外處理） */
+const UPDATABLE_FIELDS = ['original_url', 'expires_at', 'is_active'] as const;
+
+/** 密碼驗證限流的時間窗（秒），上限設定在 cloudflare.config.ts 的 PASSWORD_RATE_LIMITER */
+const PASSWORD_RATE_LIMIT_PERIOD_SECONDS = 60;
+
+/**
+ * 密碼驗證專屬限流（鍵：CF-Connecting-IP + 短碼）。
+ * 與全站限流相同：RATE_LIMIT_ENABLED=false 時停用、限流服務異常時放行。
+ */
+async function allowPasswordAttempt(c: Context<AppEnv>, shortCode: string): Promise<boolean> {
+  const limiter = c.env.PASSWORD_RATE_LIMITER;
+  if (c.env.RATE_LIMIT_ENABLED === 'false' || !limiter) return true;
+
+  const ip = c.req.header('cf-connecting-ip') || 'unknown';
+  try {
+    const { success } = await limiter.limit({ key: `${ip}:${shortCode}` });
+    return success;
+  } catch (err) {
+    console.error('Password rate limiter error:', err instanceof Error ? err.message : err);
+    return true;
+  }
+}
 
 // ============================================================
 // 短網址 CRUD
@@ -52,7 +81,7 @@ urlCrudRoutes.post('/api/urls', async (c) => {
 
   // 取得使用者 ID
   const token = extractToken(c.req.header('Authorization'));
-  const supabase = getSupabase();
+  const supabase = getSupabase(c.env);
   const {
     data: { user },
     error: userError,
@@ -74,7 +103,7 @@ urlCrudRoutes.post('/api/urls', async (c) => {
 
   while (attempts < maxAttempts) {
     const currentShortCode =
-      short_code || generateShortCode(Number(Deno.env.get('SHORT_CODE_LENGTH')) || 6);
+      short_code || generateShortCode(Number(c.env.SHORT_CODE_LENGTH) || 6);
 
     const { data: insertedData, error } = await userClient
       .from('urls')
@@ -109,7 +138,8 @@ urlCrudRoutes.post('/api/urls', async (c) => {
     return c.json({ error: 'Failed to generate unique short code' }, 500);
   }
 
-  const baseUrl = Deno.env.get('BASE_URL') || 'http://localhost:3000';
+  // 未設定 BASE_URL 時以請求本身的網域為準（經 Pages 入口轉進來時即為使用者看到的網域）
+  const baseUrl = c.env.BASE_URL || new URL(c.req.url).origin;
   const shortUrl = `${baseUrl}/s/${data.short_code}`;
 
   return c.json(
@@ -152,26 +182,47 @@ urlCrudRoutes.put('/api/urls/:id', async (c) => {
 
   const id = c.req.param('id');
   const body = await c.req.json();
-  const { password, password_protected, ...otherUpdates } = body;
+  const { password, password_protected } = body;
 
-  const updates: Record<string, string | boolean | null | undefined> = { ...otherUpdates };
+  // 白名單：其他欄位（qr_code_path、created_by、user_id、password_hash、short_code…）一律忽略
+  const updates: Record<string, string | boolean | null | undefined> = {};
+  for (const field of UPDATABLE_FIELDS) {
+    if (body[field] !== undefined) updates[field] = body[field];
+  }
+
+  // 型別檢查
+  if (
+    (updates.original_url !== undefined && typeof updates.original_url !== 'string') ||
+    (updates.expires_at !== undefined &&
+      updates.expires_at !== null &&
+      typeof updates.expires_at !== 'string') ||
+    (updates.is_active !== undefined && typeof updates.is_active !== 'boolean') ||
+    (password_protected !== undefined && typeof password_protected !== 'boolean') ||
+    (password !== undefined && password !== null && typeof password !== 'string')
+  ) {
+    return c.json({ error: 'Invalid field type' }, 400);
+  }
 
   // 處理密碼保護
   if (password_protected !== undefined) {
     updates.password_protected = password_protected;
 
     if (password_protected && password) {
-      updates.password_hash = await bcrypt.hash(password);
+      updates.password_hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
     } else if (!password_protected) {
       updates.password_hash = null;
     }
   } else if (password) {
-    updates.password_hash = await bcrypt.hash(password);
+    updates.password_hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
     updates.password_protected = true;
   }
 
+  if (Object.keys(updates).length === 0) {
+    return c.json({ error: 'No updatable fields provided' }, 400);
+  }
+
   // 如果更新 original_url，需要驗證
-  if (updates.original_url && typeof updates.original_url === 'string') {
+  if (typeof updates.original_url === 'string') {
     const urlValidation = validateUrl(updates.original_url);
     if (!urlValidation.valid) {
       return c.json(
@@ -190,13 +241,8 @@ urlCrudRoutes.put('/api/urls/:id', async (c) => {
     return c.json({ error: 'URL not found' }, 404);
   }
 
-  // 清除 Nginx 快取
-  try {
-    await purgeNginxCache(data.short_code);
-    console.log(`Nginx cache invalidated for ${data.short_code} after update`);
-  } catch (cacheError) {
-    console.error('Failed to invalidate Nginx cache:', cacheError);
-  }
+  // 目的網址、啟用狀態、到期時間、密碼保護都會影響轉址：清掉轉址快取
+  await invalidateUrl(c.env.REDIRECT_CACHE, data.short_code);
 
   return c.json(data);
 });
@@ -212,13 +258,14 @@ urlCrudRoutes.patch('/api/urls/:id/qr-code', async (c) => {
 
   const id = c.req.param('id');
   const body = await c.req.json();
-  const { qr_code_options, qr_code_data_url } = body;
+  // qr_code_data_url（PNG）仍可傳入但不再寫檔：QR 一律在瀏覽器以 qr-code-styling 即時產生
+  const { qr_code_options } = body;
 
   if (!qr_code_options) {
     return c.json({ error: 'qr_code_options is required' }, 400);
   }
 
-  // 先獲取 URL 資料
+  // 先確認 URL 存在且屬於該使用者（RLS）
   const { data: urlData, error: fetchError } = await userClient
     .from('urls')
     .select('short_code, qr_code_path')
@@ -229,93 +276,24 @@ urlCrudRoutes.patch('/api/urls/:id/qr-code', async (c) => {
     return c.json({ error: 'URL not found' }, 404);
   }
 
-  // 準備更新資料
+  // 準備更新資料（只保存 QR 樣式設定）
   const updates: Record<string, unknown> = {
     qr_code_options: qr_code_options,
     qr_code_generated: true,
   };
-
-  // 如果提供了 PNG data URL，保存為檔案
-  if (qr_code_data_url) {
-    try {
-      // 確保 qrcodes 目錄存在
-      const qrcodesDir = `${Deno.cwd()}/public/qrcodes`;
-      try {
-        await Deno.mkdir(qrcodesDir, { recursive: true });
-      } catch {
-        // 目錄可能已存在
-      }
-
-      // 解析 base64 data URL
-      const matches = qr_code_data_url.match(/^data:image\/png;base64,(.+)$/);
-      if (!matches) {
-        throw new Error('Invalid data URL format');
-      }
-
-      const base64Data = matches[1];
-      const buffer = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
-
-      // 驗證檔案大小（最大 1MB）
-      const maxSize = 1 * 1024 * 1024;
-      if (buffer.length > maxSize) {
-        return c.json(
-          {
-            error: 'QR Code 檔案過大',
-            message: `檔案大小 ${(buffer.length / 1024).toFixed(1)}KB 超過限制（最大 1MB）`,
-          },
-          400
-        );
-      }
-
-      // 驗證 PNG 格式
-      const pngSignature = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
-      if (buffer.length < 8 || !buffer.slice(0, 8).every((v, i) => v === pngSignature[i])) {
-        return c.json(
-          {
-            error: '無效的 PNG 檔案格式',
-            message: '上傳的檔案不是有效的 PNG 圖片',
-          },
-          400
-        );
-      }
-
-      // 保存檔案
-      const fileName = `${urlData.short_code}.png`;
-      const filePath = `${qrcodesDir}/${fileName}`;
-      await Deno.writeFile(filePath, buffer);
-
-      updates.qr_code_path = `/qrcodes/${fileName}`;
-      console.log(`QR Code PNG saved: ${filePath}`);
-    } catch (saveError) {
-      console.error('Failed to save QR Code PNG:', saveError);
-      return c.json({ error: 'Failed to save QR Code image' }, 500);
-    }
-  }
 
   // 更新資料庫
   const { data, error } = await userClient.from('urls').update(updates).eq('id', id).select().single();
 
   if (error || !data) {
     console.error('Failed to update QR Code config:', error);
-    return c.json(
-      {
-        error: 'Failed to update QR Code configuration',
-        details: error?.message || 'Unknown error',
-      },
-      500
-    );
+    return c.json({ error: 'Failed to update QR Code configuration' }, 500);
   }
 
-  // 清除 Nginx 快取
-  try {
-    await purgeNginxCache(urlData.short_code);
-  } catch (cacheError) {
-    console.error('Failed to invalidate Nginx cache:', cacheError);
-  }
-
+  // 回應格式維持相容；不再產生 PNG 檔，qr_code_path 固定為 null
   return c.json({
     success: true,
-    qr_code_path: updates.qr_code_path,
+    qr_code_path: null,
     qr_code_options: qr_code_options,
   });
 });
@@ -331,26 +309,15 @@ urlCrudRoutes.delete('/api/urls/:id', async (c) => {
 
   const id = c.req.param('id');
 
-  // 先取得資料以便清除快取
+  // 先確認 URL 存在且屬於該使用者（RLS）
   const { data: urlData } = await userClient
     .from('urls')
-    .select('short_code, qr_code_path')
+    .select('short_code')
     .eq('id', id)
     .single();
 
   if (!urlData) {
     return c.json({ error: 'URL not found' }, 404);
-  }
-
-  // 刪除 QR Code 檔案
-  if (urlData.qr_code_path) {
-    try {
-      const filePath = `${Deno.cwd()}/public${urlData.qr_code_path}`;
-      await Deno.remove(filePath);
-      console.log(`QR code file deleted: ${filePath}`);
-    } catch (fileError) {
-      console.error('Failed to delete QR code file:', fileError);
-    }
   }
 
   // 從資料庫刪除
@@ -361,12 +328,7 @@ urlCrudRoutes.delete('/api/urls/:id', async (c) => {
     return c.json({ error: 'Failed to delete URL' }, 500);
   }
 
-  // 清除 Nginx 快取
-  try {
-    await purgeNginxCache(urlData.short_code);
-  } catch (cacheError) {
-    console.error('Failed to invalidate Nginx cache:', cacheError);
-  }
+  await invalidateUrl(c.env.REDIRECT_CACHE, urlData.short_code);
 
   return c.json({ message: 'URL deleted successfully' });
 });
@@ -380,6 +342,19 @@ urlCrudRoutes.delete('/api/urls/:id', async (c) => {
  */
 urlCrudRoutes.post('/api/urls/:shortCode/verify-password', async (c) => {
   const shortCode = c.req.param('shortCode');
+
+  if (!(await allowPasswordAttempt(c, shortCode))) {
+    c.header('Retry-After', String(PASSWORD_RATE_LIMIT_PERIOD_SECONDS));
+    return c.json(
+      {
+        statusCode: 429,
+        error: 'Too Many Requests',
+        message: `嘗試次數過多，請在 ${PASSWORD_RATE_LIMIT_PERIOD_SECONDS} 秒後重試`,
+      },
+      429
+    );
+  }
+
   const body = await c.req.json();
   const { password } = body;
 
@@ -387,7 +362,7 @@ urlCrudRoutes.post('/api/urls/:shortCode/verify-password', async (c) => {
     return c.json({ error: 'Password is required' }, 400);
   }
 
-  const supabase = getSupabase();
+  const supabase = getSupabase(c.env);
   const { data, error } = await supabase
     .from('urls')
     .select('*')
@@ -423,14 +398,24 @@ urlCrudRoutes.post('/api/urls/:shortCode/verify-password', async (c) => {
     return c.json({ error: 'Invalid password' }, 401);
   }
 
-  // 記錄點擊（異步，不等待）
-  void supabase
+  // 記錄點擊（背景執行，不等待）
+  // 不會重複計算：/s/:code、/ad/:code 遇到密碼保護時只回密碼頁、不記點擊；
+  // 密碼頁（renderPasswordPage、public/password.html）驗證成功後直接導向 original_url，不會再經過 /s/。
+  // 所以這裡是密碼保護連結唯一的點擊記錄。
+  const clickTask = supabase
     .from('url_clicks')
     .insert({
       url_id: data.id,
       user_agent: c.req.header('user-agent') || null,
-      event_type: 'link_click',
+      // 密碼頁會帶上是否由 QR Code 進入（/s/:code?qr=1），與 /s/ 的 event_type 規則一致
+      event_type: body.qr === true ? 'qr_scan' : 'link_click',
+    })
+    .then(({ error: clickError }) => {
+      if (clickError) {
+        console.error(`[ClickRecord] Failed to record click for ${shortCode}:`, clickError.message);
+      }
     });
+  runInBackground(c, clickTask);
 
   return c.json({
     original_url: data.original_url,

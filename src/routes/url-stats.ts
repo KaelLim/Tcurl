@@ -4,12 +4,13 @@
  * @module routes/url-stats
  */
 
-import { Hono } from '@hono/hono';
+import { Hono } from 'hono';
 
 import { getSupabase, extractToken } from '../services/supabase.ts';
+import type { AppEnv } from '../types/env.ts';
 import { getUserClientFromRequest, sendUnauthorized } from './_helpers.ts';
 
-export const urlStatsRoutes = new Hono();
+export const urlStatsRoutes = new Hono<AppEnv>();
 
 // ============================================================
 // 統計路由
@@ -31,7 +32,7 @@ urlStatsRoutes.get('/api/urls', async (c) => {
   try {
     // 取得使用者 ID
     const token = extractToken(c.req.header('Authorization'));
-    const supabase = getSupabase();
+    const supabase = getSupabase(c.env);
     const {
       data: { user },
       error: userError,
@@ -85,7 +86,7 @@ urlStatsRoutes.get('/api/urls/:id/stats', async (c) => {
       return c.json({ error: 'URL not found' }, 404);
     }
 
-    const supabase = getSupabase();
+    const supabase = getSupabase(c.env);
     const { data, error } = await supabase.rpc('get_url_stats', {
       p_url_id: id,
       p_days: days,
@@ -115,7 +116,7 @@ urlStatsRoutes.get('/api/urls/stats/summary', async (c) => {
 
   try {
     const token = extractToken(c.req.header('Authorization'));
-    const supabase = getSupabase();
+    const supabase = getSupabase(c.env);
     const {
       data: { user },
       error: userError,
@@ -155,7 +156,7 @@ urlStatsRoutes.get('/api/stats/daily', async (c) => {
 
   try {
     const token = extractToken(c.req.header('Authorization'));
-    const supabase = getSupabase();
+    const supabase = getSupabase(c.env);
     const {
       data: { user },
       error: userError,

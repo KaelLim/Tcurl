@@ -1,0 +1,26 @@
+# Workers Static Assets 自訂回應標頭（只套用在直接由 Static Assets 提供的檔案）
+# HTML 由 Worker 注入 ?v=版本號 後回傳（Cache-Control: no-cache），不受此檔影響。
+
+# 所有靜態檔
+/*
+  X-Content-Type-Options: nosniff
+
+# JS/CSS：HTML 以 ?v=版本號 引用，可長快取
+/js/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/css/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# 圖片：中等快取（30 天）
+/images/*
+  Cache-Control: public, max-age=2592000
+
+/favicon.svg
+  Cache-Control: public, max-age=2592000
+
+# 元件之間以相對路徑 import（例如 tc-sidebar.js 內的 ./base.js），不會帶 ?v=，
+# 不能吃上面 /js/* 的一年 immutable 快取：改為每次以 ETag 重新驗證（304，成本很低）
+/js/components/*
+  ! Cache-Control
+  Cache-Control: public, no-cache

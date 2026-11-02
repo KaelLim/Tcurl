@@ -4,12 +4,13 @@
  * @module routes/auth
  */
 
-import { Hono } from '@hono/hono';
+import { Hono } from 'hono';
 
 import { getSupabase, extractToken, createUserClient } from '../services/supabase.ts';
+import type { AppEnv } from '../types/env.ts';
 import { sendUnauthorized } from './_helpers.ts';
 
-export const authRoutes = new Hono();
+export const authRoutes = new Hono<AppEnv>();
 
 /**
  * 取得當前使用者資訊
@@ -21,7 +22,7 @@ authRoutes.get('/api/auth/me', async (c) => {
   }
 
   try {
-    const supabase = getSupabase();
+    const supabase = getSupabase(c.env);
     const {
       data: { user },
       error,
@@ -63,7 +64,7 @@ authRoutes.put('/api/auth/profile', async (c) => {
   }
 
   try {
-    const supabase = getSupabase();
+    const supabase = getSupabase(c.env);
     const {
       data: { user },
       error: authError,
@@ -87,7 +88,7 @@ authRoutes.put('/api/auth/profile', async (c) => {
     if (avatar_url !== undefined) updates.avatar_url = avatar_url;
     if (metadata !== undefined) updates.metadata = metadata;
 
-    const userClient = createUserClient(token);
+    const userClient = createUserClient(c.env, token);
     const { data: profile, error: updateError } = await userClient
       .from('user_profiles')
       .update(updates)

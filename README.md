@@ -18,6 +18,58 @@
 
 ---
 
+## Cloudflare Workers 版（v1.6.0 起，目前的正式架構）
+
+> 下方「技術架構」「快速開始」「部署指南」中的 Nginx／Deno／systemd 內容是舊版自架說明（另見 `README.deno.md`），Workers 版不使用。
+
+- **執行環境**：Cloudflare Workers + Hono（Worker 名稱 `tcurl` → `https://tcurl.tzuchidigital.workers.dev`），已開啟 Smart Placement
+- **資料庫與登入**：Supabase Cloud（Frankfurt，eu-central-1），Google 帳號登入（Supabase Auth，PKCE）
+- **靜態檔**：Workers Static Assets（`public/`）
+- **設定檔**：`cloudflare.config.ts`（沒有 `wrangler.toml`，也沒有 `.env`）
+
+### 設定（`cloudflare.config.ts` 的 `worker.env`）
+
+| 名稱 | 類型 | 說明 |
+|---|---|---|
+| `SUPABASE_URL` | var | Supabase Cloud 專案網址 |
+| `SUPABASE_ANON_KEY` | var | Supabase publishable key（公開值，前後端共用） |
+| `BASE_URL`、`CORS_ORIGIN` | var | 短網址網域、額外允許的 CORS 來源 |
+| `SUPABASE_SERVICE_ROLE_KEY` | **secret** | 繞過 RLS 的 service role key，只在 Worker 端使用 |
+| `ADMIN_EMAILS` | **secret** | 管理員 email（逗號分隔，email 需已驗證） |
+| `ROOMS_KV` | KV | 密語房間 |
+| `RATE_LIMITER` | Rate Limiting | `/api/*` 與 HTML 頁面：每 IP 每 60 秒 100 次 |
+| `REDIRECT_RATE_LIMITER` | Rate Limiting | `/s/*`、`/ad/*`：每 IP 每 60 秒 1000 次 |
+| `PASSWORD_RATE_LIMITER` | Rate Limiting | 密碼驗證：每 IP + 短碼每 60 秒 5 次 |
+
+Secrets 只在設定檔宣告名稱，值不進 repo。
+
+### 本機開發
+
+```bash
+npm install
+cp .env.example .dev.vars   # 填入本機用的 secrets（.dev.vars 已在 .gitignore，不要 commit）
+npm run dev                 # = cf dev，http://localhost:5173
+```
+
+不想建檔也可以用環境變數：`SUPABASE_SERVICE_ROLE_KEY=dummy ADMIN_EMAILS=you@example.com npm run dev`（有 `.dev.vars` 時會優先使用檔案）。
+
+### npm scripts
+
+| 指令 | 內容 |
+|---|---|
+| `npm run dev` | `cf dev`：本機 workerd，KV／限流都是本機模擬 |
+| `npm run build` | `cf build`：輸出到 `.cloudflare/output/v0/`，不上傳 |
+| `npm test` | `vitest run`：Node 執行，bindings 與 Supabase 都是 in-memory 替身，不連外 |
+| `npm run typecheck` | `tsc --noEmit` |
+
+### 部署
+
+1. 修改 `package.json` 的 `version`，並在 `public/changelog.json` 最前面加一筆（JS/CSS 以 `?v=版本號` 長快取，沒 bump 的話瀏覽器會繼續用舊檔）
+2. `cf deploy --secrets-file <repo 以外的檔案>`，或用 `npx wrangler secret put <NAME> --name tcurl` 個別設定 secret
+3. Logs：Workers Observability，或 `npx wrangler tail tcurl`
+
+---
+
 ## 功能特色
 
 ### 核心功能
