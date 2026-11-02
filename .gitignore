@@ -1,9 +1,9 @@
-# 環境變數（包含敏感資訊）
+# 環境變數（包含敏感資訊）— 一律不進版控，只保留範本
 .env
-.env.local
-.env.*.local
-.env.production
-.env.staging
+.env.*
+*.env
+*_env
+!.env.example
 
 # 依賴套件
 node_modules/
@@ -44,10 +44,12 @@ coverage/
 # PM2
 .pm2/
 
-# 備份檔案（可能包含敏感資料）
+# 備份檔案（可能包含敏感資料）— backups/ 只追蹤說明文件
 *.backup
 *.bak
-backups/*.sql
+backups/*
+!backups/README.md
+!backups/RESTORE_GUIDE.md
 
 # 壓力測試報告
 reports/
