@@ -21,9 +21,8 @@
 
 ### 2. 設定檔備份
 
-| 檔案名稱 | 說明 |
-|---------|------|
-| **backup_env** | 應用程式環境變數設定 |
+> ⚠️ 環境變數（`.env`，含 `SUPABASE_SERVICE_ROLE_KEY`）**不放在本目錄、也不進 git**。
+> 請另外存放於伺服器上權限 `600` 的位置或密碼管理工具；欄位名稱請參考專案根目錄的 `.env.example`。
 
 ### 3. 說明文件
 
@@ -45,7 +44,7 @@
 3. 進入 SQL Editor → New query
 4. 複製 `backup_full.sql` 的內容並貼上
 5. 點擊 "Run" 執行
-6. 更新應用程式的 `.env` 檔案（參考 `backup_env`）
+6. 更新應用程式的 `.env` 檔案（欄位參考 `.env.example`）
 7. 重啟應用程式
 
 **詳細步驟**: 請參閱 `RESTORE_GUIDE.md`
