@@ -10,12 +10,21 @@ import { Hono } from 'hono';
 import type { Context } from 'hono';
 import bcrypt from 'bcryptjs';
 
-import { getSupabase, extractToken } from '../services/supabase.ts';
+import type { ApiKeyPrincipal } from '../services/api-keys.ts';
+import { getSupabase, getSupabaseForApiKey, extractToken } from '../services/supabase.ts';
+import type { SupabaseEnv } from '../services/supabase.ts';
 import { invalidateUrl } from '../services/redirect-cache.ts';
 import type { AppEnv } from '../types/env.ts';
+import { parseQrCodeOptions } from '../utils/qr-code-options.ts';
 import { generateShortCode, isValidShortCode } from '../utils/shortcode.ts';
 import { validateUrl } from '../utils/url-validator.ts';
-import { getUserClientFromRequest, runInBackground, sendUnauthorized } from './_helpers.ts';
+import {
+  getApiKey,
+  getUserClientFromRequest,
+  runInBackground,
+  scopeToCaller,
+  sendUnauthorized,
+} from './_helpers.ts';
 
 export const urlCrudRoutes = new Hono<AppEnv>();
 
@@ -24,6 +33,26 @@ const BCRYPT_ROUNDS = 10;
 
 /** PUT /api/urls/:id 可由請求直接更新的欄位（password / password_protected 另外處理） */
 const UPDATABLE_FIELDS = ['original_url', 'expires_at', 'is_active'] as const;
+
+/**
+ * 金鑰呼叫者的 GET/POST/PUT /api/urls* 回應只含這些欄位（= openapi.yaml 的 UrlRecord）。
+ * 不含 password_hash：負責同仁在網頁上替金鑰的短網址設了人工密碼時，外部服務不能拿到 bcrypt 雜湊離線破解；
+ * 之後新增的欄位也不會自動回給金鑰。使用者（JWT）照舊回整列（`*`）。
+ */
+const API_KEY_URL_COLUMNS =
+  'id, short_code, original_url, password_protected, expires_at, qr_code_generated, ' +
+  'qr_code_path, qr_code_options, is_active, created_by, api_key_id, created_at, updated_at';
+
+/** 依呼叫者決定 urls 回傳的欄位：金鑰 → API_KEY_URL_COLUMNS；使用者 → `*`（與以前相同） */
+function urlColumnsFor(key: ApiKeyPrincipal | undefined): string {
+  return key ? API_KEY_URL_COLUMNS : '*';
+}
+
+/**
+ * urlColumnsFor 查回的一列。欄位清單是執行期才決定的字串，supabase-js 無法從型別推論結果，
+ * 所以在 `.select<string, UrlRow>()` 明確指定（沒有產生資料庫型別，只列 handler 會用到的欄位）
+ */
+type UrlRow = Record<string, unknown> & { short_code: string };
 
 /** 密碼驗證限流的時間窗（秒），上限設定在 cloudflare.config.ts 的 PASSWORD_RATE_LIMITER */
 const PASSWORD_RATE_LIMIT_PERIOD_SECONDS = 60;
@@ -46,16 +75,50 @@ async function allowPasswordAttempt(c: Context<AppEnv>, shortCode: string): Prom
   }
 }
 
+/**
+ * 金鑰建立的短網址（api_key_id 非 null）附上金鑰名稱與是否已撤銷（spec §6.7 的「由 API：〈名稱〉建立」）。
+ * api_keys 開了 RLS 且沒有 policy，只有 service role 讀得到，所以兩種呼叫者都用 service client 查。
+ * 查不到或查詢失敗時原樣回傳：標示只是附帶資訊，不影響取得短網址。
+ */
+async function withApiKeyInfo(
+  env: SupabaseEnv,
+  row: Record<string, unknown>
+): Promise<Record<string, unknown>> {
+  if (typeof row.api_key_id !== 'string') return row;
+  try {
+    const { data, error } = await getSupabase(env)
+      .from('api_keys')
+      .select('name, revoked_at')
+      .eq('id', row.api_key_id)
+      .single();
+    if (error || !data) {
+      console.error('Failed to load API key info:', error?.code, error?.message);
+      return row;
+    }
+    return { ...row, api_key_name: data.name, api_key_revoked: data.revoked_at !== null };
+  } catch (err) {
+    console.error('Failed to load API key info:', err instanceof Error ? err.message : err);
+    return row;
+  }
+}
+
 // ============================================================
 // 短網址 CRUD
 // ============================================================
+//
+// 每個 handler 依呼叫者選 client：
+// - 服務 API 金鑰：getSupabaseForApiKey（service role，繞過 RLS）→ 對 urls 的查詢／修改／刪除
+//   一律經 scopeToCaller（= scopeToApiKey：created_by = 負責同仁且 api_key_id = 這把金鑰），
+//   不屬於這把金鑰的一律 404；不呼叫 auth.getUser
+// - 使用者：user client（RLS），行為與以前相同
 
 /**
  * 創建短網址（需要登入）
  */
 urlCrudRoutes.post('/api/urls', async (c) => {
-  const userClient = getUserClientFromRequest(c);
-  if (!userClient) {
+  const key = getApiKey(c);
+  const client = key ? getSupabaseForApiKey(c.env, key.keyId) : getUserClientFromRequest(c);
+  if (!client) {
     return sendUnauthorized(c);
   }
 
@@ -79,16 +142,24 @@ urlCrudRoutes.post('/api/urls', async (c) => {
     );
   }
 
-  // 取得使用者 ID
-  const token = extractToken(c.req.header('Authorization'));
-  const supabase = getSupabase(c.env);
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser(token!);
+  // 擁有者：金鑰 → 負責同仁；使用者 → JWT 的使用者。
+  // 金鑰的短網址以資料庫為準：guard_url_api_key_id trigger 新增時會把 created_by 覆寫成金鑰「目前」的
+  // 負責同仁（驗證與寫入之間金鑰被轉移也不會留在原負責人名下），這裡的 key.ownerId 只是驗證當下的值
+  let ownerId: string;
+  if (key) {
+    ownerId = key.ownerId;
+  } else {
+    const token = extractToken(c.req.header('Authorization'));
+    const supabase = getSupabase(c.env);
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser(token!);
 
-  if (userError || !user) {
-    return c.json({ error: 'Invalid token' }, 401);
+    if (userError || !user) {
+      return c.json({ error: 'Invalid token' }, 401);
+    }
+    ownerId = user.id;
   }
 
   // 驗證自訂短代碼格式
@@ -105,15 +176,17 @@ urlCrudRoutes.post('/api/urls', async (c) => {
     const currentShortCode =
       short_code || generateShortCode(Number(c.env.SHORT_CODE_LENGTH) || 6);
 
-    const { data: insertedData, error } = await userClient
+    const { data: insertedData, error } = await client
       .from('urls')
       .insert({
         short_code: currentShortCode,
         original_url,
         expires_at,
-        created_by: user.id,
+        created_by: ownerId,
+        // 金鑰建立的短網址記下是哪把金鑰（只有 service role 能設定，見 guard_url_api_key_id）
+        ...(key ? { api_key_id: key.keyId } : {}),
       })
-      .select()
+      .select<string, UrlRow>(urlColumnsFor(key))
       .single();
 
     if (!error) {
@@ -155,28 +228,32 @@ urlCrudRoutes.post('/api/urls', async (c) => {
  * 獲取單個短網址詳情（需要登入）
  */
 urlCrudRoutes.get('/api/urls/:id', async (c) => {
-  const userClient = getUserClientFromRequest(c);
-  if (!userClient) {
+  const key = getApiKey(c);
+  const client = key ? getSupabaseForApiKey(c.env, key.keyId) : getUserClientFromRequest(c);
+  if (!client) {
     return sendUnauthorized(c);
   }
 
   const id = c.req.param('id');
 
-  const { data, error } = await userClient.from('urls').select('*').eq('id', id).single();
+  // 查不到、不屬於呼叫者，或 id 不是 UUID（PostgREST 22P02）都是 404
+  const lookup = client.from('urls').select<string, UrlRow>(urlColumnsFor(key)).eq('id', id);
+  const { data, error } = await scopeToCaller(lookup, key).single();
 
   if (error || !data) {
     return c.json({ error: 'URL not found' }, 404);
   }
 
-  return c.json(data);
+  return c.json(await withApiKeyInfo(c.env, data));
 });
 
 /**
  * 更新短網址（需要登入）
  */
 urlCrudRoutes.put('/api/urls/:id', async (c) => {
-  const userClient = getUserClientFromRequest(c);
-  if (!userClient) {
+  const key = getApiKey(c);
+  const client = key ? getSupabaseForApiKey(c.env, key.keyId) : getUserClientFromRequest(c);
+  if (!client) {
     return sendUnauthorized(c);
   }
 
@@ -235,7 +312,9 @@ urlCrudRoutes.put('/api/urls/:id', async (c) => {
     }
   }
 
-  const { data, error } = await userClient.from('urls').update(updates).eq('id', id).select().single();
+  const { data, error } = await scopeToCaller(client.from('urls').update(updates).eq('id', id), key)
+    .select<string, UrlRow>(urlColumnsFor(key))
+    .single();
 
   if (error || !data) {
     return c.json({ error: 'URL not found' }, 404);
@@ -251,8 +330,9 @@ urlCrudRoutes.put('/api/urls/:id', async (c) => {
  * 更新 QR Code 配置（需要登入）
  */
 urlCrudRoutes.patch('/api/urls/:id/qr-code', async (c) => {
-  const userClient = getUserClientFromRequest(c);
-  if (!userClient) {
+  const key = getApiKey(c);
+  const client = key ? getSupabaseForApiKey(c.env, key.keyId) : getUserClientFromRequest(c);
+  if (!client) {
     return sendUnauthorized(c);
   }
 
@@ -265,12 +345,16 @@ urlCrudRoutes.patch('/api/urls/:id/qr-code', async (c) => {
     return c.json({ error: 'qr_code_options is required' }, 400);
   }
 
-  // 先確認 URL 存在且屬於該使用者（RLS）
-  const { data: urlData, error: fetchError } = await userClient
-    .from('urls')
-    .select('short_code, qr_code_path')
-    .eq('id', id)
-    .single();
+  // 只接受網頁實際會送的鍵與格式：讀回時色碼會放進負責同仁編輯頁的 HTML，
+  // 金鑰（外部服務）不能藉此對負責同仁注入腳本（spec §4 反目標 1）
+  const parsed = parseQrCodeOptions(qr_code_options);
+  if (!parsed.ok) {
+    return c.json({ error: 'Invalid qr_code_options', message: parsed.message }, 400);
+  }
+
+  // 先確認 URL 存在且屬於呼叫者（使用者：RLS；金鑰：scopeToCaller）
+  const lookup = client.from('urls').select('short_code, qr_code_path').eq('id', id);
+  const { data: urlData, error: fetchError } = await scopeToCaller(lookup, key).single();
 
   if (fetchError || !urlData) {
     return c.json({ error: 'URL not found' }, 404);
@@ -278,12 +362,14 @@ urlCrudRoutes.patch('/api/urls/:id/qr-code', async (c) => {
 
   // 準備更新資料（只保存 QR 樣式設定）
   const updates: Record<string, unknown> = {
-    qr_code_options: qr_code_options,
+    qr_code_options: parsed.value,
     qr_code_generated: true,
   };
 
   // 更新資料庫
-  const { data, error } = await userClient.from('urls').update(updates).eq('id', id).select().single();
+  const { data, error } = await scopeToCaller(client.from('urls').update(updates).eq('id', id), key)
+    .select()
+    .single();
 
   if (error || !data) {
     console.error('Failed to update QR Code config:', error);
@@ -294,7 +380,7 @@ urlCrudRoutes.patch('/api/urls/:id/qr-code', async (c) => {
   return c.json({
     success: true,
     qr_code_path: null,
-    qr_code_options: qr_code_options,
+    qr_code_options: parsed.value,
   });
 });
 
@@ -302,26 +388,24 @@ urlCrudRoutes.patch('/api/urls/:id/qr-code', async (c) => {
  * 刪除短網址（需要登入）
  */
 urlCrudRoutes.delete('/api/urls/:id', async (c) => {
-  const userClient = getUserClientFromRequest(c);
-  if (!userClient) {
+  const key = getApiKey(c);
+  const client = key ? getSupabaseForApiKey(c.env, key.keyId) : getUserClientFromRequest(c);
+  if (!client) {
     return sendUnauthorized(c);
   }
 
   const id = c.req.param('id');
 
-  // 先確認 URL 存在且屬於該使用者（RLS）
-  const { data: urlData } = await userClient
-    .from('urls')
-    .select('short_code')
-    .eq('id', id)
-    .single();
+  // 先確認 URL 存在且屬於呼叫者（使用者：RLS；金鑰：scopeToCaller）
+  const lookup = client.from('urls').select('short_code').eq('id', id);
+  const { data: urlData } = await scopeToCaller(lookup, key).single();
 
   if (!urlData) {
     return c.json({ error: 'URL not found' }, 404);
   }
 
   // 從資料庫刪除
-  const { error } = await userClient.from('urls').delete().eq('id', id);
+  const { error } = await scopeToCaller(client.from('urls').delete().eq('id', id), key);
 
   if (error) {
     console.error(error);

@@ -91,6 +91,19 @@ export default defineConfig({
         namespace: '1002',
         simple: { limit: 5, period: 60 },
       }),
+      // 服務 API 金鑰限流（鍵為 keyId）：每把金鑰每 60 秒 300 次。有效金鑰的請求不吃一般 IP 限流
+      // （多個內部服務可能共用同一個對外 IP）；無效金鑰照樣計入 RATE_LIMITER（src/middleware/api-key-auth.ts）
+      API_KEY_RATE_LIMITER: bindings.rateLimit({
+        namespace: '1004',
+        simple: { limit: 300, period: 60 },
+      }),
+      // 金鑰驗證的每 IP 前置限流：帶 tcurl_sk_ 的請求在查資料庫驗證之前先扣（鍵為 IP），
+      // 每 IP 每 60 秒 1200 次（每把金鑰上限的 4 倍，容許幾個內部服務共用對外 IP）。
+      // 限制單一 IP 能觸發幾次 verify_api_key，避免用亂造的金鑰灌爆資料庫查詢（spec §6.5）
+      API_KEY_VERIFY_RATE_LIMITER: bindings.rateLimit({
+        namespace: '1005',
+        simple: { limit: 1200, period: 60 },
+      }),
       SUPABASE_URL: bindings.text('https://fsneeigsjdryxutmdrmg.supabase.co'),
       // Publishable key（公開值，前後端 anon 用途）
       SUPABASE_ANON_KEY: bindings.text('sb_publishable_XYMtpVzQz4ge2R1gD1NcaQ_VRXLTvmX'),

@@ -15,9 +15,16 @@
             "darkMode": true,
             "layout": "modern",
             "hiddenClients": true,
-            "searchHotKey": "k"
+            "searchHotKey": "k",
+            "persistAuth": false,
+            "agent": { "disabled": true }
         }'
     ></script>
-    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+    <!-- @scalar/api-reference 固定確切版本並加 SRI：升級時 integrity 要重算
+         （curl 下載該版本的檔案 | openssl dgst -sha384 -binary | openssl base64 -A）。
+         persistAuth: false：不把 Authentication 貼上的 JWT／API 金鑰存進 localStorage；
+         agent 關閉：它的 AI 聊天元件固定保存授權（1.75.0 原始碼），而且要連 Scalar 的服務 -->
+    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.75.0/dist/browser/standalone.js"
+            integrity="sha384-xgelKlDcc+BYp0O+ZYzFesLnWCgGpEbXVVZWNQT6WyZYygN01tbEMygnjPXb5OPI" crossorigin="anonymous"></script>
 </body>
 </html>

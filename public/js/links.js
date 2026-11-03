@@ -108,6 +108,8 @@ function createUrlRow(url) {
   const displayUrl = utils.escapeHtml(url.original_url.length > maxUrlLength
     ? url.original_url.substring(0, maxUrlLength) + '...'
     : url.original_url)
+  // 金鑰建立的短網址標示「由 API：〈名稱〉建立」（名稱來自後端，一律跳脫）
+  const apiKeyLabel = utils.apiKeyLabel(url)
 
   row.innerHTML = `
     <td class="p-4">
@@ -122,6 +124,7 @@ function createUrlRow(url) {
           <span class="material-symbols-outlined text-base">ads_click</span>
         </button>
       </div>
+      ${apiKeyLabel ? `<p class="mt-1 text-xs text-white/60">${utils.escapeHtml(apiKeyLabel)}</p>` : ''}
     </td>
     <td class="p-4">
       <span class="text-white/90 text-base" title="${utils.escapeHtml(url.original_url)}">

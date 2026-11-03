@@ -10,6 +10,10 @@
  * @module utils/audit-logger
  */
 
+import type { MiddlewareHandler } from 'hono';
+
+import type { AppEnv } from '../types/env.ts';
+
 /**
  * 稽核事件類型
  */
@@ -52,6 +56,11 @@ export interface AuditLogEntry {
   userId?: string;
   /** 使用者 email（如有） */
   userEmail?: string;
+  /**
+   * 以服務 API 金鑰呼叫時的金鑰 id。放在頂層：details 內名稱含 key 的欄位會被
+   * sanitizeDetails 遮蔽成 [REDACTED]
+   */
+  apiKeyId?: string;
   /** 客戶端 IP */
   clientIp: string;
   /** User Agent */
@@ -141,8 +150,8 @@ export function logAuditEvent(entry: Omit<AuditLogEntry, 'timestamp'>): void {
 /**
  * 建立 Hono 中間件用的稽核日誌記錄器
  */
-export function createAuditMiddleware() {
-  return async (c: { req: { raw: { headers: Headers }; path: string; method: string; header: (name: string) => string | undefined }; res: { status: number } }, next: () => Promise<void>): Promise<void | Response> => {
+export function createAuditMiddleware(): MiddlewareHandler<AppEnv> {
+  return async (c, next) => {
     const startTime = Date.now();
 
     // 記錄請求開始
@@ -164,6 +173,8 @@ export function createAuditMiddleware() {
         userAgent: c.req.header('user-agent'),
         path,
         method,
+        // 金鑰由後面的 apiKeyAuth 設定，所以在 next() 之後才讀
+        apiKeyId: c.get('apiKey')?.keyId,
         success: statusCode < 400,
         details: {
           statusCode,

@@ -29,6 +29,7 @@ import { adminRoutes } from './routes/admin.ts';
 import { createRoomsRouter } from './routes/rooms.ts';
 import { createRoomStore } from './services/room-store.ts';
 import { renderRateLimitPage } from './utils/html-templates.ts';
+import { apiKeyAuth } from './middleware/api-key-auth.ts';
 
 // 導入稽核日誌（ISO 27001 A.12.4）
 import { createAuditMiddleware } from './utils/audit-logger.ts';
@@ -116,11 +117,19 @@ app.use(
   })
 );
 
+// 3.5 服務 API 金鑰（/api/* 的 Authorization 含 tcurl_sk_ 即由中介層處理，格式錯誤的寫法也是）：
+// 驗證、端點白名單、權限、每把金鑰限流。
+// 必須在一般限流之前：有效金鑰改用 API_KEY_RATE_LIMITER（不吃 IP 限流）；
+// 無效金鑰在 apiKeyAuth 內計入 RATE_LIMITER；驗證前另有每 IP 的寬鬆前置限流
+// （API_KEY_VERIFY_RATE_LIMITER），限制單一 IP 觸發驗證查詢的次數。見 src/middleware/api-key-auth.ts
+app.use('*', apiKeyAuth());
+
 // 4. 速率限制中間件（Workers Rate Limiting binding，鍵為 CF-Connecting-IP）
 // - 短網址轉址 /s/*、廣告頁 /ad/*：REDIRECT_RATE_LIMITER（每 IP 每 60 秒 1000 次）。
 //   以前 Nginx 快取命中不會進到限流器；現在每次轉址都進 Worker，活動現場共用出口 IP
 //   （場館 Wi-Fi、電信 CGNAT）大量掃 QR 時不能套用一般 API 的上限。
 // - 其餘路徑（/api/*、HTML 頁面）：RATE_LIMITER（每 IP 每 60 秒 100 次）
+// - 有效的服務 API 金鑰請求：已在 apiKeyAuth 以 API_KEY_RATE_LIMITER（每把金鑰）限流，這裡跳過
 // 上限與時間窗設定在 cloudflare.config.ts
 const RATE_LIMIT_PERIOD_SECONDS = 60;
 
@@ -131,7 +140,7 @@ function isRedirectPath(path: string): boolean {
 }
 
 app.use('*', async (c, next) => {
-  if (c.env.RATE_LIMIT_ENABLED === 'false') {
+  if (c.env.RATE_LIMIT_ENABLED === 'false' || c.get('apiKey')) {
     return await next();
   }
 

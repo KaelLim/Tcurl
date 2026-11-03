@@ -67,6 +67,9 @@
                         <button class="tab-btn px-4 py-2.5 text-sm font-medium rounded-t-lg transition-colors text-white/60 hover:text-white hover:bg-white/5" data-tab="feedbacks">
                             <span class="material-symbols-outlined text-base align-middle mr-1">forum</span>回饋
                         </button>
+                        <button class="tab-btn px-4 py-2.5 text-sm font-medium rounded-t-lg transition-colors text-white/60 hover:text-white hover:bg-white/5" data-tab="api-keys">
+                            <span class="material-symbols-outlined text-base align-middle mr-1">key</span>API 金鑰
+                        </button>
                     </div>
 
                     <!-- Overview Tab -->
@@ -164,6 +167,114 @@
                                     </tbody>
                                 </table>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- API Keys Tab -->
+                    <div id="tab-api-keys" class="tab-content hidden flex flex-col gap-4">
+                        <form id="apiKeyCreateForm" class="flex flex-col gap-4 rounded-xl border border-white/10 bg-white/5 p-5">
+                            <div>
+                                <h3 class="text-white text-base font-bold">發放金鑰</h3>
+                                <p class="text-white/40 text-xs mt-1">給內部服務呼叫 TCurl API。負責同仁需先登入過 TCurl，且帳號未被停權；金鑰建立的短網址會歸在他名下。</p>
+                            </div>
+                            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <label class="flex flex-col gap-1.5">
+                                    <span class="text-white/60 text-sm">服務名稱</span>
+                                    <input id="apiKeyName" type="text" required placeholder="例如：某某報名系統"
+                                        class="w-full bg-white/5 border border-white/10 text-white text-sm rounded-lg px-4 py-2.5 placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                </label>
+                                <label class="flex flex-col gap-1.5">
+                                    <span class="text-white/60 text-sm">負責同仁 email</span>
+                                    <input id="apiKeyOwnerEmail" type="email" required placeholder="name@tzuchi.org.tw"
+                                        class="w-full bg-white/5 border border-white/10 text-white text-sm rounded-lg px-4 py-2.5 placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                </label>
+                            </div>
+                            <div class="flex flex-wrap items-end gap-6">
+                                <fieldset class="flex flex-col gap-1.5">
+                                    <legend class="text-white/60 text-sm mb-1.5">權限</legend>
+                                    <div class="flex items-center gap-4 py-2.5">
+                                        <label class="flex items-center gap-2 text-white text-sm">
+                                            <input id="apiKeyScopeRead" type="checkbox" value="read" checked class="rounded border-white/20 bg-white/5 text-primary focus:ring-primary focus:ring-offset-0">讀取（read）
+                                        </label>
+                                        <label class="flex items-center gap-2 text-white text-sm">
+                                            <input id="apiKeyScopeWrite" type="checkbox" value="write" checked class="rounded border-white/20 bg-white/5 text-primary focus:ring-primary focus:ring-offset-0">寫入（write）
+                                        </label>
+                                    </div>
+                                </fieldset>
+                                <label class="flex flex-col gap-1.5">
+                                    <span class="text-white/60 text-sm">到期</span>
+                                    <select id="apiKeyExpiry" class="bg-white/5 border border-white/10 text-white text-sm rounded-lg pl-4 pr-10 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                        <option value="90" class="bg-[#1e1e2e]">90 天</option>
+                                        <option value="365" selected class="bg-[#1e1e2e]">1 年</option>
+                                        <option value="never" class="bg-[#1e1e2e]">不過期</option>
+                                    </select>
+                                </label>
+                                <button id="apiKeyCreateBtn" type="submit" class="ml-auto px-6 py-2.5 bg-primary hover:bg-primary/90 text-white text-sm rounded-lg font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <span class="material-symbols-outlined text-base align-middle mr-1">key</span>發放金鑰
+                                </button>
+                            </div>
+                        </form>
+
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-white text-base font-bold">金鑰列表</h3>
+                            <span id="apiKeyTotal" class="text-white/40 text-sm"></span>
+                        </div>
+                        <div class="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
+                            <div class="overflow-x-auto">
+                                <table class="w-full">
+                                    <thead>
+                                        <tr class="border-b border-white/10">
+                                            <th class="text-left text-white/60 text-xs font-medium p-3 uppercase tracking-wider">名稱／金鑰</th>
+                                            <th class="text-left text-white/60 text-xs font-medium p-3 uppercase tracking-wider">負責同仁</th>
+                                            <th class="text-left text-white/60 text-xs font-medium p-3 uppercase tracking-wider">權限</th>
+                                            <th class="text-left text-white/60 text-xs font-medium p-3 uppercase tracking-wider">發放者</th>
+                                            <th class="text-left text-white/60 text-xs font-medium p-3 uppercase tracking-wider">建立時間</th>
+                                            <th class="text-left text-white/60 text-xs font-medium p-3 uppercase tracking-wider">到期日</th>
+                                            <th class="text-left text-white/60 text-xs font-medium p-3 uppercase tracking-wider">最後使用</th>
+                                            <th class="text-left text-white/60 text-xs font-medium p-3 uppercase tracking-wider">狀態</th>
+                                            <th class="text-left text-white/60 text-xs font-medium p-3 uppercase tracking-wider">短網址</th>
+                                            <th class="text-left text-white/60 text-xs font-medium p-3 uppercase tracking-wider">操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="apiKeysTableBody">
+                                        <tr><td colspan="10" class="text-center p-8 text-white/40">載入中...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- API Key Edit Modal -->
+                        <div id="apiKeyEditModal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-labelledby="apiKeyEditTitle">
+                            <form id="apiKeyEditForm" class="relative bg-[#1e1e1e] rounded-xl p-6 max-w-lg w-full flex flex-col gap-4">
+                                <div>
+                                    <h3 id="apiKeyEditTitle" class="text-white text-xl font-bold">編輯金鑰</h3>
+                                    <p id="apiKeyEditPrefix" class="text-white/40 text-xs font-mono mt-1"></p>
+                                </div>
+                                <label class="flex flex-col gap-1.5">
+                                    <span class="text-white/60 text-sm">服務名稱</span>
+                                    <input id="apiKeyEditName" type="text" required
+                                        class="w-full bg-white/5 border border-white/10 text-white text-sm rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                </label>
+                                <label class="flex flex-col gap-1.5">
+                                    <span class="text-white/60 text-sm">負責同仁 email</span>
+                                    <input id="apiKeyEditOwnerEmail" type="email" placeholder="name@tzuchi.org.tw"
+                                        class="w-full bg-white/5 border border-white/10 text-white text-sm rounded-lg px-4 py-2.5 placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                    <span class="text-white/40 text-xs">改成別人的 email 即轉移：金鑰與它建立的短網址會一起移到新負責同仁名下。</span>
+                                </label>
+                                <label class="flex flex-col gap-1.5">
+                                    <span class="text-white/60 text-sm">到期</span>
+                                    <select id="apiKeyEditExpiry" class="bg-white/5 border border-white/10 text-white text-sm rounded-lg pl-4 pr-10 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                        <option id="apiKeyEditExpiryKeep" value="keep" class="bg-[#1e1e2e]">不變更</option>
+                                        <option value="90" class="bg-[#1e1e2e]">從今天起 90 天</option>
+                                        <option value="365" class="bg-[#1e1e2e]">從今天起 1 年</option>
+                                        <option value="never" class="bg-[#1e1e2e]">不過期</option>
+                                    </select>
+                                </label>
+                                <div class="flex gap-2 pt-2">
+                                    <button id="apiKeyEditCancel" type="button" class="flex-1 bg-white/10 hover:bg-white/20 text-white rounded-lg py-2.5 text-sm font-medium transition-colors">取消</button>
+                                    <button id="apiKeyEditSave" type="submit" class="flex-1 bg-primary hover:bg-primary/90 text-white rounded-lg py-2.5 text-sm font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">儲存</button>
+                                </div>
+                            </form>
                         </div>
                     </div>
 

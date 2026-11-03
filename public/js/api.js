@@ -104,6 +104,24 @@ const api = {
     return data
   },
 
+  // 金鑰建立的短網址：取得金鑰名稱與是否已撤銷 — 透過後端（api_keys 表前端讀不到）
+  async getUrlApiKeyInfo(id) {
+    const token = await window.auth?.getAccessToken()
+    if (!token) throw new Error('請先登入')
+
+    const res = await fetch(`${BASE_URL}/api/urls/${encodeURIComponent(id)}`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+      cache: 'no-store'
+    })
+
+    if (!res.ok) throw new Error('取得 API 金鑰資訊失敗')
+    const data = await res.json()
+    return {
+      api_key_name: typeof data.api_key_name === 'string' ? data.api_key_name : null,
+      api_key_revoked: data.api_key_revoked === true
+    }
+  },
+
   // 更新短網址（透過後端 API 處理密碼 hash）
   async updateUrl(id, updates) {
     const token = await window.auth?.getAccessToken()
@@ -291,6 +309,13 @@ const utils = {
     } catch {
       return false
     }
+  },
+
+  // 金鑰建立的短網址的標示「由 API：〈名稱〉建立」（已撤銷加註）；網頁建立的回傳空字串。
+  // 回傳純文字：放進 innerHTML 前要 escapeHtml。info 是 GET /api/urls 的一筆或 api.getUrlApiKeyInfo 的回傳
+  apiKeyLabel(info) {
+    if (!info?.api_key_name) return ''
+    return `由 API：〈${info.api_key_name}〉${info.api_key_revoked ? '（已撤銷）' : ''}建立`
   },
 
   // 複製到剪貼簿

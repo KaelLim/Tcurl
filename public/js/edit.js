@@ -79,6 +79,9 @@ async function loadUrlData() {
     // 填充表單
     populateForm()
 
+    // 金鑰建立的短網址標示「由 API：〈名稱〉建立」（背景載入，不阻塞頁面）
+    loadApiKeyLabel()
+
     // 先載入統計，再載入管道（管道統計需要總點擊數）
     await loadStats()
     await loadChannels()
@@ -89,6 +92,21 @@ async function loadUrlData() {
     utils.showNotification('載入連結資料失敗: ' + error.message, 'error')
     loadingOverlay.classList.add('hidden')
     setTimeout(() => window.location.href = '/links', 2000)
+  }
+}
+
+// 金鑰建立的短網址（api_key_id 非 null）顯示「由 API：〈名稱〉建立」。
+// api_keys 表前端讀不到，名稱經後端 GET /api/urls/:id 取得；只是附帶資訊，失敗時不顯示、不影響頁面
+async function loadApiKeyLabel() {
+  const labelEl = document.getElementById('apiKeyLabel')
+  if (!labelEl || !currentUrlData?.api_key_id) return
+  try {
+    const label = utils.apiKeyLabel(await api.getUrlApiKeyInfo(currentUrlId))
+    if (!label) return
+    labelEl.textContent = label
+    labelEl.classList.remove('hidden')
+  } catch (error) {
+    console.error('載入 API 金鑰資訊失敗:', error)
   }
 }
 
@@ -608,6 +626,7 @@ function openClientCustomizeModal() {
     }
   }
 
+  // qr_code_options 也可能由服務 API 金鑰寫入（寫入者不是正在看這頁的人）：放進下方 innerHTML 的值一律跳脫
   const dotsColor = currentConfig.dotsOptions?.color || '#000000'
   const bgColorData = extractColorAndOpacity(currentConfig.backgroundOptions?.color)
   const cornersSquareType = currentConfig.cornersSquareOptions?.type || 'square'
@@ -645,12 +664,12 @@ function openClientCustomizeModal() {
             <div class="space-y-3">
               <div>
                 <label class="text-white/80 text-xs mb-1 block">QR Code 顏色</label>
-                <input type="color" id="qrDotsColor" value="${dotsColor}"
+                <input type="color" id="qrDotsColor" value="${escapeHtml(dotsColor)}"
                        class="w-full h-10 rounded border border-white/20 bg-background-dark cursor-pointer">
               </div>
               <div>
                 <label class="text-white/80 text-xs mb-1 block">背景顏色</label>
-                <input type="color" id="qrBgColor" value="${bgColorData.hex}"
+                <input type="color" id="qrBgColor" value="${escapeHtml(bgColorData.hex)}"
                        class="w-full h-10 rounded border border-white/20 bg-background-dark cursor-pointer">
               </div>
               <div>

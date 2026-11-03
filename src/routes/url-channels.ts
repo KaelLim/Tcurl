@@ -8,15 +8,28 @@
 
 import { Hono } from 'hono';
 
-import { getSupabase } from '../services/supabase.ts';
+import { getSupabase, getSupabaseForApiKey } from '../services/supabase.ts';
 import { invalidateChannel } from '../services/redirect-cache.ts';
 import type { AppEnv } from '../types/env.ts';
-import { getUserClientFromRequest, sendUnauthorized } from './_helpers.ts';
+import {
+  getApiKey,
+  getUserClientFromRequest,
+  scopeToCaller,
+  sendUnauthorized,
+} from './_helpers.ts';
 
+// 每個 handler 依呼叫者選 client：
+// - 服務 API 金鑰：getSupabaseForApiKey（service role，繞過 RLS）→ 確認 URL 屬於呼叫者時經
+//   scopeToCaller（= scopeToApiKey：created_by = 負責同仁且 api_key_id = 這把金鑰），
+//   不屬於這把金鑰的一律 404，url_channels 不會被讀寫；不把金鑰當 JWT 送到 Supabase
+// - 使用者：user client（RLS）確認 URL，url_channels 以 service client 存取，行為與以前相同
 export const urlChannelRoutes = new Hono<AppEnv>();
 
 const MAX_CHANNELS = 5;
 const GROUP_KEY_LENGTH = 6;
+
+/** `:channelId` 必須是 UUID；不是的話查不到（404），不送到資料庫（否則 22P02 讓 DELETE 回 500） */
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * 產生隨機 group_key（6 位英數字）
@@ -36,25 +49,23 @@ function generateGroupKey(): string {
  * 列出管道
  */
 urlChannelRoutes.get('/api/urls/:id/channels', async (c) => {
-  const userClient = getUserClientFromRequest(c);
-  if (!userClient) {
+  const key = getApiKey(c);
+  const client = key ? getSupabaseForApiKey(c.env, key.keyId) : getUserClientFromRequest(c);
+  if (!client) {
     return sendUnauthorized(c);
   }
 
   const urlId = c.req.param('id');
 
-  // 確認 URL 屬於該使用者
-  const { data: urlData, error: urlError } = await userClient
-    .from('urls')
-    .select('id')
-    .eq('id', urlId)
-    .single();
+  // 確認 URL 屬於呼叫者（使用者：RLS；金鑰：scopeToCaller）；非 UUID 的 id 也是 404
+  const lookup = client.from('urls').select('id').eq('id', urlId);
+  const { data: urlData, error: urlError } = await scopeToCaller(lookup, key).single();
 
   if (urlError || !urlData) {
     return c.json({ error: 'URL not found' }, 404);
   }
 
-  const supabase = getSupabase(c.env);
+  const supabase = key ? client : getSupabase(c.env);
   const { data, error } = await supabase
     .from('url_channels')
     .select('*')
@@ -88,25 +99,23 @@ urlChannelRoutes.get('/api/urls/:id/channels', async (c) => {
  * 新增管道
  */
 urlChannelRoutes.post('/api/urls/:id/channels', async (c) => {
-  const userClient = getUserClientFromRequest(c);
-  if (!userClient) {
+  const key = getApiKey(c);
+  const client = key ? getSupabaseForApiKey(c.env, key.keyId) : getUserClientFromRequest(c);
+  if (!client) {
     return sendUnauthorized(c);
   }
 
   const urlId = c.req.param('id');
 
-  // 確認 URL 屬於該使用者
-  const { data: urlData, error: urlError } = await userClient
-    .from('urls')
-    .select('id')
-    .eq('id', urlId)
-    .single();
+  // 確認 URL 屬於呼叫者（使用者：RLS；金鑰：scopeToCaller）；非 UUID 的 id 也是 404
+  const lookup = client.from('urls').select('id').eq('id', urlId);
+  const { data: urlData, error: urlError } = await scopeToCaller(lookup, key).single();
 
   if (urlError || !urlData) {
     return c.json({ error: 'URL not found' }, 404);
   }
 
-  const supabase = getSupabase(c.env);
+  const supabase = key ? client : getSupabase(c.env);
 
   // 檢查管道數量上限
   const { count } = await supabase
@@ -166,23 +175,25 @@ urlChannelRoutes.post('/api/urls/:id/channels', async (c) => {
  * 修改管道
  */
 urlChannelRoutes.put('/api/urls/:id/channels/:channelId', async (c) => {
-  const userClient = getUserClientFromRequest(c);
-  if (!userClient) {
+  const key = getApiKey(c);
+  const client = key ? getSupabaseForApiKey(c.env, key.keyId) : getUserClientFromRequest(c);
+  if (!client) {
     return sendUnauthorized(c);
   }
 
   const urlId = c.req.param('id');
   const channelId = c.req.param('channelId');
 
-  // 確認 URL 屬於該使用者
-  const { data: urlData, error: urlError } = await userClient
-    .from('urls')
-    .select('id')
-    .eq('id', urlId)
-    .single();
+  // 確認 URL 屬於呼叫者（使用者：RLS；金鑰：scopeToCaller）；非 UUID 的 id 也是 404
+  const lookup = client.from('urls').select('id').eq('id', urlId);
+  const { data: urlData, error: urlError } = await scopeToCaller(lookup, key).single();
 
   if (urlError || !urlData) {
     return c.json({ error: 'URL not found' }, 404);
+  }
+
+  if (!UUID_PATTERN.test(channelId)) {
+    return c.json({ error: 'Channel not found' }, 404);
   }
 
   const body = await c.req.json();
@@ -200,7 +211,7 @@ urlChannelRoutes.put('/api/urls/:id/channels/:channelId', async (c) => {
   if (utm_content !== undefined) updates.utm_content = utm_content || null;
   if (utm_term !== undefined) updates.utm_term = utm_term || null;
 
-  const supabase = getSupabase(c.env);
+  const supabase = key ? client : getSupabase(c.env);
   const { data, error } = await supabase
     .from('url_channels')
     .update(updates)
@@ -213,8 +224,9 @@ urlChannelRoutes.put('/api/urls/:id/channels/:channelId', async (c) => {
     return c.json({ error: 'Channel not found' }, 404);
   }
 
-  // UTM 會影響轉址目的網址：清掉這個管道的轉址快取
-  await invalidateChannel(c.env.REDIRECT_CACHE, urlId, data.group_key);
+  // UTM 會影響轉址目的網址：清掉這個管道的轉址快取。
+  // 快取鍵用查到的 urls.id（資料庫正規化後的 id，與轉址寫快取時相同），不用路徑上的原始 :id（可能是大寫）
+  await invalidateChannel(c.env.REDIRECT_CACHE, urlData.id, data.group_key);
 
   return c.json(data);
 });
@@ -223,26 +235,28 @@ urlChannelRoutes.put('/api/urls/:id/channels/:channelId', async (c) => {
  * 刪除管道
  */
 urlChannelRoutes.delete('/api/urls/:id/channels/:channelId', async (c) => {
-  const userClient = getUserClientFromRequest(c);
-  if (!userClient) {
+  const key = getApiKey(c);
+  const client = key ? getSupabaseForApiKey(c.env, key.keyId) : getUserClientFromRequest(c);
+  if (!client) {
     return sendUnauthorized(c);
   }
 
   const urlId = c.req.param('id');
   const channelId = c.req.param('channelId');
 
-  // 確認 URL 屬於該使用者
-  const { data: urlData, error: urlError } = await userClient
-    .from('urls')
-    .select('id')
-    .eq('id', urlId)
-    .single();
+  // 確認 URL 屬於呼叫者（使用者：RLS；金鑰：scopeToCaller）；非 UUID 的 id 也是 404
+  const lookup = client.from('urls').select('id').eq('id', urlId);
+  const { data: urlData, error: urlError } = await scopeToCaller(lookup, key).single();
 
   if (urlError || !urlData) {
     return c.json({ error: 'URL not found' }, 404);
   }
 
-  const supabase = getSupabase(c.env);
+  if (!UUID_PATTERN.test(channelId)) {
+    return c.json({ error: 'Channel not found' }, 404);
+  }
+
+  const supabase = key ? client : getSupabase(c.env);
   // 取回被刪除的 group_key，用來清掉該管道的轉址快取
   const { data: deleted, error } = await supabase
     .from('url_channels')
@@ -256,8 +270,9 @@ urlChannelRoutes.delete('/api/urls/:id/channels/:channelId', async (c) => {
     return c.json({ error: 'Failed to delete channel' }, 500);
   }
 
+  // 快取鍵用查到的 urls.id（正規化後的 id），同 PUT
   for (const { group_key } of deleted ?? []) {
-    await invalidateChannel(c.env.REDIRECT_CACHE, urlId, group_key);
+    await invalidateChannel(c.env.REDIRECT_CACHE, urlData.id, group_key);
   }
 
   return c.json({ message: 'Channel deleted successfully' });

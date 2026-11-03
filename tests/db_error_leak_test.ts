@@ -81,7 +81,7 @@ test.each([
   [
     'PATCH /api/urls/:id/qr-code',
     `/api/urls/${URL_ID}/qr-code`,
-    { method: 'PATCH', headers: json, body: JSON.stringify({ qr_code_options: { a: 1 } }) },
+    { method: 'PATCH', headers: json, body: JSON.stringify({ qr_code_options: { dotsColor: '#000000' } }) },
   ],
 ])('%s：資料庫錯誤時回 500 但不含錯誤原文', async (_label, path, init) => {
   const { res } = await workerRequest(path, init as RequestInit);

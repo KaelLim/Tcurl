@@ -26,7 +26,16 @@ afterEach(() => {
 });
 
 test('qr-code - 帶 PNG data URL 也只保存 qr_code_options，qr_code_path 為 null', async () => {
-  const qrOptions = { dotsOptions: { color: '#000000' } };
+  // 網頁「客製化 QR Code」實際送出的形狀（public/js/edit.js applyCustomQR）
+  const qrOptions = {
+    dotsColor: '#000000',
+    bgColor: '#ffffff',
+    bgOpacity: 80,
+    dotsType: 'classy-rounded',
+    cornersSquareType: 'extra-rounded',
+    cornersDotType: 'dot',
+    showLogo: false,
+  };
   const { calls } = mockSupabaseFetch((call) => {
     if (call.url.pathname !== '/rest/v1/urls') return undefined;
     if (call.method === 'GET') {
@@ -58,6 +67,21 @@ test('qr-code - 帶 PNG data URL 也只保存 qr_code_options，qr_code_path 為
     qr_code_options: qrOptions,
     qr_code_generated: true,
   });
+});
+
+test('qr-code - qr_code_options 格式不符（使用者也一樣）回傳 400，不寫資料庫', async () => {
+  const { calls } = mockSupabaseFetch();
+  const { res } = await workerRequest(`/api/urls/${URL_ID}/qr-code`, {
+    method: 'PATCH',
+    headers: { ...AUTH, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ qr_code_options: { dotsColor: '"><img src=x onerror=alert(1)>' } }),
+  });
+  expect(res.status).toBe(400);
+  expect(await res.json()).toEqual({
+    error: 'Invalid qr_code_options',
+    message: 'qr_code_options.dotsColor 格式不正確',
+  });
+  expect(calls.filter((c) => c.url.pathname === '/rest/v1/urls')).toHaveLength(0);
 });
 
 test('qr-code - 缺少 qr_code_options 回傳 400', async () => {

@@ -5,7 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>API 文件 - TCurl (RapiDoc)</title>
     <link rel="icon" href="/favicon.svg">
-    <script type="module" src="https://unpkg.com/rapidoc/dist/rapidoc-min.js"></script>
+    <!-- rapidoc 固定確切版本並加 SRI：升級時 integrity 要重算
+         （curl 下載該版本的檔案 | openssl dgst -sha384 -binary | openssl base64 -A）。
+         9.3.8 是這頁設計時的版本；10.0.0 起改寫，11.x 已不支援下面的 bg-color、nav-* 等配色屬性。
+         rapi-doc 的 persist-auth 設為 false：不把 Authentication 貼上的 JWT／API 金鑰存進 localStorage -->
+    <script type="module" src="https://unpkg.com/rapidoc@9.3.8/dist/rapidoc-min.js"
+            integrity="sha384-szzoYhqSJqZH8X90KwbBjYL1CMLEa3U7xl/oAZg4ViKpYEY5GVhM+peBQB4u7ANM" crossorigin="anonymous"></script>
 </head>
 <body>
     <rapi-doc
@@ -24,6 +29,7 @@
         show-header="true"
         show-info="true"
         allow-authentication="true"
+        persist-auth="false"
         allow-try="true"
         allow-spec-url-load="false"
         allow-spec-file-load="false"

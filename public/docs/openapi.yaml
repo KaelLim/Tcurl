@@ -2,6 +2,48 @@ openapi: 3.0.3
 info:
   title: TCurl - 慈濟短網址 API
   version: 1.0.0
+  description: |
+    TCurl 短網址 API。兩種驗證方式都放在 `Authorization: Bearer <token>` 標頭：
+
+    - **BearerAuth**：同仁以 Google 帳號登入網頁後取得的 Supabase JWT。
+    - **ApiKeyAuth**：給內部服務使用的 API 金鑰（`tcurl_sk_` 開頭）。
+
+    ## 服務 API 金鑰
+
+    **發放**：API 金鑰只由 TCurl 管理者在管理後台「API 金鑰」分頁發放，同仁無法自行申請。
+    每把金鑰指定一位負責同仁；金鑰建立的短網址歸負責同仁所有，會出現在他的「我的連結」，
+    並標示「由 API：〈服務名稱〉建立」。完整金鑰只在發放當下顯示一次，之後任何人都看不到，
+    請保存在伺服器端（不要放進前端程式碼或版本控制）。金鑰可設定到期日；遺失或外洩時請管理者撤銷，
+    再發放一把新的。
+
+    **使用方式**：
+
+    ```
+    curl -H "Authorization: Bearer tcurl_sk_…" https://url.tzuchi.org/api/urls
+    ```
+
+    **權限**：每把金鑰有 `read`、`write` 其中之一或兩者（預設兩者）。
+
+    - `read`：列出、查詢短網址、統計與管道
+    - `write`：建立、修改、刪除短網址，更新 QR Code 設定，新增、修改、刪除管道
+
+    金鑰只能存取**這把金鑰自己建立的短網址**，碰不到負責同仁在網頁上建立的短網址，也碰不到其他金鑰的短網址；
+    列表與統計也只計算這些短網址。只有安全性列出 `ApiKeyAuth` 的端點接受金鑰（說明中註明需要的權限），
+    其他端點（管理者 API、`/api/auth/*`、意見回饋等）一律拒絕金鑰。
+    只對列出 `ApiKeyAuth` 的端點送金鑰：`/api/*` 底下不需要登入的公開端點（短網址密碼驗證
+    `/api/urls/{shortCode}/verify-password`、廣告頁計數 `/api/ad/*`、密語房間 `/api/rooms/*`、`/api/version`）
+    帶著金鑰也會得到 401，呼叫這些端點時不要帶 `Authorization`。轉址 `/s/{shortCode}` 與廣告頁
+    `/ad/{shortCode}` 不檢查 `Authorization`。
+
+    **錯誤**：
+
+    | 狀態碼 | 意義 |
+    |---|---|
+    | 401 | 金鑰無效、已撤銷、已過期、負責同仁帳號已刪除或停權，或此端點不接受金鑰；`Authorization` 不是 `Bearer tcurl_sk_…` 的寫法（例如重複 `Bearer`、金鑰加引號）也算。訊息一律是 `API 金鑰無效或已失效`，不區分原因 |
+    | 403 | 金鑰沒有此操作需要的權限（例如只有 `read` 的金鑰呼叫寫入端點） |
+    | 404 | 短網址或管道不存在，或不是這把金鑰建立的（不透露短網址是否存在） |
+    | 429 | 請求過於頻繁，請稍後重試。每把金鑰各自限流（目前每 60 秒 300 次），不受來源 IP 的一般限流影響；無效金鑰的請求計入來源 IP 的限流。另外同一個來源 IP 帶金鑰的請求合計每 60 秒最多 1200 次 |
+    | 503 | 暫時無法驗證金鑰（TCurl 的資料庫或網路異常），不代表金鑰失效。請依 `Retry-After` 標頭的秒數稍後重試 |
 
 servers:
   - url: https://url.tzuchi.org
@@ -14,6 +56,8 @@ tags:
     description: QR Code 配置與客製化
   - name: 統計分析
     description: 點擊統計與數據分析
+  - name: 管道追蹤
+    description: 每個短網址的管道（UTM 參數、多組 QR Code）
   - name: 認證
     description: 使用者認證與 Profile
   - name: 公開端點
@@ -28,8 +72,14 @@ paths:
       tags:
         - 短網址管理
       summary: 建立短網址
-      description: 建立新的短網址。可選擇自訂短代碼或由系統自動生成。
+      description: |
+        建立新的短網址。可選擇自訂短代碼或由系統自動生成。
+
+        API 金鑰需要 `write` 權限。以金鑰建立的短網址歸負責同仁所有（`created_by`），並記下是哪把金鑰（`api_key_id`）。
       operationId: createUrl
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
       requestBody:
         required: true
         content:
@@ -69,6 +119,8 @@ paths:
                     error: "Invalid short code format"
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '409':
           description: 短代碼已存在
           content:
@@ -77,6 +129,8 @@ paths:
                 $ref: '#/components/schemas/Error'
               example:
                 error: "Short code already exists"
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
     get:
       tags:
@@ -85,7 +139,12 @@ paths:
       description: |
         取得當前使用者的所有短網址（分頁）。
         RLS 會自動過濾，只返回該使用者建立的短網址。
+
+        API 金鑰需要 `read` 權限；只列出這把金鑰建立的短網址。
       operationId: listUrls
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
       parameters:
         - name: page
           in: query
@@ -116,14 +175,24 @@ paths:
                 $ref: '#/components/schemas/UrlListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
   /api/urls/{id}:
     get:
       tags:
         - 短網址管理
       summary: 取得單一短網址詳情
-      description: 取得指定 ID 的短網址詳細資料（需為自己建立的）
+      description: |
+        取得指定 ID 的短網址詳細資料（需為自己建立的）
+
+        API 金鑰需要 `read` 權限；只限這把金鑰建立的短網址，否則 404。
       operationId: getUrl
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
       parameters:
         - $ref: '#/components/parameters/UrlId'
       responses:
@@ -135,8 +204,12 @@ paths:
                 $ref: '#/components/schemas/UrlRecord'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
     put:
       tags:
@@ -145,7 +218,12 @@ paths:
       description: |
         更新短網址設定。可更新原始網址、密碼保護、過期時間等。
         RLS 確保只能更新自己建立的短網址。
+
+        API 金鑰需要 `write` 權限；只限這把金鑰建立的短網址，否則 404。
       operationId: updateUrl
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
       parameters:
         - $ref: '#/components/parameters/UrlId'
       requestBody:
@@ -177,8 +255,12 @@ paths:
                 $ref: '#/components/schemas/UrlRecord'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
     delete:
       tags:
@@ -187,7 +269,12 @@ paths:
       description: |
         永久刪除短網址及其相關的 QR Code 檔案。
         此操作無法復原。
+
+        API 金鑰需要 `write` 權限；只限這把金鑰建立的短網址，否則 404。
       operationId: deleteUrl
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
       parameters:
         - $ref: '#/components/parameters/UrlId'
       responses:
@@ -203,8 +290,12 @@ paths:
                     example: "URL deleted successfully"
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
   /api/urls/{id}/qr-code:
     patch:
@@ -215,7 +306,12 @@ paths:
         更新 QR Code 的客製化設定並保存 PNG 檔案。
 
         QR Code 由前端生成後，將 Base64 編碼的 PNG 傳送給後端保存。
+
+        API 金鑰需要 `write` 權限；只限這把金鑰建立的短網址，否則 404。
       operationId: updateQrCode
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
       parameters:
         - $ref: '#/components/parameters/UrlId'
       requestBody:
@@ -251,25 +347,44 @@ paths:
                   qr_code_options:
                     $ref: '#/components/schemas/QrCodeOptions'
         '400':
-          description: 缺少必要參數
+          description: |
+            缺少 `qr_code_options`，或格式不符。只接受 `QrCodeOptions` 列出的 7 個鍵（都可省略），
+            其他鍵一律拒絕；色碼必須是 `#RRGGBB`，`bgOpacity` 是 0–100 的整數，
+            樣式只能是列出的值，`showLogo` 是布林值。
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example:
-                error: "qr_code_options is required"
+              examples:
+                missing:
+                  value:
+                    error: "qr_code_options is required"
+                invalid:
+                  value:
+                    error: "Invalid qr_code_options"
+                    message: "qr_code_options.dotsColor 格式不正確"
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
   /api/urls/{id}/stats:
     get:
       tags:
         - 統計分析
       summary: 取得單一短網址統計
-      description: 取得指定短網址的點擊統計，包含總計和每日明細。
+      description: |
+        取得指定短網址的點擊統計，包含總計和每日明細。
+
+        API 金鑰需要 `read` 權限；只限這把金鑰建立的短網址，否則 404。
       operationId: getUrlStats
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
       parameters:
         - $ref: '#/components/parameters/UrlId'
         - name: days
@@ -289,16 +404,26 @@ paths:
                 $ref: '#/components/schemas/UrlStats'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
   /api/urls/stats/summary:
     get:
       tags:
         - 統計分析
       summary: 取得統計摘要
-      description: 取得當前使用者的整體統計摘要（總連結數、總點擊數、活躍連結數）。
+      description: |
+        取得當前使用者的整體統計摘要（總連結數、總點擊數、活躍連結數）。
+
+        API 金鑰需要 `read` 權限；只計算這把金鑰建立的短網址。
       operationId: getStatsSummary
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
       responses:
         '200':
           description: 成功取得統計摘要
@@ -308,6 +433,225 @@ paths:
                 $ref: '#/components/schemas/StatsSummary'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /api/stats/daily:
+    get:
+      tags:
+        - 統計分析
+      summary: 取得每日點擊趨勢
+      description: |
+        取得當前使用者所有短網址最近幾天的每日點擊數（沒有點擊的日子也會列出，數值為 0）。
+
+        API 金鑰需要 `read` 權限；只計算這把金鑰建立的短網址。
+      operationId: getDailyStats
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - name: days
+          in: query
+          description: 最近幾天
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 366
+            default: 30
+      responses:
+        '200':
+          description: 成功取得每日統計（依日期由舊到新）
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DailyStatsItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /api/urls/{id}/channels:
+    get:
+      tags:
+        - 管道追蹤
+      summary: 列出管道
+      description: |
+        列出短網址的所有管道（依建立時間），含各管道的點擊數。
+
+        API 金鑰需要 `read` 權限；只限這把金鑰建立的短網址，否則 404。
+      operationId: listChannels
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UrlId'
+      responses:
+        '200':
+          description: 成功取得管道列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChannelWithClicks'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+    post:
+      tags:
+        - 管道追蹤
+      summary: 新增管道
+      description: |
+        為短網址新增一個管道（每個短網址最多 5 個）。系統產生 `group_key`，
+        管道連結為 `/s/{shortCode}?g={group_key}`，轉址時會帶上該管道的 UTM 參數。
+
+        API 金鑰需要 `write` 權限；只限這把金鑰建立的短網址，否則 404。
+      operationId: createChannel
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UrlId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/ChannelRequest'
+                - required:
+                    - name
+            example:
+              name: "花蓮營隊海報"
+              utm_source: "poster"
+              utm_medium: "print"
+              utm_campaign: "camp2026"
+      responses:
+        '201':
+          description: 管道建立成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Channel'
+        '400':
+          description: 管道名稱為必填
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "管道名稱為必填"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: 已達管道數量上限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "每個短網址最多 5 個管道"
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /api/urls/{id}/channels/{channelId}:
+    put:
+      tags:
+        - 管道追蹤
+      summary: 修改管道
+      description: |
+        修改管道名稱或 UTM 參數；只更新有傳入的欄位，UTM 欄位傳空字串或 null 代表清除。
+
+        API 金鑰需要 `write` 權限；只限這把金鑰建立的短網址，否則 404。
+      operationId: updateChannel
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UrlId'
+        - $ref: '#/components/parameters/ChannelId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChannelRequest'
+            example:
+              utm_campaign: "camp2026-autumn"
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Channel'
+        '400':
+          description: 管道名稱不可為空
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "管道名稱不可為空"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+    delete:
+      tags:
+        - 管道追蹤
+      summary: 刪除管道
+      description: |
+        刪除管道。此操作無法復原。
+
+        API 金鑰需要 `write` 權限；只限這把金鑰建立的短網址，否則 404。
+      operationId: deleteChannel
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UrlId'
+        - $ref: '#/components/parameters/ChannelId'
+      responses:
+        '200':
+          description: 刪除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Channel deleted successfully"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
   /api/auth/login:
     post:
@@ -569,6 +913,17 @@ components:
         ```
         Authorization: Bearer <access_token>
         ```
+    ApiKeyAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: 'tcurl_sk_…'
+      description: |
+        給內部服務使用的 API 金鑰，由 TCurl 管理者發放（發放方式、權限與錯誤見文件開頭說明）。
+
+        在請求 Header 中加入：
+        ```
+        Authorization: Bearer tcurl_sk_…
+        ```
 
   parameters:
     UrlId:
@@ -581,25 +936,64 @@ components:
         format: uuid
       example: "550e8400-e29b-41d4-a716-446655440000"
 
+    ChannelId:
+      name: channelId
+      in: path
+      required: true
+      description: 管道的 UUID
+      schema:
+        type: string
+        format: uuid
+      example: "6f1c2a9e-3b4d-4e5f-8a7b-9c0d1e2f3a4b"
+
   responses:
     Unauthorized:
-      description: 未認證或 Token 無效
+      description: 未認證、Token 無效，或 API 金鑰無效、已失效、不能用於此端點
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            login_required:
+              summary: 未登入
+              value:
+                error: "Unauthorized"
+                message: "請先登入"
+            invalid_api_key:
+              summary: API 金鑰無效或已失效（不區分原因）
+              value:
+                error: "Unauthorized"
+                message: "API 金鑰無效或已失效"
+
+    Forbidden:
+      description: API 金鑰沒有此操作需要的權限（read / write）
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
           example:
-            error: "Unauthorized"
-            message: "請先登入"
+            error: "Forbidden"
+            message: "此 API 金鑰沒有此操作的權限"
 
     NotFound:
-      description: 資源不存在
+      description: 資源不存在，或不屬於呼叫者（API 金鑰只能存取自己建立的短網址）
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
           example:
             error: "URL not found"
+
+    TooManyRequests:
+      description: 請求過於頻繁（API 金鑰各自限流；其他請求依來源 IP 限流）
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            statusCode: 429
+            error: "Too Many Requests"
+            message: "請求過於頻繁，請在 60 秒後重試"
 
   schemas:
     Error:
@@ -662,6 +1056,7 @@ components:
 
     UrlRecord:
       type: object
+      description: 短網址。以 API 金鑰呼叫時，回應只含下列欄位（不含密碼雜湊）
       properties:
         id:
           type: string
@@ -697,7 +1092,18 @@ components:
         created_by:
           type: string
           format: uuid
-          description: 建立者 ID
+          description: 建立者 ID（以 API 金鑰建立的為金鑰的負責同仁）
+        api_key_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: 建立這個短網址的 API 金鑰；網頁建立的為 null
+        api_key_name:
+          type: string
+          description: API 金鑰名稱（只有 GET /api/urls/{id} 且 api_key_id 不為 null 時才有）
+        api_key_revoked:
+          type: boolean
+          description: API 金鑰是否已撤銷（只有 GET /api/urls/{id} 且 api_key_id 不為 null 時才有）
         created_at:
           type: string
           format: date-time
@@ -764,6 +1170,18 @@ components:
         created_by:
           type: string
           format: uuid
+        api_key_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: 建立這個短網址的 API 金鑰；網頁建立的為 null
+        api_key_name:
+          type: string
+          nullable: true
+          description: API 金鑰名稱；網頁建立的為 null
+        api_key_revoked:
+          type: boolean
+          description: API 金鑰是否已撤銷；網頁建立的為 false
 
     UrlListResponse:
       type: object
@@ -907,6 +1325,98 @@ components:
         totalClicks:
           type: integer
           description: 總點擊數
+
+    DailyStatsItem:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+          description: 日期
+        link_clicks:
+          type: integer
+          description: 直接連結點擊數
+        qr_scans:
+          type: integer
+          description: QR Code 掃描數
+        ad_views:
+          type: integer
+          description: 廣告頁瀏覽數
+        ad_clicks:
+          type: integer
+          description: 廣告頁點擊數
+
+    ChannelRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          description: 管道名稱
+        utm_source:
+          type: string
+          nullable: true
+          maxLength: 100
+        utm_medium:
+          type: string
+          nullable: true
+          maxLength: 100
+        utm_campaign:
+          type: string
+          nullable: true
+          maxLength: 200
+        utm_content:
+          type: string
+          nullable: true
+          maxLength: 200
+        utm_term:
+          type: string
+          nullable: true
+          maxLength: 200
+
+    Channel:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        url_id:
+          type: string
+          format: uuid
+        group_key:
+          type: string
+          description: 管道短碼，管道連結為 `/s/{shortCode}?g={group_key}`
+          example: "aB3dE9"
+        name:
+          type: string
+          example: "花蓮營隊海報"
+        utm_source:
+          type: string
+          nullable: true
+        utm_medium:
+          type: string
+          nullable: true
+        utm_campaign:
+          type: string
+          nullable: true
+        utm_content:
+          type: string
+          nullable: true
+        utm_term:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    ChannelWithClicks:
+      allOf:
+        - $ref: '#/components/schemas/Channel'
+        - type: object
+          properties:
+            click_count:
+              type: integer
+              description: 經這個管道的點擊數
 
     UserInfo:
       type: object

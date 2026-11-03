@@ -1,6 +1,6 @@
 {
   "name": "tcurl",
-  "version": "1.6.2",
+  "version": "1.7.0",
   "private": true,
   "description": "慈濟短網址系統 - Cloudflare Workers 版本（Hono + Supabase）",
   "type": "module",

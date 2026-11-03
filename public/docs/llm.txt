@@ -26,7 +26,8 @@
 
 ## Authentication
 
-All authenticated endpoints require a JWT Bearer token in the Authorization header:
+All authenticated endpoints require a JWT Bearer token in the Authorization header
+(internal services may instead use a service API key on the endpoints listed under Service API Keys):
 
 ```
 Authorization: Bearer <access_token>
@@ -57,6 +58,48 @@ Content-Type: application/json
   }
 }
 ```
+
+### Service API Keys
+
+Internal services can call the API with a TCurl service API key instead of a user JWT. Keys are issued only by
+TCurl administrators (admin page, "API 金鑰" tab); there is no self-service signup. The full key is shown only once
+when issued: keep it server-side, never in frontend code or version control. Ask an administrator to revoke a lost
+or leaked key.
+
+```
+Authorization: Bearer tcurl_sk_…
+```
+
+```bash
+curl -H "Authorization: Bearer tcurl_sk_…" https://url.tzuchi.org/api/urls
+```
+
+- A key can only access short URLs created with that same key. It cannot see URLs its owner created on the website or URLs created by other keys, and lists and statistics only count its own URLs. URLs created with a key belong to the key's owner (`created_by`) and record the key (`api_key_id`).
+- Only the endpoints below accept a key. Any other `/api/*` endpoint (including public ones such as `/api/ad/*` and `/api/urls/{shortCode}/verify-password`) returns `401` when a key is sent; call those without an `Authorization` header.
+- Each key has the `read` scope, the `write` scope, or both (default: both).
+
+| Method | Endpoint | Scope |
+|--------|----------|-------|
+| GET | `/api/urls` | `read` |
+| GET | `/api/urls/stats/summary` | `read` |
+| GET | `/api/stats/daily` | `read` |
+| GET | `/api/urls/{id}` | `read` |
+| GET | `/api/urls/{id}/stats` | `read` |
+| GET | `/api/urls/{id}/channels` | `read` |
+| POST | `/api/urls` | `write` |
+| PUT | `/api/urls/{id}` | `write` |
+| DELETE | `/api/urls/{id}` | `write` |
+| PATCH | `/api/urls/{id}/qr-code` | `write` |
+| POST | `/api/urls/{id}/channels` | `write` |
+| PUT | `/api/urls/{id}/channels/{channelId}` | `write` |
+| DELETE | `/api/urls/{id}/channels/{channelId}` | `write` |
+
+**Error Codes (with a key):**
+- `401` - Key invalid, revoked, expired, owner account deleted or banned, malformed `Authorization` header, or the endpoint does not accept keys (the message is always `API 金鑰無效或已失效`)
+- `403` - The key lacks the scope this endpoint needs
+- `404` - Short URL or channel not found, or not created with this key
+- `429` - Too many requests (each key: 300 requests per 60 seconds; all requests with a key from the same public IP: 1200 requests per 60 seconds in total); retry later
+- `503` - The key could not be verified right now (it is not revoked); retry after the number of seconds in the `Retry-After` header
 
 ---
 

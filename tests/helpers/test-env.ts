@@ -3,7 +3,8 @@
  *
  * - ASSETS：從 public/ 讀檔（行為同 htmlHandling: 'none'：只有完全相符的路徑才找得到）
  * - ROOMS_KV：in-memory KV（支援 list 分頁）
- * - RATE_LIMITER / REDIRECT_RATE_LIMITER / PASSWORD_RATE_LIMITER：可控制結果的假限流器
+ * - RATE_LIMITER / REDIRECT_RATE_LIMITER / PASSWORD_RATE_LIMITER / API_KEY_RATE_LIMITER /
+ *   API_KEY_VERIFY_RATE_LIMITER：可控制結果的假限流器
  * - Supabase：攔截全域 fetch，只允許打到假的 SUPABASE_URL
  */
 
@@ -83,6 +84,8 @@ export function createTestEnv(overrides: Partial<Bindings> = {}): Bindings {
     RATE_LIMITER: createRateLimiter() as unknown as RateLimit,
     REDIRECT_RATE_LIMITER: createRateLimiter() as unknown as RateLimit,
     PASSWORD_RATE_LIMITER: createRateLimiter() as unknown as RateLimit,
+    API_KEY_RATE_LIMITER: createRateLimiter() as unknown as RateLimit,
+    API_KEY_VERIFY_RATE_LIMITER: createRateLimiter() as unknown as RateLimit,
     SUPABASE_URL: TEST_SUPABASE_URL,
     SUPABASE_ANON_KEY: 'test-anon-key',
     SUPABASE_SERVICE_ROLE_KEY: 'test-service-role-key',

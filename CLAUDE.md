@@ -49,6 +49,8 @@ npx wrangler@4 pages deploy pages --project-name tcurl --branch main
 | `RATE_LIMITER` | Rate Limiting | 一般限流（`/api/*`、HTML 頁面；`/s/*`、`/ad/*` 除外），鍵 `CF-Connecting-IP`，100 次 / 60 秒 |
 | `REDIRECT_RATE_LIMITER` | Rate Limiting | 轉址限流（只套 `/s/*`、`/ad/*`），鍵 `CF-Connecting-IP`，1000 次 / 60 秒 |
 | `PASSWORD_RATE_LIMITER` | Rate Limiting | verify-password 專屬限流（IP + 短碼），5 次 / 60 秒 |
+| `API_KEY_RATE_LIMITER` | Rate Limiting | 服務 API 金鑰限流（namespace `1004`），鍵 keyId，每把金鑰 300 次 / 60 秒；有效金鑰的請求不吃 `RATE_LIMITER`（見下方 Service API keys） |
+| `API_KEY_VERIFY_RATE_LIMITER` | Rate Limiting | 金鑰驗證的每 IP 前置限流（namespace `1005`），鍵 `CF-Connecting-IP`，1200 次 / 60 秒；帶 `tcurl_sk_` 的請求在查資料庫驗證之前先扣 |
 | `SUPABASE_URL`, `SUPABASE_ANON_KEY`（publishable key）, `CORS_ORIGIN`（可逗號列多個；`url.tzuchi.org` 已內建於 `src/main.ts`） | text var | 公開設定 |
 | `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_EMAILS` | secret | 只宣告名稱，值在部署時注入，**不可進 repo** |
 
@@ -196,6 +198,51 @@ Version-based cache busting via `src/utils/asset-version.ts` + `public/_headers`
 - **Google OAuth**：經 Supabase Auth（`signInWithOAuth({ provider: 'google' })`，`flowType: 'pkce'`）；provider 由 Supabase 後台設定，client id/secret 不進 repo。登出只呼叫 `supabase.auth.signOut()` 後導回 `/login.html`
 - **顯示名稱**：依序 `chinese_lastname + chinese_firstname`（舊 Keycloak 帳號）→ `full_name` → `name`（Google）→ `display_name`（舊 email 註冊帳號）→ email（@ 前段）。後端 `src/utils/display-name.ts`，前端 `auth.getDisplayName(user)`
 - **Admin**: Identified by `ADMIN_EMAILS` env var (comma-separated); sidebar auto-detects via `/api/admin/check`
+
+## Service API keys
+
+內部服務用的長期金鑰（spec：`docs/superpowers/specs/2026-11-03-api-keys-design.md`）。管理者在後台「API 金鑰」分頁發放
+（`/api/admin/api-keys`，`src/routes/admin.ts`）；給對方服務的說明在 `public/docs/openapi.yaml`（`ApiKeyAuth`）。
+
+- **格式與保存**：`tcurl_sk_` + 32 bytes base64url；`api_keys` 只存 SHA-256 hex 與前 15 字元的顯示前綴。
+  完整金鑰只出現在 `POST /api/admin/api-keys` 的回應，**任何記錄、其他回應、資料庫都不可出現**
+- **白名單**：`src/middleware/api-key-auth.ts` 的 `API_KEY_ROUTES`（端點 + `read`／`write`）是金鑰能呼叫哪些端點的唯一來源。
+  **新端點預設拒絕金鑰（401）**；要開放必須明確加進白名單、在路由實作金鑰分支並補測試，
+  同時更新 `openapi.yaml` 該端點的 `security`（`BearerAuth` + `ApiKeyAuth`）與「API 金鑰需要 `read|write` 權限」說明
+  （`tests/openapi_api_key_test.ts` 會比對）。`matchApiKeyRoute` 只比對路徑形狀，`tests/api_key_auth_test.ts` 的白名單守門
+  要求 app 裡會被放行的路由都逐字列在 `API_KEY_ROUTES`（新增 `GET /api/urls/export` 這類同形狀路由會讓測試失敗）
+- **路由的金鑰分支**（上方 Dual-Client 規則的例外）：`getApiKey(c)` 有值時用 `getSupabaseForApiKey(c.env, key.keyId)`
+  （service role，**繞過 RLS**），所有對 `urls` 的查詢／修改／刪除都**必須**經 `scopeToApiKey`（或 `scopeToCaller(query, key)`，
+  `src/routes/_helpers.ts`），同時限定 `created_by = 負責同仁` 且 `api_key_id = 這把金鑰`；channels、統計先以此確認所屬短網址。
+  不屬於這把金鑰的一律 404（非 UUID 的 `:id` 也是 404）
+- **中介層順序**：`apiKeyAuth()` 必須註冊在 `main.ts` 一般限流之前。有效金鑰改用 `API_KEY_RATE_LIMITER`（不吃 IP 限流），
+  無效金鑰回 401 並照樣計入 `RATE_LIMITER`。Rate Limiting binding 不能「只看不扣」，IP 限流只能在驗證之後才扣，
+  所以驗證（查 DB）之前另有 `API_KEY_VERIFY_RATE_LIMITER`（每 IP 1200 次 / 60 秒）限制單一 IP 能觸發幾次
+  `verify_api_key`；格式不符 `^tcurl_sk_[A-Za-z0-9_-]{43}$` 的 token 直接判無效、不查 DB。
+  `Authorization` 只要含 `tcurl_sk_`（不分大小寫，`tcurl%5Fsk_` 也算；`services/supabase.ts` 的 `API_KEY_MARKER`）
+  就由中介層處理：不是 `Bearer tcurl_sk_…`（`Bearer Bearer …`、加引號、其他 scheme、前綴大小寫被改過）
+  一律當無效金鑰（記錄 reason `malformed_header`），不交給 JWT 流程；`extractToken` 遇到含 `tcurl_sk_` 的 token 也回 null，
+  路由就算漏寫金鑰分支也不會把完整金鑰送到 Supabase。驗證服務本身出錯（reason `error`）回 503 + `Retry-After`，
+  不扣 IP 額度、不記為無效金鑰。
+  殘餘風險：同一個 IP 每分鐘最多仍可觸發 1200 次驗證查詢（含有效金鑰超過自己 300 次之後的請求）；
+  超過 4 個內部服務共用同一個對外 IP 且都接近上限時，要調高這個上限。
+  與合法服務共用對外 IP 的人（例如同一個 NAT）送大量帶 `tcurl_sk_` 的請求（格式錯誤的也算），可以耗盡該 IP 的前置額度，
+  讓同一 IP 上的有效金鑰暫時（最多一個 60 秒時間窗）拿到 429；記錄裡是 reason `verify_rate_limited`
+- **SQL：`auth.role()` vs `current_user`**：判斷「是否為後端（service role）呼叫」一律用 `auth.role()`（PostgREST 的 JWT role），
+  **不可**用 `current_user`——SECURITY DEFINER 函式內 `current_user` 是函式擁有者，不是呼叫者。
+  `guard_url_api_key_id` trigger（一般使用者不能設定／變更 `urls.api_key_id`）與 `log_url_changes`
+  （只在 service role 時採信 `x-tcurl-api-key-id` 標頭，記到 `audit_logs.api_key_id`）都靠這個判斷。
+  `guard_url_api_key_id` 另外在新增帶 `api_key_id` 的短網址時，把 `created_by` **覆寫**成金鑰目前的負責同仁
+  （`SELECT owner_id … FOR SHARE`，與轉移互斥；金鑰不存在或沒有負責同仁 → 42501），Worker 傳的 `created_by` 只是驗證當下的值。
+  新 RPC 比照 `20261102044647_restrict_rpc_to_service_role.sql`：`SECURITY DEFINER`、`SET search_path = ''`、只 GRANT 給 `service_role`。
+  SQL 測試：`bash scripts/sql-tests/run-local.sh`（本機用完即丟的 postgres:17 容器，不連正式 Supabase）；
+  FOR SHARE 的互斥要兩個連線，另跑 `bash scripts/sql-tests/race-check.sh`（同樣用完即丟）
+- **金鑰寫入的資料會顯示在負責同仁的網頁上**（寫入者與觀看者不同人）：`original_url`、管道名稱／UTM、`qr_code_options`
+  放進 `innerHTML` 前一律 `escapeHtml`；結構化欄位在後端檢查格式，例如 `qr_code_options` 只接受
+  `src/utils/qr-code-options.ts` 列出的 7 個鍵（色碼 `#RRGGBB`、列舉、0–100 整數、布林），其他回 400
+- **前端標示**：金鑰建立的短網址在「我的連結」與編輯頁顯示「由 API：〈名稱〉建立」（已撤銷加註「（已撤銷）」）。
+  `api_keys` 前端讀不到：列表用 `get_urls_with_stats` 帶出的 `api_key_name`／`api_key_revoked`，
+  編輯頁用 `api.getUrlApiKeyInfo(id)`（後端 `GET /api/urls/:id`）
 
 ## Environment Variables
 
