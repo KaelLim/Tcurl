@@ -1,7 +1,8 @@
 /**
  * Cloudflare 專案設定（cf CLI / @cloudflare/vite-plugin 讀取）
  *
- * - Worker 名稱 tcurl → https://tcurl.tzuchidigital.workers.dev
+ * - Worker 名稱 tcurl；對外入口是 Pages 專案 tcurl（url.tzuchi.org、tcurl.pages.dev），
+ *   經 service binding 轉進來（pages/_worker.js）。workers.dev 與預覽網址已關閉。
  * - 靜態檔：Vite 的 public/ 目錄（publicDir）原樣成為 Workers Static Assets
  * - Secrets 只宣告名稱，值在部署時注入（cf deploy --secrets-file 或 npx wrangler secret put），不可寫進 repo
  */
@@ -24,6 +25,10 @@ const REDIRECT_CACHE_NAMESPACE_ID = '04f53a61677445138a45239c92c7f25a';
 export default defineConfig({
   worker: {
     name: 'tcurl',
+    // 不開放 tcurl.tzuchidigital.workers.dev 與版本預覽網址：只能從 Pages 入口進來
+    // （service binding 不需要 workers.dev）
+    workersDev: false,
+    previewUrls: false,
     compatibilityDate: '2026-10-15',
     // bcryptjs 會 import Node 的 crypto 模組（Workers 以 nodejs_compat 提供）
     compatibilityFlags: ['nodejs_compat'],
@@ -89,10 +94,10 @@ export default defineConfig({
       SUPABASE_URL: bindings.text('https://fsneeigsjdryxutmdrmg.supabase.co'),
       // Publishable key（公開值，前後端 anon 用途）
       SUPABASE_ANON_KEY: bindings.text('sb_publishable_XYMtpVzQz4ge2R1gD1NcaQ_VRXLTvmX'),
-      // 對外網域由 Pages 專案提供（pages/_worker.js → service binding → 本 Worker）。
+      // 對外網域由 Pages 專案提供（url.tzuchi.org、tcurl.pages.dev → pages/_worker.js → service binding → 本 Worker）。
       // 不設 BASE_URL：short_url 以請求的網域為準，換網域不必改設定。
       // CORS_ORIGIN 可用逗號列出多個來源（url.tzuchi.org 已內建於 src/main.ts）。
-      CORS_ORIGIN: bindings.text('https://tcurl.pages.dev,https://tcurl.tzuchidigital.workers.dev'),
+      CORS_ORIGIN: bindings.text('https://tcurl.pages.dev'),
       SUPABASE_SERVICE_ROLE_KEY: bindings.secret(),
       ADMIN_EMAILS: bindings.secret(),
     },

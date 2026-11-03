@@ -22,7 +22,8 @@
 
 > 下方「技術架構」「快速開始」「部署指南」中的 Nginx／Deno／systemd 內容是舊版自架說明（另見 `README.deno.md`），Workers 版不使用。
 
-- **執行環境**：Cloudflare Workers + Hono（Worker 名稱 `tcurl` → `https://tcurl.tzuchidigital.workers.dev`），已開啟 Smart Placement
+- **對外網址**：`https://url.tzuchi.org`（另有 `https://tcurl.pages.dev`）。由 Pages 專案 `tcurl`（`pages/_worker.js`）經 service binding 轉給 Worker；workers.dev 已關閉
+- **執行環境**：Cloudflare Workers + Hono（Worker 名稱 `tcurl`），已開啟 Smart Placement
 - **資料庫與登入**：Supabase Cloud（Frankfurt，eu-central-1），Google 帳號登入（Supabase Auth，PKCE）
 - **靜態檔**：Workers Static Assets（`public/`）
 - **設定檔**：`cloudflare.config.ts`（沒有 `wrangler.toml`，也沒有 `.env`）

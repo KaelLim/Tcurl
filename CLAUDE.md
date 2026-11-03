@@ -20,6 +20,8 @@ npm test             # = vitest run（Node 執行，bindings 與 Supabase 皆為
 
 # Deploy（由主流程執行；需 Cloudflare 憑證）
 cf deploy --secrets-file <path>   # 或 npx wrangler secret put <NAME> --name tcurl
+# Pages 入口（只有改 pages/_worker.js 時才需要；cf 沒有指定 Pages 專案的選項）
+npx wrangler@4 pages deploy pages --project-name tcurl --branch main
 ```
 
 `cf` 是 Cloudflare 官方 CLI（專案 devDependency，亦可用全域安裝）。專案**沒有** wrangler 設定檔；
@@ -28,7 +30,9 @@ cf deploy --secrets-file <path>   # 或 npx wrangler secret put <NAME> --name tc
 ## Architecture Overview
 
 **TCurl** is a short URL service for Tzu Chi Foundation, built with:
-- **Runtime**: Cloudflare Workers（Worker 名稱 `tcurl` → `https://tcurl.tzuchidigital.workers.dev`）
+- **Entry**: Pages 專案 `tcurl`（`https://url.tzuchi.org`、`https://tcurl.pages.dev`）→ `pages/_worker.js` 經 service binding `TCURL` 原封不動轉給 Worker。
+  邏輯全留在 Worker（Pages 不支援 Rate Limiting binding）。Worker 的 workers.dev 與預覽網址已關閉（`workersDev: false`）
+- **Runtime**: Cloudflare Workers（Worker 名稱 `tcurl`）
 - **Framework**: Hono（entry `src/main.ts`，`export default app`）
 - **Database**: Supabase Cloud (PostgreSQL + Auth)
 - **Static files**: Workers Static Assets（`public/`，Vite 的 publicDir）
@@ -45,12 +49,12 @@ cf deploy --secrets-file <path>   # 或 npx wrangler secret put <NAME> --name tc
 | `RATE_LIMITER` | Rate Limiting | 一般限流（`/api/*`、HTML 頁面；`/s/*`、`/ad/*` 除外），鍵 `CF-Connecting-IP`，100 次 / 60 秒 |
 | `REDIRECT_RATE_LIMITER` | Rate Limiting | 轉址限流（只套 `/s/*`、`/ad/*`），鍵 `CF-Connecting-IP`，1000 次 / 60 秒 |
 | `PASSWORD_RATE_LIMITER` | Rate Limiting | verify-password 專屬限流（IP + 短碼），5 次 / 60 秒 |
-| `SUPABASE_URL`, `SUPABASE_ANON_KEY`（publishable key）, `BASE_URL`, `CORS_ORIGIN` | text var | 公開設定 |
+| `SUPABASE_URL`, `SUPABASE_ANON_KEY`（publishable key）, `CORS_ORIGIN`（可逗號列多個；`url.tzuchi.org` 已內建於 `src/main.ts`） | text var | 公開設定 |
 | `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_EMAILS` | secret | 只宣告名稱，值在部署時注入，**不可進 repo** |
 
 Smart Placement 已開啟（`placement: { mode: 'smart' }`）：Supabase 在 Frankfurt，Worker 會被放到靠近 DB 的位置執行。
 
-選用 var：`SHORT_CODE_LENGTH`、`RATE_LIMIT_ENABLED=false`、`ENVIRONMENT=development`（允許 localhost CORS）。
+選用 var：`BASE_URL`（未設定時 short_url 以請求網域為準，目前不設）、`SHORT_CODE_LENGTH`、`RATE_LIMIT_ENABLED=false`、`ENVIRONMENT=development`（允許 localhost CORS）。
 Workers 沒有行程層級環境變數：**一律從請求的 `c.env` 讀取**，不要在模組層級讀設定。
 
 ### Critical: Supabase Dual-Client Pattern
@@ -73,7 +77,9 @@ const userClient = getUserClientFromRequest(c)   // or createUserClient(c.env, t
 ### Request Flow
 
 ```
-User Request → Cloudflare
+User Request → url.tzuchi.org / tcurl.pages.dev（Pages 專案 tcurl，pages/_worker.js）
+    ↓ service binding TCURL（URL、標頭含 CF-Connecting-IP 原封不動）
+Worker tcurl
     ↓
 assets.runWorkerFirst 符合？（/api, /api/*, /s/*, /ad/*, /health, 頁面路由, /, /*.html）
 ├── 否，且 public/ 有對應檔案 → Static Assets 直接回應（_headers 設快取）
