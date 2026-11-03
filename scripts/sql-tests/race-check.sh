@@ -7,7 +7,7 @@
 # 所以互斥另以這支腳本實測；api_keys_test.sql 案例 12 另檢查函式定義含 FOR SHARE。
 #
 # 用法：bash scripts/sql-tests/race-check.sh [api_keys migration 檔]
-#   預設用 supabase/migrations/20261103000000_api_keys.sql；可傳入改過的檔案（例如拿掉 FOR SHARE 的
+#   預設用 supabase/migrations/20261103120902_api_keys.sql；可傳入改過的檔案（例如拿掉 FOR SHARE 的
 #   mutant），確認這支測試抓得到。
 #
 # - 與 run-local.sh 相同：用本機既有的 postgres:17（--pull=never，不下載映像）、不連正式 Supabase；
@@ -25,7 +25,7 @@ set -euo pipefail
 
 DIR=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$DIR/../.." && pwd)
-API_KEYS_MIGRATION=20261103000000_api_keys.sql
+API_KEYS_MIGRATION=20261103120902_api_keys.sql
 MIG=${1:-"$ROOT/supabase/migrations/$API_KEYS_MIGRATION"}
 IMAGE=postgres:17
 NAME="tcurl-racetest-$$-$RANDOM"

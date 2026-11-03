@@ -1,5 +1,5 @@
 -- =====================================================================
--- API 金鑰 migration（supabase/migrations/20261103000000_api_keys.sql）的 SQL 測試
+-- API 金鑰 migration（supabase/migrations/20261103120902_api_keys.sql）的 SQL 測試
 --
 -- 單一 DO 區塊，最後一定 RAISE EXCEPTION 'API_KEYS_TEST …'，整段回滾、不留任何資料。
 -- 報告在錯誤訊息裡：第一行 passed=N failed=M，之後每個案例一行 PASS / FAIL

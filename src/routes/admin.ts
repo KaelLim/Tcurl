@@ -278,7 +278,7 @@ adminRoutes.put('/api/admin/feedbacks/:id/status', async (c) => {
 // 服務 API 金鑰（spec §6.6）
 //
 // 管理者判斷只用 getAdminUser；金鑰請求在 middleware/api-key-auth.ts 就被擋下（不在白名單 → 401）。
-// 資料都經 SECURITY DEFINER RPC（supabase/migrations/20261103000000_api_keys.sql），
+// 資料都經 SECURITY DEFINER RPC（supabase/migrations/20261103120902_api_keys.sql），
 // 回傳的單筆不含 key_hash。完整金鑰只出現在發放（POST）的 201 回應，不進 RPC、不進記錄。
 // ============================================================
 
